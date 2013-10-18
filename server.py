@@ -3,11 +3,11 @@ import json
 import serial
 from time import *
 
+
+ser = serial.Serial('/dev/ttyACM0', '115200')
+
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind(('0.0.0.0', 7000))
-# whether to use or not to use this timeout is the question?!
-#ser = serial.Serial('/dev/ttyACM0', '115200', writeTimeout=0.1)
-ser = serial.Serial('/dev/ttyACM0', '115200')
 
 #chksum calculation
 def chksum(str):

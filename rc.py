@@ -11,8 +11,8 @@ PIT_MIN   = -45
 PIT_MAX   = +45
 ROL_MIN   = -45
 ROL_MAX   = +45
-THR_MIN   = 1000
-THR_MAX   = 1800
+THR_MIN   = 1100
+THR_MAX   = 1900
 THR_80P   = 0.8 * (THR_MAX - THR_MIN) + THR_MIN
 # Global variables for controlling the quadrocopter
 ROL       = (ROL_MAX - ROL_MIN) / 2 + ROL_MIN
@@ -21,7 +21,7 @@ YAW       = (ROL_MAX - ROL_MIN) / 2 + ROL_MIN
 THR       = THR_MIN
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.connect(('192.168.1.5', 7000))
+sock.connect(('192.168.42.1', 7000))
 
 #chksum calculation
 def chksum(str):
@@ -74,9 +74,9 @@ def keyevent(key):
   #if key == curses.KEY_UP and THR < 0.8*(THR_MAX - THR_MIN)+THR_MIN: # Never upregulate till maximum
   #if key == curses.KEY_UP and THR < THR_80P:
   if key == curses.KEY_UP and THR < THR_MAX:
-    THR += 50
+    THR += 12.5
   if key == curses.KEY_DOWN and THR > THR_MIN:
-    THR -= 50
+    THR -= 12.5
 
   # Disarm if this button is pressed
   if key == ord("r"):
