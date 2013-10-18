@@ -3,34 +3,27 @@
 
 #include "RPiAPMCopterCommon.h"
 
+
 inline
-float drift_filter(float angle, float drift_vel, float &delta) {
-  static long  timer        = 0;
-  static float filtAngle      = 0;
-  static float lastAngle     = 0;
-  
-  delta = 0;
-  
-  float dalti = angle - lastAngle;
-  float time  = hal.scheduler->millis() - timer;
+float drift_filter(float &filt_angle,
+                   float curr_angle, float last_angle,
+                   float drift_vel, float time) 
+{
+  float delta = 0;
+  float dalti = curr_angle - last_angle;
   float drift_const = drift_vel/1000.f*time;
   
   if(abs(dalti) > drift_const) {
     delta = dalti - drift_const;
-    filtAngle += delta;
+    filt_angle += delta;
   }
-  filtAngle  = wrap_180(filtAngle);  
-  timer    = hal.scheduler->millis();
-  
-  lastAngle = angle;
-  return filtAngle;
+  filt_angle = wrap_180(filt_angle);  
+  last_angle = curr_angle;
+  return delta;
 }
 
-float sensor_fuse(float angle, 
-                  float d1, float d2,
-                  float w1 = 0.5, float w2 = 0.5) 
-{  
-  return angle + w1*d1 + w2*d2;
+float sensor_fuse(float gyro, float compass, float time, float rate = 0.025) {  
+  return gyro += wrap_180(compass-gyro)*(time/1000)*rate;
 }
 
 #endif

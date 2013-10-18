@@ -50,7 +50,7 @@ bool get_compass_heading(float &heading, float roll, float pitch) {
       return false;
     }
     Matrix3f dcm_matrix;
-    dcm_matrix.from_euler(roll, pitch, 0);
+    dcm_matrix.from_euler(ToRad(roll), ToRad(pitch), 0);
     heading = compass.calculate_heading(dcm_matrix);
     heading = ToDeg(heading);
     compass.null_offsets();
@@ -64,7 +64,7 @@ bool get_compass_heading(float &heading, float roll, float pitch) {
  * bias: Maximum countable drift in degrees
  */
 inline
-void measure_gyro_drift(Vector3f &drift, int &samples, float bias = 20) {
+void measure_gyro_drift(Vector3f &drift, Vector3f &offset, int &samples, float bias = 20) {
   static long  timer      = 0;
   
   static float last_rol   = 0;
@@ -76,23 +76,38 @@ void measure_gyro_drift(Vector3f &drift, int &samples, float bias = 20) {
   static float sum_yaw   = 0;
   
   long time = hal.scheduler->millis() - timer;
-  float rol, pit, yaw;
-  float drol, dpit, dyaw;
+  float rol = 0, pit = 0, yaw = 0;
+  float drol = 0, dpit = 0, dyaw = 0;
+  static float last_drol = 0, last_dpit = 0, last_dyaw = 0;
 
   static int counter = 0;
   if(time >= 1000) {
-    get_gyroscope(rol, pit, yaw);
+    get_altitude(rol, pit, yaw);
+    
+    offset.x = rol;
+    offset.y = pit;
+    offset.z = yaw;
     
     drol = rol - last_rol;
     dpit = pit - last_pit;
     dyaw = yaw - last_yaw;
-    
-    hal.console->printf("Gyroscope calibration - roll:%.3f-%.3f, pitch:%.3f-%.3f, yaw:%.3f-%.3f\n", 
-                        rol, drol, pit, dpit, yaw, dyaw);
-    
+
     // found pole
-    if(abs(drol) > 180 || abs(dpit) > 180 || abs(dyaw) > 180)
+    if(abs(drol) > 180 || abs(dpit) > 180 || abs(dyaw) > 180 || 
+       abs(drol-last_drol) > 0.1 || abs(dpit-last_dpit) > 0.1 || abs(dyaw-last_dyaw) > 0.1) 
+    {
+      timer = hal.scheduler->millis();
+      
+      last_rol = rol;
+      last_pit = pit;
+      last_yaw = yaw;
+      
+      last_drol = drol;
+      last_dpit = dpit;
+      last_dyaw = dyaw;
+      
       return;
+    }
 
     if(abs(drol) < bias && abs(dpit) < bias && abs(dyaw) < bias) {
       sum_rol += drol;
@@ -105,10 +120,18 @@ void measure_gyro_drift(Vector3f &drift, int &samples, float bias = 20) {
       drift.y = sum_pit/counter;
       drift.z = sum_yaw/counter;
     }
+    
+    hal.console->printf("Gyroscope calibration - roll:%.3f-%.3f, pitch:%.3f-%.3f, yaw:%.3f-%.3f\n", 
+                        rol, drol, pit, dpit, yaw, dyaw);
 
     last_rol = rol;
     last_pit = pit;
     last_yaw = yaw;
+    
+    last_drol = drol;
+    last_dpit = dpit;
+    last_dyaw = dyaw;
+    
     timer = hal.scheduler->millis();
   }
 }

@@ -138,9 +138,7 @@ void setup() {
   default:
     hal.console->printf("unknown\n");
     break;
-  }  
-  // Wait for 5 seconds
-  hal.scheduler->delay(5);
+  }
 }
 
 void loop() {
@@ -148,16 +146,19 @@ void loop() {
 
   // Calibrate gyro initially for 15s
   if(GYRO_CALI == true) {
-    Vector3f drift;
-    int samples;
-    drift_filter(drift, samples);
-    if(samples > 15) {  // 15 samples correspond to 15s
+    Vector3f drift, offset;
+    int samples = 0;
+    measure_gyro_drift(drift, offset, samples);
+    if(samples > 15) { // Number of samples
       GYRO_ROL_DRIFT = drift.x;
       GYRO_PIT_DRIFT = drift.y;
-      GYRO_YAW_DRIFT = drift.z;
+      GYRO_YAW_DRIFT = drift.z + 0.5f;
+      
+      GYRO_ROL_OFFS  = offset.x;
+      GYRO_PIT_OFFS  = offset.y;
+      GYRO_YAW_OFFS  = offset.z;
 
       hal.console->printf("Gyroscope calibrated - Drifts are roll:%f, pitch:%f, yaw:%f\n", GYRO_ROL_DRIFT, GYRO_PIT_DRIFT, GYRO_YAW_DRIFT);
- 
       GYRO_CALI = false;
     }
   } else {
@@ -208,22 +209,40 @@ void loop() {
     get_gyroscope(gyroPitch, gyroRoll, gyroYaw);
 
     // Compensate yaw drift a bit via high and low path filtering with the help of the compass
-    float dalti = 0;
-    //altiYaw = drift_filter(altiYaw, GYRO_YAW_DRIFT, dalti);     // without sensor fusion
-    float filtYaw = drift_filter(altiYaw, GYRO_YAW_DRIFT, dalti); // with sensor fusion
-    filtYaw -= dalti;
+    float darol = 0;
+    float dapit = 0;
+    float dayaw = 0;
+    
+    static float filt_rol = 0;
+    static float filt_pit = 0;
+    static float filt_yaw = 0;
+    
+    static float last_rol = 0;
+    static float last_pit = 0;
+    static float last_yaw = 0;
+    
+    static float heading  = 0; 
+    static float timer    = 0;
+
+    float time            = hal.scheduler->millis() - timer;
+    dayaw = drift_filter(filt_yaw, altiYaw, last_yaw, GYRO_YAW_DRIFT, time);
+
     if(COMPASS_AVAIL) {
-      static float last_heading = 0;
-      float        heading      = 0; 
-      bool         healthy      = get_compass_heading(heading, 0, 0);
-      float        dcomp        = 0;
-      
-      if(healthy) {
-        dcomp = wrap_180(heading - last_heading);
-        altiYaw = sensor_fuse(filtYaw, dalti, dcomp, 0.8, 0.2);
-      }
-      last_heading = heading;
+      bool healthy = get_compass_heading(heading, 0, 0);
+      if(healthy)
+        filt_yaw = sensor_fuse(filt_yaw, heading, time, 0.0125);
+      timer = hal.scheduler->millis();
     }
+    
+    last_rol    = altiRoll;
+    last_pit    = altiPitch;
+    last_yaw    = altiYaw;
+    
+    altiRoll   -= GYRO_ROL_OFFS; 
+    altiPitch  -= GYRO_PIT_OFFS;
+    altiYaw     = filt_yaw;
+    
+    //hal.console->printf("Gyroscope - roll:%.3f\tpitch:%.3f\tyaw:%.3f\theading:%f\t\n", altiRoll, altiPitch, altiYaw, heading);
     
     // Throttle raised, turn on stabilisation.
     if(rcthr > RC_THR_ACRO) {

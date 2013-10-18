@@ -6,6 +6,10 @@ float GYRO_ROL_DRIFT    = 0;
 float GYRO_PIT_DRIFT    = 0;
 float GYRO_YAW_DRIFT    = 0;
 
+float GYRO_ROL_OFFS     = 0;
+float GYRO_PIT_OFFS     = 0;
+float GYRO_YAW_OFFS     = 0;
+
 // Number of channels
 #define APM_IOCHANNEL_COUNT 	8
 
