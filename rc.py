@@ -21,7 +21,8 @@ YAW       = (ROL_MAX - ROL_MIN) / 2 + ROL_MIN
 THR       = THR_MIN
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.connect(('192.168.42.1', 7000))
+#sock.connect(('192.168.42.1', 7000))
+sock.connect(('192.168.1.5', 7000))
 
 #chksum calculation
 def chksum(str):

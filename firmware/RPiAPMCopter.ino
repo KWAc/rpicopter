@@ -1,4 +1,8 @@
-#include <AP_InertialSensor.h>
+////////////////////////////////////////////////////////////////////////////////
+// Header includes
+////////////////////////////////////////////////////////////////////////////////
+#include <AP_Notify.h>          // Notify library
+#include <AP_InertialSensor_MPU6000.h>
 #include <AP_Common.h>
 #include <AP_Math.h>
 #include <AP_Param.h>
@@ -10,62 +14,24 @@
 #include <AP_Compass.h>
 #include <PID.h>
 
+#include "RPiAPMCopterGlobals.h"
 #include "RPiAPMCopterDefs.h"
 #include "RPiAPMCopterFilter.h"
 #include "RPiAPMCopterSensors.h"
 #include "RPiAPMCopterCommon.h"
+#include "RPiAPMCopterParser.h"
 
 
-//checksum verifier
-uint8_t verify_chksum(char *str, char *chk) {
-  hal.console->printf(str);
-  hal.console->printf("\n");
+Vector3f attitude_calibration() {
+  Vector3f offset;
+  measure_attitude_offset(offset);
 
-  uint8_t nc = 0;
-  for(int i=0; i<strlen(str); i++) 
-    nc = (nc + str[i]) << 1;
+  GYRO_ROL_OFFS  = offset.x;
+  GYRO_PIT_OFFS  = offset.y;
+  GYRO_YAW_OFFS  = offset.z;
 
-  long chkl = strtol(chk, NULL, 16);                    // supplied chksum to long
-  if(chkl == (long)nc)                                  // compare
-    return true;
-
-  return false;
-}
-
-// Parse incoming text
-void parse_input(int &bytesAvail) {
-  static uint32_t offset = 0;
-  char buffer[32];
-  memset(buffer, 0, sizeof(buffer) );
-
-  for(; bytesAvail > 0; bytesAvail--) {
-    char c = (char)hal.console->read();                 // read next byte
-    if(c == '\n') {                                     // new line reached - process cmd
-      buffer[offset] = '\0';                            // null terminator
-      // process cmd
-      char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
-      char *chk = strtok(NULL, "*");                    // chk = chksum
-
-      if(verify_chksum(str, chk)) {                     // if chksum OK
-        char *ch = strtok(str, ",");                    // first channel
-        RC_CHANNELS[0] = (uint16_t)strtol(ch, NULL, 10);   // parse       
-        for(int i = 1; i < APM_IOCHANNEL_COUNT; i++) {  // loop through final 3 RC_CHANNELS
-          char *ch = strtok(NULL, ",");
-          RC_CHANNELS[i] = (uint16_t)strtol(ch, NULL, 10);   
-        }
-        RC_PACKET_T = hal.scheduler->millis();             // update last valid packet
-        memset(buffer, 0, sizeof(buffer));              // flush buffer after everything
-      } 
-      else {
-        hal.console->printf("Invalid checksum\n");
-        memset(buffer, 0, sizeof(buffer));              // flush buffer after everything
-      }
-      offset = 0;
-    }
-    else if(c != '\r' && offset < sizeof(buffer)-1) {
-      buffer[offset++] = c;                             // store in buffer and continue until newline
-    }
-  }
+  hal.console->printf("Gyroscope calibrated - Offsets are roll:%f, pitch:%f, yaw:%f\n", GYRO_ROL_OFFS, GYRO_PIT_OFFS, GYRO_YAW_OFFS);
+  return offset;
 }
 
 void setup() {
@@ -80,46 +46,49 @@ void setup() {
 
   // PID Configuration
   hal.console->printf("%.1f%%: Set PID configuration\n", 2.f*100.f/6.f);
-  PIDS[PID_PITCH_RATE].kP(0.7);
-  PIDS[PID_PITCH_RATE].kI(1);
-  PIDS[PID_PITCH_RATE].imax(50);
+  PIDS[PID_PIT_RATE].kP(0.5);
+  PIDS[PID_PIT_RATE].kI(0.5);
+  PIDS[PID_PIT_RATE].imax(50);
 
-  PIDS[PID_ROLL_RATE].kP(0.7);
-  PIDS[PID_ROLL_RATE].kI(1);
-  PIDS[PID_ROLL_RATE].imax(50);
+  PIDS[PID_ROL_RATE].kP(0.5);
+  PIDS[PID_ROL_RATE].kI(0.5);
+  PIDS[PID_ROL_RATE].imax(50);
 
-  PIDS[PID_YAW_RATE].kP(2.7);
-  PIDS[PID_YAW_RATE].kI(1);
+  PIDS[PID_YAW_RATE].kP(2.5);
+  PIDS[PID_YAW_RATE].kI(0.5);
   PIDS[PID_YAW_RATE].imax(50);
 
-  PIDS[PID_PITCH_STAB].kP(4.5);
-  PIDS[PID_ROLL_STAB].kP(4.5);
-  PIDS[PID_YAW_STAB].kP(10);
+  PIDS[PID_PIT_STAB].kP(4.5);
+  PIDS[PID_ROL_STAB].kP(4.5);
+  PIDS[PID_YAW_STAB].kP(5);
 
   // Turn off Barometer to avoid bus collisions
+#if CONFIG_HAL_BOARD == HAL_BOARD_APM2
   hal.console->printf("%.1f%%: Turn off barometer\n", 3.f*100.f/6.f);
+  // we need to stop the barometer from holding the SPI bus
   hal.gpio->pinMode(40, GPIO_OUTPUT);
   hal.gpio->write(40, 1);
+#endif
 
   // Turn on MPU6050 - quad must be kept still as gyros will calibrate
-  hal.console->printf("%.1f%%: Calibrate gyros\n", 4.f*100.f/6.f);
-  inertial.init(AP_InertialSensor::COLD_START, AP_InertialSensor::RATE_200HZ, NULL);
+  hal.console->printf("%.1f%%: Init inertial sensor\n", 4.f*100.f/6.f);
+  inertial.init(AP_InertialSensor::COLD_START, AP_InertialSensor::RATE_200HZ);
 
-  // initialise sensor fusion on MPU6050 chip (aka DigitalMotionProcessing/DMP)
-  hal.console->printf("\n%.1f%%: Initialize MPU6050\n", 5.f*100.f/6.f);
-  hal.scheduler->suspend_timer_procs();  // stop bus collisions
-  inertial.dmp_init();
-  hal.scheduler->resume_timer_procs();
+  hal.console->printf("\n%.1f%%: Attitude calibration. Vehicle should stand on plane ground!\n", 5.f*100.f/6.f);
+  inertial.update();
+  attitude_calibration();
 
   // Compass initializing
-  hal.console->printf("%.1f%%: Compass initialization\n", 6.f*100.f/6.f);
+  hal.console->printf("%.1f%%: Init compass\n", 6.f*100.f/6.f);
   if(!compass.init() ) {
-    hal.console->printf("Compass initialisation failed!\n");
-    COMPASS_AVAIL = 0;
+    COMPASS_INITIALIZED = 0;
+    hal.console->printf("Init compass failed!\n");
   }
 
-  compass.set_offsets(0, 0, 0);                                     // set offsets to account for surrounding interference
-  compass.set_declination(ToRad(0.0) );                             // set local difference between magnetic north and true north
+  compass.accumulate();
+  compass.motor_compensation_type(1);                              // throttle
+  compass.set_offsets(0, 0, 0);                                    // set offsets to account for surrounding interference
+  compass.set_declination(ToRad(0.f) );                            // set local difference between magnetic north and true north
 
   hal.console->print("Compass auto-detected as: ");
   switch( compass.product_id ) {
@@ -139,154 +108,180 @@ void setup() {
     hal.console->printf("unknown\n");
     break;
   }
+  COMPASS_INITIALIZED = 1;
 }
 
 void loop() {
-  static float    yaw_target  = 0;  
+  static float filt_rol    = 0.f; // drift and other shit compensated Roll
+  static float filt_pit    = 0.f; // drift and other shit compensated Pitch
+  static float filt_yaw    = 0.f; // drift and other shit compensated Yaw
 
-  // Calibrate gyro initially for 15s
-  if(GYRO_CALI == true) {
-    Vector3f drift, offset;
-    int samples = 0;
-    measure_gyro_drift(drift, offset, samples);
-    if(samples > 15) { // Number of samples
-      GYRO_ROL_DRIFT = drift.x;
-      GYRO_PIT_DRIFT = drift.y;
-      GYRO_YAW_DRIFT = drift.z + 0.5f;
-      
-      GYRO_ROL_OFFS  = offset.x;
-      GYRO_PIT_OFFS  = offset.y;
-      GYRO_YAW_OFFS  = offset.z;
+  static float targ_yaw    = 0.f; // yaw target from rc
+  static float comp_yaw    = 0.f; // heading of the compass
+  static float timer       = 0.f; // timer for gyro and compass used for drift compensation
 
-      hal.console->printf("Gyroscope calibrated - Drifts are roll:%f, pitch:%f, yaw:%f\n", GYRO_ROL_DRIFT, GYRO_PIT_DRIFT, GYRO_YAW_DRIFT);
-      GYRO_CALI = false;
+  // Wait until new orientation data (normally 5 ms max)
+  while(inertial.sample_available() == 0);
+
+  // serial bytes available?
+  int bytesAvailable = hal.console->available();
+  parse_input(bytesAvailable); 	// Parse incoming text
+
+  // Reduce throttle stepwise if no update for more than 500 ms
+  if(hal.scheduler->millis() - RC_PACKET_T > 500) {
+    // reduce throttle ..
+    if(RC_CHANNELS[2] > RC_THR_MIN) {
+      RC_CHANNELS[2] -= 1.25;
     }
-  } else {
-    // Wait until new orientation data (normally 5 ms max)
-    while(inertial.num_samples_available() == 0);
+    else { // .. and switch it off
+      RC_CHANNELS[2] = RC_THR_OFF;
+    }
+    // reset yaw, pitch and roll
+    RC_CHANNELS[3] = 0; // yaw
+    RC_CHANNELS[1] = 0; // pitch
+    RC_CHANNELS[0] = 0; // roll
+    hal.scheduler->delay(25); // Wait 25 ms 
+  }
 
-    // serial bytes available?
-    int bytesAvailable = hal.console->available();
-    parse_input(bytesAvailable); 	// Parse incoming text
+  // Variables to store radio in 
+  long rcthr, rcyaw, rcpit, rcrol;
+  // Read RC transmitter 
+  rcthr = RC_CHANNELS[2]; 
+  rcyaw = RC_CHANNELS[3];
+  rcpit = RC_CHANNELS[1];
+  rcrol = RC_CHANNELS[0];
 
-    // Reduce throttle stepwise if no update for more than 500 ms
-    if(hal.scheduler->millis() - RC_PACKET_T > 500) {
-      // reduce throttle ..
-      if(RC_CHANNELS[2] > RC_THR_MIN) {
-        RC_CHANNELS[2] -= 1.25;
-      }
-      else { // .. and switch it off
-        RC_CHANNELS[2] = RC_THR_OFF;
-      }
-      // reset yaw, pitch and roll
-      RC_CHANNELS[3] = 0; // yaw
-      RC_CHANNELS[1] = 0; // pitch
-      RC_CHANNELS[0] = 0; // roll
-      hal.scheduler->delay(25); // Wait 25 ms 
+  // Set an upper limit for the throttle (80% of maximum)
+  // to allow to counter regulate if copter is changing angle
+  if(rcthr > RC_THR_80P) {
+    rcthr = RC_THR_80P;
+  }
+
+  // Update sensor information
+  inertial.update();
+  
+  // Ask MPU6050's gyroscope for relative changes  in attitude
+  float gyroRol, gyroPit, gyroYaw;
+  get_gyroscope(gyroRol, gyroPit, gyroYaw);  // nice relative values
+
+  // Ask MPU6050's accelerometer for attitude (absolute value)
+  float attiRol, attiPit, attiYaw;
+  get_attitude(attiRol, attiPit, attiYaw);
+
+  // Remove offset for equal motor thrust at start (if ground is not totally even ..)
+  attiRol -= GYRO_ROL_OFFS;
+  attiPit -= GYRO_PIT_OFFS;
+
+  // Compensate yaw drift a bit with the help of the compass    
+  float time = hal.scheduler->millis() - timer;
+  timer = hal.scheduler->millis();
+
+  // Calculate absolute attitude from relative gyrometer changes
+  filt_rol += gyroRol * time/1000;
+  filt_rol = wrap_180(filt_rol);
+
+  filt_pit += gyroPit * time/1000;
+  filt_pit = wrap_180(filt_pit);
+
+  filt_yaw += gyroYaw * time/1000;
+  filt_yaw = wrap_180(filt_yaw);
+
+  /* 
+   * Fuse these values with the data from the accelerometer
+   * If the accelerometer gives values near zero (equilibrium) the annealing rate is big because vehicle is not moving much, 
+   * otherwise the rate is becomes very small very fast.
+   * This minimizes noise from acceleration/deceleration to a minimum.
+   */
+  filt_rol = sensor_fuse(filt_rol, attiRol, time, activation(attiRol, 20) );
+  filt_pit = sensor_fuse(filt_pit, attiPit, time, activation(attiPit, 20) );
+
+  // For yaw changes the compass could be used, otherwise anneal to zero
+  if(COMPASS_FOR_YAW) {
+    if(COMPASS_INITIALIZED) {
+      float fThrPerc = ((float)rcthr - RC_THR_MIN) / (RC_THR_80P - RC_THR_MIN);
+      compass.set_throttle(fThrPerc);
+
+      bool healthy = get_compass_heading(comp_yaw, 0, 0);
+      if(healthy && compass.use_for_yaw() )
+        filt_yaw = sensor_fuse(filt_yaw, -comp_yaw, time, 0.125);
+    }
+  } 
+  else {
+    filt_yaw = sensor_fuse(filt_yaw, 0, time, 0.125);
+  }
+/*
+  hal.console->printf("accroll:%.3f\troll:%.3f\taccpitch:%.3f\tpitch:%.3f\taccyaw:%.3f\tyaw:%.3f\n", 
+   attiRol, filt_rol, 
+   attiPit, filt_pit, 
+   attiYaw, filt_yaw);  
+*/
+/*
+  hal.console->printf("roll:%.3f\tfilt_roll:%.3f\tpitch:%.3f\tfilt_pitch:%.3f\tyaw:%.3f\tfilt_yaw:%.3f\tPit Rate:%f\tRol Rate:%f\n", 
+   attiRol, filt_rol, 
+   attiPit, filt_pit, 
+   attiYaw, filt_yaw, 
+   activation(attiPit), activation(attiRol));
+*/
+  // The save filtered attitude in proper variables for calculation of the motor values
+  attiRol     = filt_rol;
+  attiPit     = filt_pit;
+  attiYaw     = filt_yaw;
+
+  // Throttle raised, turn on stabilisation.
+  if(rcthr > RC_THR_ACRO) {
+    // Stablise PIDS
+    float rol_stab_output = constrain_float(PIDS[PID_ROL_STAB].get_pid((float)rcrol - attiRol, 1), -250, 250);
+    float pit_stab_output = constrain_float(PIDS[PID_PIT_STAB].get_pid((float)rcpit - attiPit, 1), -250, 250); 
+    float yaw_stab_output = constrain_float(PIDS[PID_YAW_STAB].get_pid(wrap_180(targ_yaw - attiYaw), 1), -360, 360);
+
+    // is pilot asking for yaw change - if so feed directly to rate pid (overwriting yaw stab output)
+    if(abs(rcyaw ) > 5) {
+      yaw_stab_output = rcyaw;
+      targ_yaw = attiYaw; // remember this yaw for when pilot stops
     }
 
-    // Variables to store radio in 
-    long rcthr, rcyaw, rcpit, rcroll;
-    // Read RC transmitter 
-    rcthr  = RC_CHANNELS[2]; 
-    rcyaw  = RC_CHANNELS[3];
-    rcpit  = RC_CHANNELS[1];
-    rcroll = RC_CHANNELS[0];
+    // rate PIDS
+    float rol_output = constrain_float(PIDS[PID_ROL_RATE].get_pid(rol_stab_output - gyroRol, 1), -500, 500);  
+    float pit_output = constrain_float(PIDS[PID_PIT_RATE].get_pid(pit_stab_output - gyroPit, 1), -500, 500);  
+    float yaw_output = constrain_float(PIDS[PID_YAW_RATE].get_pid(yaw_stab_output - gyroYaw, 1), -500, 500);  
 
-    // Set an upper limit for the throttle (80% of maximum)
-    // to allow to counter regulate if copter is changing angle
-    if(rcthr > RC_THR_80P) {
-      rcthr = RC_THR_80P;
-    }
+    float fFL = (float)rcthr + rol_output + pit_output - yaw_output;
+    float fBL = (float)rcthr + rol_output - pit_output + yaw_output;
+    float fFR = (float)rcthr - rol_output + pit_output + yaw_output;
+    float fBR = (float)rcthr - rol_output - pit_output - yaw_output;
 
-    // Update sensor information
-    inertial.update();
-    // Ask MPU6050 for altitude (absolute value)
-    float altiRoll, altiPitch, altiYaw;  
-    get_altitude(altiRoll, altiPitch, altiYaw);
-    // Ask MPU6050 for gyroscope for relative changes
-    float gyroPitch, gyroRoll, gyroYaw;
-    get_gyroscope(gyroPitch, gyroRoll, gyroYaw);
+    // mix pid outputs and send to the motors.
+    hal.rcout->write(MOTOR_FL, fFL);
+    hal.rcout->write(MOTOR_BL, fBL);
+    hal.rcout->write(MOTOR_FR, fFR);
+    hal.rcout->write(MOTOR_BR, fBR);
+/*
+    hal.console->printf("Motor Out - attiRol:%f\tattiPit:%f\tattiYaw:%f\tFL:%f\tBL:%f\tFR:%f\tBR:%f\n", 
+     attiRol, attiPit, attiYaw,
+     fFL, fBL, fFR, fBR);
+*/
+  } 
+  else {
+    // motors off
+    hal.rcout->write(MOTOR_FL, RC_THR_OFF);
+    hal.rcout->write(MOTOR_BL, RC_THR_OFF);
+    hal.rcout->write(MOTOR_FR, RC_THR_OFF);
+    hal.rcout->write(MOTOR_BR, RC_THR_OFF);
 
-    // Compensate yaw drift a bit via high and low path filtering with the help of the compass
-    float darol = 0;
-    float dapit = 0;
-    float dayaw = 0;
-    
-    static float filt_rol = 0;
-    static float filt_pit = 0;
-    static float filt_yaw = 0;
-    
-    static float last_rol = 0;
-    static float last_pit = 0;
-    static float last_yaw = 0;
-    
-    static float heading  = 0; 
-    static float timer    = 0;
+    // reset yaw target so we maintain this on take-off
+    targ_yaw = attiYaw;
 
-    float time            = hal.scheduler->millis() - timer;
-    dayaw = drift_filter(filt_yaw, altiYaw, last_yaw, GYRO_YAW_DRIFT, time);
-
-    if(COMPASS_AVAIL) {
-      bool healthy = get_compass_heading(heading, 0, 0);
-      if(healthy)
-        filt_yaw = sensor_fuse(filt_yaw, heading, time, 0.0125);
-      timer = hal.scheduler->millis();
-    }
-    
-    last_rol    = altiRoll;
-    last_pit    = altiPitch;
-    last_yaw    = altiYaw;
-    
-    altiRoll   -= GYRO_ROL_OFFS; 
-    altiPitch  -= GYRO_PIT_OFFS;
-    altiYaw     = filt_yaw;
-    
-    //hal.console->printf("Gyroscope - roll:%.3f\tpitch:%.3f\tyaw:%.3f\theading:%f\t\n", altiRoll, altiPitch, altiYaw, heading);
-    
-    // Throttle raised, turn on stabilisation.
-    if(rcthr > RC_THR_ACRO) {
-      // Stablise PIDS
-      float roll_stab_output  = constrain_float(PIDS[PID_ROLL_STAB].get_pid((float)rcroll - altiRoll, 1), -250, 250);
-      float pitch_stab_output = constrain_float(PIDS[PID_PITCH_STAB].get_pid((float)rcpit - altiPitch, 1), -250, 250); 
-      float yaw_stab_output   = constrain_float(PIDS[PID_YAW_STAB].get_pid(wrap_180(yaw_target - altiYaw), 1), -360, 360);
-
-      // is pilot asking for yaw change - if so feed directly to rate pid (overwriting yaw stab output)
-      if(abs(rcyaw ) > 5) {
-        yaw_stab_output = rcyaw;
-        yaw_target = altiYaw; // remember this yaw for when pilot stops
-      }
-
-      // rate PIDS
-      long roll_output  =  (long)constrain_float(PIDS[PID_ROLL_RATE].get_pid(roll_stab_output - gyroRoll, 1), -500, 500);  
-      long pitch_output =  (long)constrain_float(PIDS[PID_PITCH_RATE].get_pid(pitch_stab_output - gyroPitch, 1), - 500, 500);  
-      long yaw_output   =  (long)constrain_float(PIDS[PID_ROLL_RATE].get_pid(yaw_stab_output - gyroYaw, 1), -500, 500);  
-
-      // mix pid outputs and send to the motors.
-      hal.rcout->write(MOTOR_FL, rcthr + roll_output + pitch_output - yaw_output);
-      hal.rcout->write(MOTOR_BL, rcthr + roll_output - pitch_output + yaw_output);
-      hal.rcout->write(MOTOR_FR, rcthr - roll_output + pitch_output + yaw_output);
-      hal.rcout->write(MOTOR_BR, rcthr - roll_output - pitch_output - yaw_output);
-    } 
-    else {
-      // motors off
-      hal.rcout->write(MOTOR_FL, RC_THR_OFF);
-      hal.rcout->write(MOTOR_BL, RC_THR_OFF);
-      hal.rcout->write(MOTOR_FR, RC_THR_OFF);
-      hal.rcout->write(MOTOR_BR, RC_THR_OFF);
-
-      // reset yaw target so we maintain this on take-off
-      yaw_target = altiYaw;
-
-      // reset PID integrals whilst on the ground
-      for(int i = 0; i < 6; i++) {
-        PIDS[i].reset_I();
-      }
+    // reset PID integrals whilst on the ground
+    for(int i = 0; i < 6; i++) {
+      PIDS[i].reset_I();
     }
   }
 }
 
 AP_HAL_MAIN();
+
+
+
 
 
 

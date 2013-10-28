@@ -1,25 +1,25 @@
 #ifndef DEFS_h
 #define DEFS_h
 
-bool  GYRO_CALI         = 1;
-float GYRO_ROL_DRIFT    = 0;
-float GYRO_PIT_DRIFT    = 0;
-float GYRO_YAW_DRIFT    = 0;
+#if CONFIG_HAL_BOARD == HAL_BOARD_APM2
+  #define A_LED_PIN 27
+  #define C_LED_PIN 25
+#else
+  #define A_LED_PIN 37
+  #define C_LED_PIN 35
+#endif
 
-float GYRO_ROL_OFFS     = 0;
-float GYRO_PIT_OFFS     = 0;
-float GYRO_YAW_OFFS     = 0;
+// Number of samples for gyrometer calibration
+#define COMPASS_FOR_YAW   0
 
 // Number of channels
 #define APM_IOCHANNEL_COUNT 	8
 
-// Motor control
-PID      PIDS[6];       // PID array (6 pids, two for each axis)
 // PID array (6 pids, two for each axis)
-#define PID_PITCH_RATE 	  0
-#define PID_ROLL_RATE 	  1
-#define PID_PITCH_STAB 	  2
-#define PID_ROLL_STAB 	  3
+#define PID_PIT_RATE 	  0
+#define PID_ROL_RATE 	  1
+#define PID_PIT_STAB 	  2
+#define PID_ROL_STAB 	  3
 #define PID_YAW_RATE 	  4
 #define PID_YAW_STAB 	  5
 
@@ -36,7 +36,7 @@ PID      PIDS[6];       // PID array (6 pids, two for each axis)
 #define RC_THR_OFF   1000   // Motors completely off
 // Normal throttle range
 #define RC_THR_MIN   1100   // Minimum throttle bias
-#define RC_THR_ACRO  1200   // Minimum throttle to begin with stabilization
+#define RC_THR_ACRO  1125   // Minimum throttle to begin with stabilization
 #define RC_THR_MAX   1900   // Maximum throttle bias
 // Maximum allowed throttle value, settable by user
 #define RC_THR_80P   0.8 * (RC_THR_MAX - RC_THR_MIN) + RC_THR_MIN
@@ -49,19 +49,5 @@ PID      PIDS[6];       // PID array (6 pids, two for each axis)
 
 #define RC_ROL_MIN   -45
 #define RC_ROL_MAX   45
-
-// Compass
-bool COMPASS_AVAIL = 1;
-
-// Remote control
-uint32_t RC_PACKET_T = 0;
-int16_t  RC_CHANNELS[APM_IOCHANNEL_COUNT] = { 0,0,0,0,0,0,0,0 };
-
-// ArduPilot Hardware Abstraction Layer
-const AP_HAL::HAL& hal = AP_HAL_AVR_APM2;
-// MPU6050 accel/gyro chip
-AP_InertialSensor_MPU6000 inertial;
-// Magnetometer aka compass
-AP_Compass_HMC5843 compass;
 
 #endif /*DEFS_h*/

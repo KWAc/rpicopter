@@ -6,20 +6,22 @@
 
 
 /* 
- * Reads the current altitude in degrees and returns it as a 3D vector 
+ * Reads the current altitude in degrees and returns it as a 3D vector
+ * Seems to be broken at least in my device :D I just use it as reference for sensor fusion after offset calculation
  */
+ /*
 inline
-Vector3f get_altitude(float &roll, float &pitch, float &yaw) {
+Vector3f get_attitude(float &roll, float &pitch, float &yaw) {
   Vector3f gyro;
   inertial.quaternion.to_euler(&gyro.x, &gyro.y, &gyro.z);
 
-  roll  = gyro.x = ToDeg(gyro.x);
-  pitch = gyro.y = ToDeg(gyro.y);
-  yaw   = gyro.z = ToDeg(gyro.z);
+  roll  = ToDeg(gyro.x);
+  pitch = ToDeg(gyro.y);
+  yaw   = ToDeg(gyro.z);
 
   return gyro;
 }
-
+*/
 /* 
  * Reads the current altitude changes in degrees and returns it as a 3D vector 
  */
@@ -34,13 +36,39 @@ Vector3f get_gyroscope(float &roll, float &pitch, float &yaw) {
   return gyro;
 }
 
+/* 
+ * Reads the current altitude changes in degrees and returns it as a 3D vector 
+ */
+inline
+Vector3f get_attitude(float &roll, float &pitch, float &yaw) {
+  Vector3f accel = inertial.get_accel();
+  
+  roll  = accel.x;
+  pitch = accel.y;
+  yaw   = accel.z;
+  
+  float r = sqrt(pow(roll, 2) + pow(pitch, 2) + pow(yaw, 2) );
+  
+  roll  = ToDeg(acos(accel.y/r) ) - 90.f;
+  pitch = -(ToDeg(acos(accel.x/r) ) - 90.f);
+  yaw   = ToDeg(acos(accel.z/r) ) - 180.f;
+  
+  accel.x = roll;
+  accel.y = pitch;
+  accel.z = yaw;
+  
+  return accel;
+}
+
 /*
- * Return true if compass was healthy. 
+ * Return true if compass was healthy
  * In heading the heading of the compass is written.
  * All units in degrees
  */
 inline
-bool get_compass_heading(float &heading, float roll, float pitch) {
+bool get_compass_heading(float &heading, 
+                         float roll = 0.f, float pitch = 0.f) 
+{
   static uint32_t timer = 0;
   
   if(hal.scheduler->millis() - timer >= 100) {
@@ -50,7 +78,7 @@ bool get_compass_heading(float &heading, float roll, float pitch) {
       return false;
     }
     Matrix3f dcm_matrix;
-    dcm_matrix.from_euler(ToRad(roll), ToRad(pitch), 0);
+    dcm_matrix.from_euler(roll, pitch, 0);
     heading = compass.calculate_heading(dcm_matrix);
     heading = ToDeg(heading);
     compass.null_offsets();
@@ -60,80 +88,112 @@ bool get_compass_heading(float &heading, float roll, float pitch) {
   return true;
 }
 
+float delta_angle(float fCurVal, float fOldVal) {  
+  float fVal = fCurVal - fOldVal;
+  
+  if(fVal < -180.f) {
+    fVal = (fCurVal + 360) - fOldVal;
+  }
+  if(fVal > 180.f) {
+    fVal = (fCurVal - 360) - fOldVal;
+  }
+  
+  return fVal;
+}
+
 /*
  * bias: Maximum countable drift in degrees
  */
 inline
-void measure_gyro_drift(Vector3f &drift, Vector3f &offset, int &samples, float bias = 20) {
-  static long  timer      = 0;
-  
-  static float last_rol   = 0;
-  static float last_pit   = 0;
-  static float last_yaw   = 0;
-  
-  static float sum_rol   = 0;
-  static float sum_pit   = 0;
-  static float sum_yaw   = 0;
-  
+void measure_gyro_drift(Vector3f &drift, Vector3f &offset, int &samples, 
+                        float bias = 20) 
+{
+  static int   counter  = -1;
+  static long  timer    = 0;
   long time = hal.scheduler->millis() - timer;
+    
+  static float lst_rol  = 0;
+  static float lst_pit  = 0;
+  static float lst_yaw  = 0;
+  
+  static float lst_drol = 0; 
+  static float lst_dpit = 0; 
+  static float lst_dyaw = 0;
+  
+  static float sum_rol  = 0;
+  static float sum_pit  = 0;
+  static float sum_yaw  = 0;
+  
   float rol = 0, pit = 0, yaw = 0;
   float drol = 0, dpit = 0, dyaw = 0;
-  static float last_drol = 0, last_dpit = 0, last_dyaw = 0;
 
-  static int counter = 0;
-  if(time >= 1000) {
-    get_altitude(rol, pit, yaw);
+  if(time >= 2000) {
+    get_attitude(rol, pit, yaw);
     
     offset.x = rol;
     offset.y = pit;
     offset.z = yaw;
     
-    drol = rol - last_rol;
-    dpit = pit - last_pit;
-    dyaw = yaw - last_yaw;
+    rol = wrap_360(rol);
+    pit = wrap_360(pit);
+    yaw = wrap_360(yaw);
 
-    // found pole
-    if(abs(drol) > 180 || abs(dpit) > 180 || abs(dyaw) > 180 || 
-       abs(drol-last_drol) > 0.1 || abs(dpit-last_dpit) > 0.1 || abs(dyaw-last_dyaw) > 0.1) 
-    {
+    drol = delta_angle(rol, lst_rol);
+    dpit = delta_angle(pit, lst_pit);
+    dyaw = delta_angle(yaw, lst_yaw);
+    
+    lst_rol = rol;
+    lst_pit = pit;
+    lst_yaw = yaw;
+
+    if(abs(drol-lst_drol) > 0.05 || abs(dpit-lst_dpit) > 0.05 || abs(dyaw-lst_dyaw) > 0.025) {
+      hal.console->printf("Gyroscope is drifting too strong. Wait for next cycle.\n");
+      hal.console->printf("roll:%.3f-%.3f, pitch:%.3f-%.3f, yaw:%.3f-%.3f\n", 
+                          rol, drol, 
+                          pit, dpit, 
+                          yaw, dyaw);
+                        
+      lst_drol = drol;
+      lst_dpit = dpit;
+      lst_dyaw = dyaw;
+      
       timer = hal.scheduler->millis();
-      
-      last_rol = rol;
-      last_pit = pit;
-      last_yaw = yaw;
-      
-      last_drol = drol;
-      last_dpit = dpit;
-      last_dyaw = dyaw;
-      
       return;
     }
+    counter++;
 
-    if(abs(drol) < bias && abs(dpit) < bias && abs(dyaw) < bias) {
-      sum_rol += drol;
-      sum_pit += dpit;
-      sum_yaw += dyaw;
-      
-      samples = counter++;
+    if(counter > 0) {
+      sum_rol += drol * 1000/time;
+      sum_pit += dpit * 1000/time;
+      sum_yaw += dyaw * 1000/time;
       
       drift.x = sum_rol/counter;
       drift.y = sum_pit/counter;
       drift.z = sum_yaw/counter;
+    } else {
+      hal.console->printf("Ignore first cycle for calibration: ");
     }
     
-    hal.console->printf("Gyroscope calibration - roll:%.3f-%.3f, pitch:%.3f-%.3f, yaw:%.3f-%.3f\n", 
-                        rol, drol, pit, dpit, yaw, dyaw);
-
-    last_rol = rol;
-    last_pit = pit;
-    last_yaw = yaw;
-    
-    last_drol = drol;
-    last_dpit = dpit;
-    last_dyaw = dyaw;
-    
+    samples = counter;
     timer = hal.scheduler->millis();
+    
+    hal.console->printf("Gyroscope calibration %d - roll:%.3f-%.3f, pitch:%.3f-%.3f, yaw:%.3f-%.3f\n", 
+                        samples,
+                        rol, drol, 
+                        pit, dpit, 
+                        yaw, dyaw);
   }
+}
+
+inline
+void measure_attitude_offset(Vector3f &offset) 
+{     
+  float rol = 0, pit = 0, yaw = 0;
+  get_attitude(rol, pit, yaw);
+  
+  offset.x = rol;
+  offset.y = pit;
+  offset.z = yaw;
 }
 
 #endif
