@@ -22,15 +22,67 @@
 #include "RPiAPMCopterParser.h"
 
 
+/* 
+ * Find the offset from total equilibrium.
+ * Because the vehicle is never totally horizontally, 
+ * we will measure the discrepancy to compensate unequal motor thrust at start.
+ */
 Vector3f attitude_calibration() {
   Vector3f offset;
-  measure_attitude_offset(offset);
+  float samples_acc[ATTITUDE_SAMPLE_CNT];
+  float samples_avg = 0;
+  float samples_dev = 0;
+  
+  // initially switch on LEDs
+  leds_on(); bool led = true;
+  
+  while(true) {
+    samples_avg = 0;
+    samples_dev = 0;
+    
+    GYRO_ROL_OFFS = 0;
+    GYRO_PIT_OFFS = 0;
+    GYRO_YAW_OFFS = 0;
+  
+    // Take 10 samples in less than one second
+    for(int i = 0; i < ATTITUDE_SAMPLE_CNT; i++) {
+      inertial.update();
+      measure_attitude_offset(offset);
 
-  GYRO_ROL_OFFS  = offset.x;
-  GYRO_PIT_OFFS  = offset.y;
-  GYRO_YAW_OFFS  = offset.z;
+      hal.console->printf("Gyroscope calibration - Offsets are roll:%f, pitch:%f, yaw:%f.\n", 
+                          offset.x, offset.y, offset.z);
 
-  hal.console->printf("Gyroscope calibrated - Offsets are roll:%f, pitch:%f, yaw:%f\n", GYRO_ROL_OFFS, GYRO_PIT_OFFS, GYRO_YAW_OFFS);
+      GYRO_ROL_OFFS += offset.x / (float)ATTITUDE_SAMPLE_CNT;
+      GYRO_PIT_OFFS += offset.y / (float)ATTITUDE_SAMPLE_CNT;
+      GYRO_YAW_OFFS += offset.z / (float)ATTITUDE_SAMPLE_CNT;
+      
+      // Check whether the data set is useable
+      float cur_sample = sqrt(pow(offset.x, 2) + pow(offset.y, 2) + pow(offset.z, 2) );
+      samples_acc[i] = cur_sample;
+      samples_avg += cur_sample / ATTITUDE_SAMPLE_CNT;
+    
+      flash_leds(led); led = !led;  // let LEDs blink
+      hal.scheduler->delay(50);     //Wait 50ms
+    }
+    
+    // Calc standard deviation
+    for(int i = 0; i < ATTITUDE_SAMPLE_CNT; i++) {
+    samples_dev += pow(samples_acc[i] - samples_avg, 2) / (float)ATTITUDE_SAMPLE_CNT;
+    }
+    samples_dev = sqrt(samples_dev);
+    // If std dev is low: exit loop
+    if(samples_dev < samples_avg / 16.f) 
+      break;
+  }
+	
+  // Save offsets
+  offset.x = GYRO_ROL_OFFS;
+  offset.y = GYRO_PIT_OFFS;
+  offset.z = GYRO_YAW_OFFS;
+    
+  leds_off();   // switch off leds
+  hal.console->printf("Gyroscope calibrated - Offsets are roll:%f, pitch:%f, yaw:%f.\nAverage euclidian distance:%f, standard deviation:%f\n", 
+                      GYRO_ROL_OFFS, GYRO_PIT_OFFS, GYRO_YAW_OFFS, samples_avg, samples_dev);
   return offset;
 }
 
@@ -72,14 +124,13 @@ void setup() {
 
   // Turn on MPU6050 - quad must be kept still as gyros will calibrate
   hal.console->printf("%.1f%%: Init inertial sensor\n", 4.f*100.f/6.f);
-  inertial.init(AP_InertialSensor::COLD_START, AP_InertialSensor::RATE_200HZ);
+  inertial.init(AP_InertialSensor::COLD_START, AP_InertialSensor::RATE_100HZ);
 
   hal.console->printf("\n%.1f%%: Attitude calibration. Vehicle should stand on plane ground!\n", 5.f*100.f/6.f);
-  inertial.update();
   attitude_calibration();
 
   // Compass initializing
-  hal.console->printf("%.1f%%: Init compass\n", 6.f*100.f/6.f);
+  hal.console->printf("%.1f%%: Init compass: ", 6.f*100.f/6.f);
   if(!compass.init() ) {
     COMPASS_INITIALIZED = 0;
     hal.console->printf("Init compass failed!\n");

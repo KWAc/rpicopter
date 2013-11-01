@@ -1,13 +1,33 @@
 #ifndef DEFS_h
 #define DEFS_h
 
-#if CONFIG_HAL_BOARD == HAL_BOARD_APM2
-  #define A_LED_PIN 27
-  #define C_LED_PIN 25
-#else
-  #define A_LED_PIN 37
-  #define C_LED_PIN 35
+#if CONFIG_HAL_BOARD == HAL_BOARD_APM1
+  #define A_LED_PIN             37
+  #define B_LED_PIN             36
+  #define C_LED_PIN             35
+  #define LED_ON                HIGH
+  #define LED_OFF               LOW
+  #define SLIDE_SWITCH_PIN      40
+  #define PUSHBUTTON_PIN        41
+  #define USB_MUX_PIN           -1
+  #define CLI_SLIDER_ENABLED    DISABLED
+  #define BATTERY_VOLT_PIN      0      // Battery voltage on A0
+  #define BATTERY_CURR_PIN      1      // Battery current on A1
+#elif CONFIG_HAL_BOARD == HAL_BOARD_APM2
+  #define A_LED_PIN             27
+  #define B_LED_PIN             26
+  #define C_LED_PIN             25
+  #define LED_ON                LOW
+  #define LED_OFF               HIGH
+  #define SLIDE_SWITCH_PIN      (-1)
+  #define PUSHBUTTON_PIN        (-1)
+  #define CLI_SLIDER_ENABLED    DISABLED
+  #define USB_MUX_PIN           23
+  #define BATTERY_VOLT_PIN      1      // Battery voltage on A1
+  #define BATTERY_CURR_PIN      2      // Battery current on A2
 #endif
+
+#define ATTITUDE_SAMPLE_CNT 10
 
 // Number of samples for gyrometer calibration
 #define COMPASS_FOR_YAW   0
@@ -30,7 +50,7 @@
 #define MOTOR_BR   3    // back right
 
 // Baud rate
-#define BAUD_RATE    115200
+#define BAUD_RATE    38400
 
 // Radio min/max values for each stick for my radio (worked out at beginning of article)
 #define RC_THR_OFF   1000   // Motors completely off

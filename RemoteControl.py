@@ -58,26 +58,26 @@ def keyevent(key):
   
   # Reset the settings stepwise
   if PIT > (PIT_MAX - PIT_MIN) / 2 + PIT_MIN:
-	PIT -= 2.5
+	PIT -= 2.25
   if ROL > (ROL_MAX - ROL_MIN) / 2 + ROL_MIN:
-	ROL -= 2.5
+	ROL -= 2.25
   if YAW > (YAW_MAX - YAW_MIN) / 2 + YAW_MIN:
-	YAW -= 20
+	YAW -= 9
 	
   if PIT < (PIT_MAX - PIT_MIN) / 2 + PIT_MIN:
-	PIT += 2.5
+	PIT += 2.25
   if ROL < (ROL_MAX - ROL_MIN) / 2 + ROL_MIN:
-	ROL += 2.5
+	ROL += 2.25
   if YAW < (YAW_MAX - YAW_MIN) / 2 + YAW_MIN:
-	YAW += 20
+	YAW += 9
   
   # higher lower thrust
   #if key == curses.KEY_UP and THR < 0.8*(THR_MAX - THR_MIN)+THR_MIN: # Never upregulate till maximum
   #if key == curses.KEY_UP and THR < THR_80P:
   if key == curses.KEY_UP and THR < THR_MAX:
-    THR += 12.5
+    THR += 5
   if key == curses.KEY_DOWN and THR > THR_MIN:
-    THR -= 12.5
+    THR -= 5
 
   # Disarm if this button is pressed
   if key == ord("r"):
@@ -87,22 +87,22 @@ def keyevent(key):
 	THR = THR_MIN
 	
   # forward backward
-  if key == ord("w") and PIT < PIT_MAX:
-    PIT = PIT_MAX;
-  if key == ord("s") and PIT > PIT_MIN:
-    PIT = PIT_MIN;
+  if key == ord("w") and PIT + PIT_MAX/5 < PIT_MAX:
+    PIT += PIT_MAX/5;
+  if key == ord("s") and PIT + PIT_MIN/5 > PIT_MIN:
+    PIT += PIT_MIN/5;
 
   # strafe left right
-  if key == ord("a") and ROL < ROL_MAX:
-    ROL = ROL_MAX;
-  if key == ord("d") and ROL > ROL_MIN:
-    ROL = ROL_MIN;
+  if key == ord("a") and ROL + ROL_MAX/5 < ROL_MAX:
+    ROL += ROL_MAX/5;
+  if key == ord("d") and ROL + ROL_MIN/5 > ROL_MIN:
+    ROL += ROL_MIN/5;
 
   # Turn left right
-  if key == ord("q") and YAW < YAW_MAX:
-    YAW = YAW_MAX;
-  if key == ord("e") and YAW > YAW_MIN:
-    YAW = YAW_MIN;
+  if key == ord("q") and YAW + YAW_MAX/5 < YAW_MAX:
+    YAW += YAW_MAX/5;
+  if key == ord("e") and YAW + YAW_MIN/5 > YAW_MIN:
+    YAW += YAW_MIN/5;
 
 def main():
   stdscr = curses.initscr()
@@ -114,14 +114,13 @@ def main():
   while 1:
       key = stdscr.getch()
       if key == ord('x'):
-        sCom = makecommand(0, 0, 0, THR_MIN)
-        print sendcommand(sCom)
-        time.sleep(1)
+        sCom = makecommand(0, 0, THR_MIN, 0)
+        print "End process with: " + sendcommand(sCom)
         break
       else:
         keyevent(key)
         sCom = makecommand(ROL, PIT, THR, YAW)
         print sendcommand(sCom)
-        time.sleep(0.025)
+        time.sleep(0.020)
 
 main()

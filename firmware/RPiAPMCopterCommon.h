@@ -2,9 +2,22 @@
 #define COMMON_h
 
 
-static void flash_leds(bool on) {
-    hal.gpio->write(A_LED_PIN, on);
-    hal.gpio->write(C_LED_PIN, ~on);
+inline
+void flash_leds(bool on) {
+    hal.gpio->write(A_LED_PIN, on ? LED_OFF : LED_ON);
+    hal.gpio->write(C_LED_PIN, on ? LED_ON : LED_OFF);
+}
+
+inline
+void leds_off() {
+    hal.gpio->write(A_LED_PIN, LED_OFF);
+    hal.gpio->write(C_LED_PIN, LED_OFF);
+}
+
+inline
+void leds_on() {
+    hal.gpio->write(A_LED_PIN, LED_ON);
+    hal.gpio->write(C_LED_PIN, LED_ON);
 }
 
 inline
@@ -25,10 +38,5 @@ float activation(float x, float force_mod = 20.f){
   float val = (180.f - bias_value(abs(force_mod * x), 179.9f) ) / 180.f;
   return val / sqrt(1 + pow(val, 2));
 }
-
-/*inline
-float abs(float val) {
-  return val < 0.f ? -val : val;
-}*/
 
 #endif

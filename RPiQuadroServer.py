@@ -3,11 +3,11 @@ import json
 import serial
 from time import *
 
-
-ser = serial.Serial('/dev/ttyACM0', '115200')
-
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind(('0.0.0.0', 7000))
+# whether to use or not to use this timeout is the question?!
+# rtscts=1 is necessary for raspbian due to a bug in the usb/serial driver ):
+ser = serial.Serial('/dev/ttyACM0', '38400', writeTimeout=0.1, rtscts=1)
 
 #chksum calculation
 def chksum(str):
@@ -25,6 +25,8 @@ def main():
     fchksum = int(data[data.find("*")+1 : len(data)])
     data = data[: data.find("*")]
 
+    #print data
+
     # Do nothing if checksum of incoming message is wrong
     if chksum(data) != fchksum:
       print "Wrong checksum! Received: %d, calculated: %d" % (fchksum, chksum(data) )
@@ -41,13 +43,11 @@ def main():
 
         # concatenate msg and chksum
         output = "%s*%x\r\n" % (str, chk)
-        print "Send to control board: " + output
+        #print "Send to control board: " + output
 
         ser.write(output)
         # flushInput() seems to be extremely important
-        # otherwise the APM 2.5 control boards stucks after some commands
-        ser.flush()
+        # otherwise the APM 2.5 control boards stucks after some command
         ser.flushInput()
-        ser.flushOutput()
 
 main()
