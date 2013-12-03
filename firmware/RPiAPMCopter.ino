@@ -1,7 +1,11 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Header includes
 ////////////////////////////////////////////////////////////////////////////////
-#include <AP_Notify.h>          // Notify library
+#include <stdio.h>
+////////////////////////////////////////////////////////////////////////////////
+// Ardu pilot library includes
+////////////////////////////////////////////////////////////////////////////////
+#include <AP_Notify.h>
 #include <AP_InertialSensor_MPU6000.h>
 #include <AP_Common.h>
 #include <AP_Math.h>
@@ -11,165 +15,38 @@
 #include <AP_HAL.h>
 #include <AP_HAL_AVR.h>
 #include <GCS_MAVLink.h>
+#include <AP_Declination.h>
 #include <AP_Compass.h>
+#include <AP_Baro.h>
+#include <Filter.h>
 #include <PID.h>
-
-#include "RPiAPMCopterGlobals.h"
-#include "RPiAPMCopterDefs.h"
-#include "RPiAPMCopterFilter.h"
-#include "RPiAPMCopterSensors.h"
-#include "RPiAPMCopterCommon.h"
-#include "RPiAPMCopterParser.h"
+////////////////////////////////////////////////////////////////////////////////
+// Own includes
+////////////////////////////////////////////////////////////////////////////////
+#include "globals.h"
+#include "defines.h"
+#include "filter.h"
+#include "sensors.h"
+#include "math.h"
+#include "parser.h"
+#include "output.h"
+#include "setup.h"
 
 
 /* 
- * Find the offset from total equilibrium.
- * Because the vehicle is never totally horizontally, 
- * we will measure the discrepancy to compensate unequal motor thrust at start.
+ * Fast and time critical loop for: 
+ * - controlling the quadrocopter 
+ * - fetching rc signals
+ * - filtering and processing sensor data necessary for flight
  */
-Vector3f attitude_calibration() {
-  Vector3f offset;
-  float samples_acc[ATTITUDE_SAMPLE_CNT];
-  float samples_avg = 0;
-  float samples_dev = 0;
-  
-  // initially switch on LEDs
-  leds_on(); bool led = true;
-  
-  while(true) {
-    samples_avg = 0;
-    samples_dev = 0;
-    
-    GYRO_ROL_OFFS = 0;
-    GYRO_PIT_OFFS = 0;
-    GYRO_YAW_OFFS = 0;
-  
-    // Take 10 samples in less than one second
-    for(int i = 0; i < ATTITUDE_SAMPLE_CNT; i++) {
-      inertial.update();
-      measure_attitude_offset(offset);
-
-      hal.console->printf("Gyroscope calibration - Offsets are roll:%f, pitch:%f, yaw:%f.\n", 
-                          offset.x, offset.y, offset.z);
-
-      GYRO_ROL_OFFS += offset.x / (float)ATTITUDE_SAMPLE_CNT;
-      GYRO_PIT_OFFS += offset.y / (float)ATTITUDE_SAMPLE_CNT;
-      GYRO_YAW_OFFS += offset.z / (float)ATTITUDE_SAMPLE_CNT;
-      
-      // Check whether the data set is useable
-      float cur_sample = sqrt(pow(offset.x, 2) + pow(offset.y, 2) + pow(offset.z, 2) );
-      samples_acc[i] = cur_sample;
-      samples_avg += cur_sample / ATTITUDE_SAMPLE_CNT;
-    
-      flash_leds(led); led = !led;  // let LEDs blink
-      hal.scheduler->delay(50);     //Wait 50ms
-    }
-    
-    // Calc standard deviation
-    for(int i = 0; i < ATTITUDE_SAMPLE_CNT; i++) {
-    samples_dev += pow(samples_acc[i] - samples_avg, 2) / (float)ATTITUDE_SAMPLE_CNT;
-    }
-    samples_dev = sqrt(samples_dev);
-    // If std dev is low: exit loop
-    if(samples_dev < samples_avg / 16.f) 
-      break;
-  }
-	
-  // Save offsets
-  offset.x = GYRO_ROL_OFFS;
-  offset.y = GYRO_PIT_OFFS;
-  offset.z = GYRO_YAW_OFFS;
-    
-  leds_off();   // switch off leds
-  hal.console->printf("Gyroscope calibrated - Offsets are roll:%f, pitch:%f, yaw:%f.\nAverage euclidian distance:%f, standard deviation:%f\n", 
-                      GYRO_ROL_OFFS, GYRO_PIT_OFFS, GYRO_YAW_OFFS, samples_avg, samples_dev);
-  return offset;
-}
-
-void setup() {
-  // Set baud rate when connected to RPi
-  hal.uartA->begin(BAUD_RATE);
-  hal.console->printf("Setup device ..\n");
-
-  // Enable the motors and set at 490Hz update
-  hal.console->printf("%.1f%%: Set ESC refresh rate to 490 Hz\n", 1.f*100.f/6.f);
-  hal.rcout->set_freq(0xF, 490);
-  hal.rcout->enable_mask(0xFF);
-
-  // PID Configuration
-  hal.console->printf("%.1f%%: Set PID configuration\n", 2.f*100.f/6.f);
-  PIDS[PID_PIT_RATE].kP(0.5);
-  PIDS[PID_PIT_RATE].kI(0.5);
-  PIDS[PID_PIT_RATE].imax(50);
-
-  PIDS[PID_ROL_RATE].kP(0.5);
-  PIDS[PID_ROL_RATE].kI(0.5);
-  PIDS[PID_ROL_RATE].imax(50);
-
-  PIDS[PID_YAW_RATE].kP(2.5);
-  PIDS[PID_YAW_RATE].kI(0.5);
-  PIDS[PID_YAW_RATE].imax(50);
-
-  PIDS[PID_PIT_STAB].kP(4.5);
-  PIDS[PID_ROL_STAB].kP(4.5);
-  PIDS[PID_YAW_STAB].kP(5);
-
-  // Turn off Barometer to avoid bus collisions
-#if CONFIG_HAL_BOARD == HAL_BOARD_APM2
-  hal.console->printf("%.1f%%: Turn off barometer\n", 3.f*100.f/6.f);
-  // we need to stop the barometer from holding the SPI bus
-  hal.gpio->pinMode(40, GPIO_OUTPUT);
-  hal.gpio->write(40, 1);
-#endif
-
-  // Turn on MPU6050 - quad must be kept still as gyros will calibrate
-  hal.console->printf("%.1f%%: Init inertial sensor\n", 4.f*100.f/6.f);
-  inertial.init(AP_InertialSensor::COLD_START, AP_InertialSensor::RATE_100HZ);
-
-  hal.console->printf("\n%.1f%%: Attitude calibration. Vehicle should stand on plane ground!\n", 5.f*100.f/6.f);
-  attitude_calibration();
-
-  // Compass initializing
-  hal.console->printf("%.1f%%: Init compass: ", 6.f*100.f/6.f);
-  if(!compass.init() ) {
-    COMPASS_INITIALIZED = 0;
-    hal.console->printf("Init compass failed!\n");
-  }
-
-  compass.accumulate();
-  compass.motor_compensation_type(1);                              // throttle
-  compass.set_offsets(0, 0, 0);                                    // set offsets to account for surrounding interference
-  compass.set_declination(ToRad(0.f) );                            // set local difference between magnetic north and true north
-
-  hal.console->print("Compass auto-detected as: ");
-  switch( compass.product_id ) {
-  case AP_COMPASS_TYPE_HIL:
-    hal.console->printf("HIL\n");
-    break;
-  case AP_COMPASS_TYPE_HMC5843:
-    hal.console->println("HMC5843\n");
-    break;
-  case AP_COMPASS_TYPE_HMC5883L:
-    hal.console->printf("HMC5883L\n");
-    break;
-  case AP_COMPASS_TYPE_PX4:
-    hal.console->printf("PX4\n");
-    break;
-  default:
-    hal.console->printf("unknown\n");
-    break;
-  }
-  COMPASS_INITIALIZED = 1;
-}
-
-void loop() {
+inline void fast_loop() {
   static float filt_rol    = 0.f; // drift and other shit compensated Roll
   static float filt_pit    = 0.f; // drift and other shit compensated Pitch
   static float filt_yaw    = 0.f; // drift and other shit compensated Yaw
 
   static float targ_yaw    = 0.f; // yaw target from rc
   static float comp_yaw    = 0.f; // heading of the compass
-  static float timer       = 0.f; // timer for gyro and compass used for drift compensation
+  static int timer         = 0; // timer for gyro and compass used for drift compensation
 
   // Wait until new orientation data (normally 5 ms max)
   while(inertial.sample_available() == 0);
@@ -211,11 +88,11 @@ void loop() {
   // Update sensor information
   inertial.update();
   
-  // Ask MPU6050's gyroscope for relative changes  in attitude
+  // Ask MPU6050's gyroscope for changes in attitude
   float gyroRol, gyroPit, gyroYaw;
-  get_gyroscope(gyroRol, gyroPit, gyroYaw);  // nice relative values
+  get_gyroscope(gyroRol, gyroPit, gyroYaw);
 
-  // Ask MPU6050's accelerometer for attitude (absolute value)
+  // Ask MPU6050's accelerometer for attitude
   float attiRol, attiPit, attiYaw;
   get_attitude(attiRol, attiPit, attiYaw);
 
@@ -224,7 +101,7 @@ void loop() {
   attiPit -= GYRO_PIT_OFFS;
 
   // Compensate yaw drift a bit with the help of the compass    
-  float time = hal.scheduler->millis() - timer;
+  int time = hal.scheduler->millis() - timer;
   timer = hal.scheduler->millis();
 
   // Calculate absolute attitude from relative gyrometer changes
@@ -253,6 +130,7 @@ void loop() {
       compass.set_throttle(fThrPerc);
 
       bool healthy = get_compass_heading(comp_yaw, 0, 0);
+      OUT_HEADING = comp_yaw;
       if(healthy && compass.use_for_yaw() )
         filt_yaw = sensor_fuse(filt_yaw, -comp_yaw, time, 0.125);
     }
@@ -260,30 +138,16 @@ void loop() {
   else {
     filt_yaw = sensor_fuse(filt_yaw, 0, time, 0.125);
   }
-/*
-  hal.console->printf("accroll:%.3f\troll:%.3f\taccpitch:%.3f\tpitch:%.3f\taccyaw:%.3f\tyaw:%.3f\n", 
-   attiRol, filt_rol, 
-   attiPit, filt_pit, 
-   attiYaw, filt_yaw);  
-*/
-/*
-  hal.console->printf("roll:%.3f\tfilt_roll:%.3f\tpitch:%.3f\tfilt_pitch:%.3f\tyaw:%.3f\tfilt_yaw:%.3f\tPit Rate:%f\tRol Rate:%f\n", 
-   attiRol, filt_rol, 
-   attiPit, filt_pit, 
-   attiYaw, filt_yaw, 
-   activation(attiPit), activation(attiRol));
-*/
+
   // The save filtered attitude in proper variables for calculation of the motor values
-  attiRol     = filt_rol;
-  attiPit     = filt_pit;
-  attiYaw     = filt_yaw;
+  OUT_ROL = filt_rol;  OUT_PIT = filt_pit;  OUT_YAW = filt_yaw;
 
   // Throttle raised, turn on stabilisation.
   if(rcthr > RC_THR_ACRO) {
     // Stablise PIDS
-    float rol_stab_output = constrain_float(PIDS[PID_ROL_STAB].get_pid((float)rcrol - attiRol, 1), -250, 250);
-    float pit_stab_output = constrain_float(PIDS[PID_PIT_STAB].get_pid((float)rcpit - attiPit, 1), -250, 250); 
-    float yaw_stab_output = constrain_float(PIDS[PID_YAW_STAB].get_pid(wrap_180(targ_yaw - attiYaw), 1), -360, 360);
+    float rol_stab_output = constrain_float(PIDS[PID_ROL_STAB].get_pid((float)rcrol - OUT_ROL, 1), -250, 250);
+    float pit_stab_output = constrain_float(PIDS[PID_PIT_STAB].get_pid((float)rcpit - OUT_PIT, 1), -250, 250); 
+    float yaw_stab_output = constrain_float(PIDS[PID_YAW_STAB].get_pid(wrap_180(targ_yaw - OUT_YAW), 1), -360, 360);
 
     // is pilot asking for yaw change - if so feed directly to rate pid (overwriting yaw stab output)
     if(abs(rcyaw ) > 5) {
@@ -306,11 +170,6 @@ void loop() {
     hal.rcout->write(MOTOR_BL, fBL);
     hal.rcout->write(MOTOR_FR, fFR);
     hal.rcout->write(MOTOR_BR, fBR);
-/*
-    hal.console->printf("Motor Out - attiRol:%f\tattiPit:%f\tattiYaw:%f\tFL:%f\tBL:%f\tFR:%f\tBR:%f\n", 
-     attiRol, attiPit, attiYaw,
-     fFL, fBL, fFR, fBR);
-*/
   } 
   else {
     // motors off
@@ -327,6 +186,88 @@ void loop() {
       PIDS[i].reset_I();
     }
   }
+}
+
+/* 
+ * Slow and NOT time critical loop for: 
+ * - sending general information over the serial port
+ * - Potentially slow calculations, logging and printing output should be done here
+ */
+ inline void medium_loop() {
+  static int timer = 0;
+  int time = hal.scheduler->millis() - timer;
+  
+  // send every 0.25 s
+  if(time > 250) {
+    send_attitude(OUT_PIT, OUT_ROL, OUT_YAW);
+    
+    OUT_BARO = get_baro();
+    send_baro(OUT_BARO);
+
+    timer = hal.scheduler->millis();
+  }
+}
+ 
+inline void slow_loop() {
+  static int timer = 0;
+  int time = hal.scheduler->millis() - timer;
+  
+  // send every 1 s
+  if(time > 1000) {
+    send_comp(OUT_HEADING);
+    
+    timer = hal.scheduler->millis();
+  }
+}
+
+inline void very_slow_loop() {
+  static int timer = 0;
+  int time = hal.scheduler->millis() - timer;
+  
+  // send every 5 s
+  if(time > 5000) {
+    send_pids();
+    
+    timer = hal.scheduler->millis();
+  }
+}
+
+void setup() {
+  // Set baud rate when connected to RPi
+  hal.uartA->begin(BAUD_RATE);
+  hal.console->printf("Setup device ..\n");
+
+  // Enable the motors and set at 490Hz update
+  hal.console->printf("%.1f%%: Set ESC refresh rate to 490 Hz\n", 1.f*100.f/6.f);
+  hal.rcout->set_freq(0xF, 490);
+  hal.rcout->enable_mask(0xFF);
+
+  // PID Configuration
+  hal.console->printf("%.1f%%: Set PID configuration\n", 2.f*100.f/6.f);
+  init_pids();
+
+  hal.console->printf("%.1f%%: Init barometer\n", 3.f*100.f/6.f);
+  init_baro();
+  
+  hal.console->printf("%.1f%%: Init inertial sensor\n", 4.f*100.f/6.f);
+  init_inertial();
+
+  hal.console->printf("\n%.1f%%: Attitude calibration. Vehicle should stand on plane ground!\n", 5.f*100.f/6.f);
+  attitude_calibration();
+
+  // Compass initializing
+  hal.console->printf("%.1f%%: Init compass: ", 6.f*100.f/6.f);
+  init_compass();
+}
+
+void loop() {
+  // remote control and quadro control loop
+  fast_loop();        // time critical stuff
+  
+  // send some json formatted information about the model over serial port
+  medium_loop();      // barometer and attitude
+  slow_loop();        // compass
+  very_slow_loop();   // general configuration (e.g. PIDs) of the copter
 }
 
 AP_HAL_MAIN();

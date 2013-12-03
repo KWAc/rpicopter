@@ -36,6 +36,8 @@
 #define APM_IOCHANNEL_COUNT 	8
 
 // PID array (6 pids, two for each axis)
+#define PID_SIZE        3
+
 #define PID_PIT_RATE 	  0
 #define PID_ROL_RATE 	  1
 #define PID_PIT_STAB 	  2

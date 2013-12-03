@@ -1,7 +1,7 @@
 #ifndef FILTERS_h
 #define FILTERS_h
 
-#include "RPiAPMCopterCommon.h"
+#include "math.h"
 
 
 /*

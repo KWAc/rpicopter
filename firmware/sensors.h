@@ -37,7 +37,7 @@ Vector3f get_gyroscope(float &roll, float &pitch, float &yaw) {
 }
 
 /* 
- * Reads the current altitude changes in degrees and returns it as a 3D vector 
+ * Reads the current attitude in degrees and returns it as a 3D vector 
  */
 inline
 Vector3f get_attitude(float &roll, float &pitch, float &yaw) {
@@ -194,6 +194,33 @@ void measure_attitude_offset(Vector3f &offset)
   offset.x = rol;
   offset.y = pit;
   offset.z = yaw;
+}
+
+bdata get_baro() {
+  static int timer = 0;
+
+  long time = hal.scheduler->millis() - timer;
+  static bdata res_data = {-1.f, -1.f, -1.f, -1.f, -1.f};
+  
+  if(time > 100UL) {
+    timer = hal.scheduler->millis();
+    barometer.read();
+    uint32_t read_time = hal.scheduler->millis() - timer;
+    if (!barometer.healthy) {
+        hal.console->println("not healthy");
+        return res_data;
+    }
+    
+    res_data.pressure = barometer.get_pressure();
+    res_data.altitude = barometer.get_altitude();
+    res_data.temperature = barometer.get_temperature();
+    res_data.climb_rate = barometer.get_climb_rate();
+    res_data.pressure_samples = barometer.get_pressure_samples();
+
+    timer = hal.scheduler->millis();
+  }
+
+  return res_data;
 }
 
 #endif

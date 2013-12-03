@@ -21,8 +21,8 @@ YAW       = (ROL_MAX - ROL_MIN) / 2 + ROL_MIN
 THR       = THR_MIN
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-#sock.connect(('192.168.42.1', 7000))
-sock.connect(('192.168.1.5', 7000))
+sock.connect(('192.168.42.1', 7000))
+
 
 #chksum calculation
 def chksum(str):
@@ -32,21 +32,10 @@ def chksum(str):
   return c
 
 def makecommand(roll, pitch, throttle, yaw):
-  sCom = '{"type":"rcinput","roll":%d,"pitch":%d,"thr":%d,"yaw":%d}' % (roll, pitch, throttle, yaw)
-  
-  p = json.loads(sCom)
-  str = "%d,%d,%d,%d" % (p['roll'], -p['pitch'], p['thr'], p['yaw'])
-  #calc checksum
-  chk = chksum(str)
-  #concatenate msg and chksum
-  output = "%s*%x\r\n" % (str, chk)
-  print "Send to control board: " + output
-  
+  sCom = '{"type":"rc_input","roll":%d,"pitch":%d,"thr":%d,"yaw":%d}' % (roll, pitch, throttle, yaw) 
   return sCom
-
+  
 def sendcommand(sCom):
-  sAdd = "*%d" % (chksum(sCom) )
-  sCom = sCom + sAdd
   sock.send(sCom);
   return sCom;
 
@@ -55,21 +44,6 @@ def keyevent(key):
   global PIT
   global ROL
   global YAW
-  
-  # Reset the settings stepwise
-  if PIT > (PIT_MAX - PIT_MIN) / 2 + PIT_MIN:
-	PIT -= 2.25
-  if ROL > (ROL_MAX - ROL_MIN) / 2 + ROL_MIN:
-	ROL -= 2.25
-  if YAW > (YAW_MAX - YAW_MIN) / 2 + YAW_MIN:
-	YAW -= 9
-	
-  if PIT < (PIT_MAX - PIT_MIN) / 2 + PIT_MIN:
-	PIT += 2.25
-  if ROL < (ROL_MAX - ROL_MIN) / 2 + ROL_MIN:
-	ROL += 2.25
-  if YAW < (YAW_MAX - YAW_MIN) / 2 + YAW_MIN:
-	YAW += 9
   
   # higher lower thrust
   #if key == curses.KEY_UP and THR < 0.8*(THR_MAX - THR_MIN)+THR_MIN: # Never upregulate till maximum
@@ -89,21 +63,37 @@ def keyevent(key):
   # forward backward
   if key == ord("w") and PIT + PIT_MAX/5 < PIT_MAX:
     PIT += PIT_MAX/5;
-  if key == ord("s") and PIT + PIT_MIN/5 > PIT_MIN:
+  elif key == ord("s") and PIT + PIT_MIN/5 > PIT_MIN:
     PIT += PIT_MIN/5;
 
   # strafe left right
-  if key == ord("a") and ROL + ROL_MAX/5 < ROL_MAX:
+  elif key == ord("a") and ROL + ROL_MAX/5 < ROL_MAX:
     ROL += ROL_MAX/5;
-  if key == ord("d") and ROL + ROL_MIN/5 > ROL_MIN:
+  elif key == ord("d") and ROL + ROL_MIN/5 > ROL_MIN:
     ROL += ROL_MIN/5;
 
   # Turn left right
-  if key == ord("q") and YAW + YAW_MAX/5 < YAW_MAX:
+  elif key == ord("q") and YAW + YAW_MAX/5 < YAW_MAX:
     YAW += YAW_MAX/5;
-  if key == ord("e") and YAW + YAW_MIN/5 > YAW_MIN:
+  elif key == ord("e") and YAW + YAW_MIN/5 > YAW_MIN:
     YAW += YAW_MIN/5;
 
+  # Reset the settings stepwise
+  if key == -1:
+    if PIT > (PIT_MAX - PIT_MIN) / 2 + PIT_MIN:
+      PIT -= 2.25
+    if ROL > (ROL_MAX - ROL_MIN) / 2 + ROL_MIN:
+      ROL -= 2.25
+    if YAW > (YAW_MAX - YAW_MIN) / 2 + YAW_MIN:
+      YAW -= 9
+    
+    if PIT < (PIT_MAX - PIT_MIN) / 2 + PIT_MIN:
+      PIT += 2.25
+    if ROL < (ROL_MAX - ROL_MIN) / 2 + ROL_MIN:
+      ROL += 2.25
+    if YAW < (YAW_MAX - YAW_MIN) / 2 + YAW_MIN:
+      YAW += 9
+    
 def main():
   stdscr = curses.initscr()
   curses.noecho()
