@@ -12,9 +12,6 @@ uint8_t calc_chksum(char *str) {
 
 //checksum verifier
 bool verify_chksum(char *str, char *chk) {
-  hal.console->printf(str);
-  hal.console->printf("\n");
-
   uint8_t nc = calc_chksum(str);
 
   long chkl = strtol(chk, NULL, 16);                    // supplied chksum to long
@@ -40,28 +37,52 @@ void parse_rc(char* buffer) {
     memset(buffer, 0, sizeof(buffer));              // flush buffer after everything
   } 
   else {
-    hal.console->printf("Invalid checksum\n");
     memset(buffer, 0, sizeof(buffer));              // flush buffer after everything
   }
 }
 
-// kP, kI, imax
 float *parse_PID(char* buffer) {
-  static float res_pid[PID_SIZE];
-  memset(buffer, 0, PID_SIZE * sizeof(float) );
+  static float pids[3];
+  memset(pids, 0, 3*sizeof(float) );
 
-  if(buffer != NULL) {
-    char *sub_cstr = strtok (buffer, ",");
-    for(int i = 0; i < PID_SIZE && sub_cstr != NULL; i++) {
-      sub_cstr = strtok (NULL, ",");
-      res_pid[i] = atof(sub_cstr);
+  if(buffer == NULL)
+    return pids;
+
+  char ckP[32], ckI[32], cimax[32];
+  unsigned int i = 0, c = 0, p = 0;
+  for(; i < strlen(buffer); i++) {
+    if(buffer[i] == '\0') {
+      break;
+    } else if(buffer[i] != ',') {
+      switch(p) {
+          case 0:
+          ckP[c] = buffer[i];
+          ckP[c+1] = '\0';
+        break;
+          case 1:
+            ckI[c] = buffer[i];
+            ckI[c+1] = '\0';
+          break;
+          case 2:
+            cimax[c] = buffer[i];
+            cimax[c+1] = '\0';
+          break;
+      }
+      c++;
+    } else {
+      p++;
+      c = 0;
+      continue;
     }
   }
 
-  return res_pid;
+  pids[0] = atof(ckP);
+  pids[1] = atof(ckI);
+  pids[2] = atof(cimax);
+  
+  return pids;
 }
 
-// PIT_RATE; ROL_RATE; YAW_RATE; STAB
 bool config_pids(char* buffer) { 
   // process cmd
   char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
@@ -69,17 +90,14 @@ bool config_pids(char* buffer) {
   
   if(verify_chksum(str, chk) ) {                    // if chksum OK
     float *pids = NULL;
-    char *sub_cstr;
+    char *cstr;
     
-    int i = 0; do {
+    for(int i = 0; i < PID_NR_OF_ARGS; i++) {
       if(i == 0)
-        sub_cstr = strtok (str, ";");
-      else sub_cstr = strtok (NULL, ";");
-
-      pids = parse_PID(sub_cstr);
-      if(pids == NULL)
-        return false;
-
+        cstr = strtok (buffer, ";");
+      else cstr = strtok (NULL, ";");
+      
+      pids = parse_PID(cstr);      
       switch(i) {
         case 0:
           PIDS[PID_PIT_RATE].kP(pids[0]);
@@ -102,14 +120,10 @@ bool config_pids(char* buffer) {
           PIDS[PID_YAW_STAB].kP(pids[2]);
         break;
       }
-      i++;
-    } while(sub_cstr != NULL);
-  }
-  else {
-    hal.console->printf("Invalid checksum\n");
+    }
+  } else {
     memset(buffer, 0, sizeof(buffer));              // flush buffer after everything
   }
-    
   return true;
 }
 
@@ -118,7 +132,7 @@ bool config_pids(char* buffer) {
 // str = "%d,%d,%d; %d,%d,%d; %d,%d,%d * checksum"
 void parse_input(int &bytesAvail) {
   static uint32_t offset = 0;
-  char buffer[128];
+  char buffer[512];
   memset(buffer, 0, sizeof(buffer) );
 
   for(; bytesAvail > 0; bytesAvail--) {
@@ -133,13 +147,12 @@ void parse_input(int &bytesAvail) {
       if(strcmp(ctype, "RC") == 0) {
         parse_rc(command);
       }
-      else if(strcmp(ctype, "PID") == 0) {
+      if(strcmp(ctype, "PID") == 0) {
         config_pids(command);
       }
 
       offset = 0;
-    }
-    else if(c != '\r' && offset < sizeof(buffer)-1) {
+    } else if(c != '\r' && offset < sizeof(buffer)-1) {
       buffer[offset++] = c;                             // store in buffer and continue until newline
     }
   }

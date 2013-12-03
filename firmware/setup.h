@@ -78,7 +78,6 @@ void init_baro() {
 }
 
 void init_pids() {
-  hal.console->printf("%.1f%%: Set PID configuration\n", 2.f*100.f/6.f);
   PIDS[PID_PIT_RATE].kP(0.5);
   PIDS[PID_PIT_RATE].kI(0.15);
   PIDS[PID_PIT_RATE].imax(50);

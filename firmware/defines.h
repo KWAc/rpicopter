@@ -36,7 +36,8 @@
 #define APM_IOCHANNEL_COUNT 	8
 
 // PID array (6 pids, two for each axis)
-#define PID_SIZE        3
+#define PID_SIZE          3
+#define PID_NR_OF_ARGS    4
 
 #define PID_PIT_RATE 	  0
 #define PID_ROL_RATE 	  1
@@ -52,7 +53,7 @@
 #define MOTOR_BR   3    // back right
 
 // Baud rate
-#define BAUD_RATE    38400
+#define BAUD_RATE    115200
 
 // Radio min/max values for each stick for my radio (worked out at beginning of article)
 #define RC_THR_OFF   1000   // Motors completely off

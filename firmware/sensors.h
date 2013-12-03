@@ -74,7 +74,7 @@ bool get_compass_heading(float &heading,
   if(hal.scheduler->millis() - timer >= 100) {
     compass.read();
     if (!compass.healthy) {
-      hal.console->println("not healthy");
+      hal.console->println("Compass not healthy\n");
       return false;
     }
     Matrix3f dcm_matrix;
@@ -207,7 +207,7 @@ bdata get_baro() {
     barometer.read();
     uint32_t read_time = hal.scheduler->millis() - timer;
     if (!barometer.healthy) {
-        hal.console->println("not healthy");
+        hal.console->println("Barometer not healthy\n");
         return res_data;
     }
     

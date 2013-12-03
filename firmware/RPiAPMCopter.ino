@@ -197,13 +197,11 @@ inline void fast_loop() {
   static int timer = 0;
   int time = hal.scheduler->millis() - timer;
   
-  // send every 0.25 s
-  if(time > 250) {
+  // send every 0.5 s
+  if(time > 500) {  
     send_attitude(OUT_PIT, OUT_ROL, OUT_YAW);
+    OUT_BARO = get_baro(); send_baro(OUT_BARO);
     
-    OUT_BARO = get_baro();
-    send_baro(OUT_BARO);
-
     timer = hal.scheduler->millis();
   }
 }
@@ -212,8 +210,8 @@ inline void slow_loop() {
   static int timer = 0;
   int time = hal.scheduler->millis() - timer;
   
-  // send every 1 s
-  if(time > 1000) {
+  // send every 2.5 s
+  if(time > 2500) {
     send_comp(OUT_HEADING);
     
     timer = hal.scheduler->millis();
@@ -268,6 +266,7 @@ void loop() {
   medium_loop();      // barometer and attitude
   slow_loop();        // compass
   very_slow_loop();   // general configuration (e.g. PIDs) of the copter
+
 }
 
 AP_HAL_MAIN();
