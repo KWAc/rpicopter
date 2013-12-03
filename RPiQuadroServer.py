@@ -60,7 +60,7 @@ def recv_thr():
   THR_LOCK.release()
 
   while True:
-    #THR_LOCK.acquire()
+    THR_LOCK.acquire()
     while ser.inWaiting() > 0:
       try:
         # Remove newline character '\n'
@@ -75,7 +75,7 @@ def recv_thr():
           # Print everything what is not valid json string to console
           print line
           #logging.debug("JSON format error: " + line)
-    #THR_LOCK.release()
+    THR_LOCK.release()
       
   THR_LOCK.acquire()
   THREADS -= 1
