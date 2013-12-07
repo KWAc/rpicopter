@@ -19,9 +19,14 @@ def sendcommand(sCom):
   return sCom
   
 
-sCom = makepid(0.35, 0.15, 50,
-               0.35, 0.15, 50,
-               0.35, 0.15, 50,
-               4.5,  4.5,  4.5)
+medPID = makepid(0.65, 0.35, 50.0,
+                 0.65, 0.35, 50.0,
+                 1.25, 0.20, 50.0,
+                 5.00, 5.00, 5.00)
+                 
+senPID = makepid(0.55, 0.35, 50.0,
+                 0.55, 0.35, 50.0,
+                 1.00, 0.40, 50.0,
+                 5.50, 5.50, 5.50)
 
-print "End process with: " + sendcommand(sCom)
+print "End process with: " + sendcommand(medPID)

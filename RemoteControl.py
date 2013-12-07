@@ -31,6 +31,10 @@ def chksum(str):
     c = ((c + ord(a)) << 1) % 256
   return c
 
+def gyro_calibration:
+  sCom = '{"type":"gyro","calibrate":%d"}' % (True)
+  return sCom
+  
 def makecommand(roll, pitch, throttle, yaw):
   sCom = '{"type":"rc_input","roll":%d,"pitch":%d,"thr":%d,"yaw":%d}' % (roll, pitch, throttle, yaw) 
   return sCom
@@ -52,13 +56,13 @@ def keyevent(key):
     THR += 5
   if key == curses.KEY_DOWN and THR > THR_MIN:
     THR -= 5
-
+  
   # Disarm if this button is pressed
   if key == ord("r"):
-	ROL = (ROL_MAX - ROL_MIN) / 2 + ROL_MIN
-	PIT = (PIT_MAX - PIT_MIN) / 2 + PIT_MIN
-	YAW = (ROL_MAX - ROL_MIN) / 2 + ROL_MIN
-	THR = THR_MIN
+    ROL = (ROL_MAX - ROL_MIN) / 2 + ROL_MIN
+    PIT = (PIT_MAX - PIT_MIN) / 2 + PIT_MIN
+    YAW = (ROL_MAX - ROL_MIN) / 2 + ROL_MIN
+    THR = THR_MIN
 	
   # forward backward
   if key == ord("w") and PIT + PIT_MAX/5 < PIT_MAX:
@@ -103,10 +107,15 @@ def main():
 
   while 1:
       key = stdscr.getch()
+      # Quit program
       if key == ord('x'):
         sCom = makecommand(0, 0, THR_MIN, 0)
         print "End process with: " + sendcommand(sCom)
         break
+      # Start gyro calibration
+      if key == ord("c"):
+        sCom = gyro_calibration
+        sendcommand(sCom)
       else:
         keyevent(key)
         sCom = makecommand(ROL, PIT, THR, YAW)
