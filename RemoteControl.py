@@ -31,7 +31,7 @@ def chksum(str):
     c = ((c + ord(a)) << 1) % 256
   return c
 
-def gyro_calibration:
+def gyro_calibration():
   sCom = '{"type":"gyro","calibrate":%d"}' % (True)
   return sCom
   
@@ -114,8 +114,9 @@ def main():
         break
       # Start gyro calibration
       if key == ord("c"):
-        sCom = gyro_calibration
+        sCom = gyro_calibration()
         sendcommand(sCom)
+        time.sleep(2.0)
       else:
         keyevent(key)
         sCom = makecommand(ROL, PIT, THR, YAW)
