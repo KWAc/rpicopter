@@ -67,32 +67,26 @@ Vector3f attitude_calibration() {
 }
 
 void init_baro() {
-  hal.scheduler->delay(1000);
-/*
-  // What's this for?
-  hal.gpio->pinMode(63, GPIO_OUTPUT);
-  hal.gpio->write(63, 1);
-*/
   barometer.init();
   barometer.calibrate();
 }
 
 void init_pids() {
-  PIDS[PID_PIT_RATE].kP(0.5);
-  PIDS[PID_PIT_RATE].kI(0.15);
+  PIDS[PID_PIT_RATE].kP(0.65);
+  PIDS[PID_PIT_RATE].kI(0.30);
   PIDS[PID_PIT_RATE].imax(50);
 
-  PIDS[PID_ROL_RATE].kP(0.5);
-  PIDS[PID_ROL_RATE].kI(0.15);
+  PIDS[PID_ROL_RATE].kP(0.65);
+  PIDS[PID_ROL_RATE].kI(0.30);
   PIDS[PID_ROL_RATE].imax(50);
 
-  PIDS[PID_YAW_RATE].kP(1);
+  PIDS[PID_YAW_RATE].kP(1.25);
   PIDS[PID_YAW_RATE].kI(0.25);
   PIDS[PID_YAW_RATE].imax(50);
 
-  PIDS[PID_PIT_STAB].kP(4.5);
-  PIDS[PID_ROL_STAB].kP(4.5);
-  PIDS[PID_YAW_STAB].kP(4.5);
+  PIDS[PID_PIT_STAB].kP(5.5);
+  PIDS[PID_ROL_STAB].kP(5.5);
+  PIDS[PID_YAW_STAB].kP(5.5);
 }
 
 void init_compass() {
@@ -128,16 +122,18 @@ void init_compass() {
 }
 
 void init_inertial() {
-/*
-  // Turn off Barometer to avoid bus collisions
-#if CONFIG_HAL_BOARD == HAL_BOARD_APM2
-  // we need to stop the barometer from holding the SPI bus
-  hal.gpio->pinMode(40, GPIO_OUTPUT);
-  hal.gpio->write(40, 1);
-#endif
-*/
   // Turn on MPU6050 - quad must be kept still as gyros will calibrate
   inertial.init(AP_InertialSensor::COLD_START, AP_InertialSensor::RATE_100HZ);
+}
+
+void init_gps() {
+  gps.init(hal.uartB, GPS::GPS_ENGINE_AIRBORNE_2G);
+}
+
+void init_batterymon() {
+  // initialise the battery monitor
+  battery.init();
+  battery.set_monitoring(AP_BATT_MONITOR_VOLTAGE_AND_CURRENT);
 }
 
 #endif

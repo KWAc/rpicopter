@@ -2,11 +2,11 @@
 // Header includes
 ////////////////////////////////////////////////////////////////////////////////
 #include <stdio.h>
+//#include <stdlib.h>
 ////////////////////////////////////////////////////////////////////////////////
 // Ardu pilot library includes
 ////////////////////////////////////////////////////////////////////////////////
 #include <AP_Notify.h>
-#include <AP_InertialSensor_MPU6000.h>
 #include <AP_Common.h>
 #include <AP_Math.h>
 #include <AP_Param.h>
@@ -16,10 +16,16 @@
 #include <AP_HAL_AVR.h>
 #include <GCS_MAVLink.h>
 #include <AP_Declination.h>
-#include <AP_Compass.h>
-#include <AP_Baro.h>
 #include <Filter.h>
 #include <PID.h>
+////////////////////////////////////////////////////////////////////////////////
+// Sensors
+////////////////////////////////////////////////////////////////////////////////
+#include <AP_Compass.h>
+#include <AP_Baro.h>
+#include <AP_InertialSensor_MPU6000.h>
+#include <AP_GPS.h>
+#include <AP_BattMonitor.h>
 ////////////////////////////////////////////////////////////////////////////////
 // Own includes
 ////////////////////////////////////////////////////////////////////////////////
@@ -198,9 +204,13 @@ inline void fast_loop() {
   int time = hal.scheduler->millis() - timer;
   
   // send every 0.5 s
-  if(time > 500) {  
+  if(time > 500) { 
+    OUT_BARO = get_baro();
+    OUT_GPS = get_gps();
+    
     send_attitude(OUT_PIT, OUT_ROL, OUT_YAW);
-    OUT_BARO = get_baro(); send_baro(OUT_BARO);
+    send_baro(OUT_BARO);
+    send_gps(OUT_GPS);
     
     timer = hal.scheduler->millis();
   }
@@ -224,7 +234,10 @@ inline void very_slow_loop() {
   
   // send every 5 s
   if(time > 5000) {
+    OUT_BATT = get_battery();
+    
     send_pids();
+    send_battery(OUT_BATT);
     
     timer = hal.scheduler->millis();
   }
@@ -232,30 +245,39 @@ inline void very_slow_loop() {
 
 void setup() {
   // Set baud rate when connected to RPi
-  hal.uartA->begin(BAUD_RATE);
+  hal.uartA->begin(BAUD_RATE_A);
+  hal.uartB->begin(BAUD_RATE_B);
   hal.console->printf("Setup device ..\n");
 
   // Enable the motors and set at 490Hz update
-  hal.console->printf("%.1f%%: Set ESC refresh rate to 490 Hz\n", 1.f*100.f/6.f);
+  hal.console->printf("%.1f%%: Set ESC refresh rate to 490 Hz\n", 1.f*100.f/8.f);
   hal.rcout->set_freq(0xF, 490);
   hal.rcout->enable_mask(0xFF);
 
   // PID Configuration
-  hal.console->printf("%.1f%%: Set PID configuration\n", 2.f*100.f/6.f);
+  hal.console->printf("%.1f%%: Set PID configuration\n", 2.f*100.f/8.f);
   init_pids();
 
-  hal.console->printf("%.1f%%: Init barometer\n", 3.f*100.f/6.f);
+  hal.console->printf("%.1f%%: Init barometer\n", 3.f*100.f/8.f);
   init_baro();
   
-  hal.console->printf("%.1f%%: Init inertial sensor\n", 4.f*100.f/6.f);
+  hal.console->printf("%.1f%%: Init inertial sensor\n", 4.f*100.f/8.f);
   init_inertial();
 
-  hal.console->printf("\n%.1f%%: Attitude calibration. Vehicle should stand on plane ground!\n", 5.f*100.f/6.f);
+  hal.console->printf("\n%.1f%%: Attitude calibration. Vehicle should stand on plane ground!\n", 5.f*100.f/8.f);
   attitude_calibration();
 
   // Compass initializing
-  hal.console->printf("%.1f%%: Init compass: ", 6.f*100.f/6.f);
+  hal.console->printf("%.1f%%: Init compass: ", 6.f*100.f/8.f);
   init_compass();
+
+  // GPS initializing
+  hal.console->printf("%.1f%%: Init GPS: ", 7.f*100.f/8.f);
+  init_gps();
+  
+  // battery monitor initializing
+  hal.console->printf("%.1f%%: Init battery monitor: ", 8.f*100.f/8.f);
+  init_batterymon();
 }
 
 void loop() {

@@ -53,7 +53,8 @@
 #define MOTOR_BR   3    // back right
 
 // Baud rate
-#define BAUD_RATE    115200
+#define BAUD_RATE_A    115200 // IO USB
+#define BAUD_RATE_B    38400  // GPS
 
 // Radio min/max values for each stick for my radio (worked out at beginning of article)
 #define RC_THR_OFF   1000   // Motors completely off

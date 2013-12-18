@@ -6,23 +6,6 @@
 
 
 /* 
- * Reads the current altitude in degrees and returns it as a 3D vector
- * Seems to be broken at least in my device :D I just use it as reference for sensor fusion after offset calculation
- */
- /*
-inline
-Vector3f get_attitude(float &roll, float &pitch, float &yaw) {
-  Vector3f gyro;
-  inertial.quaternion.to_euler(&gyro.x, &gyro.y, &gyro.z);
-
-  roll  = ToDeg(gyro.x);
-  pitch = ToDeg(gyro.y);
-  yaw   = ToDeg(gyro.z);
-
-  return gyro;
-}
-*/
-/* 
  * Reads the current altitude changes in degrees and returns it as a 3D vector 
  */
 inline
@@ -196,11 +179,11 @@ void measure_attitude_offset(Vector3f &offset)
   offset.z = yaw;
 }
 
-bdata get_baro() {
+BaroData get_baro() {
   static int timer = 0;
 
   long time = hal.scheduler->millis() - timer;
-  static bdata res_data = {-1.f, -1.f, -1.f, -1.f, -1.f};
+  static BaroData res_data = {-1.f, -1.f, -1.f, -1.f, -1.f};
   
   if(time > 100UL) {
     timer = hal.scheduler->millis();
@@ -217,6 +200,59 @@ bdata get_baro() {
     res_data.climb_rate = barometer.get_climb_rate();
     res_data.pressure_samples = barometer.get_pressure_samples();
 
+    timer = hal.scheduler->millis();
+  }
+
+  return res_data;
+}
+
+GPSData get_gps() {
+  static GPSData gps_data = {-1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f};
+  
+  gps.update();
+  if(gps.new_data) {   
+    if(gps.fix) {
+      gps_data.latitude    = gps.latitude;
+      gps_data.longitude   = gps.longitude;
+      gps_data.altitude_m  = (float)gps.altitude_cm / 100.0;
+      
+      gps_data.gspeed_ms   = (float)gps.ground_speed_cm / 100.0;
+      gps_data.espeed_ms   = gps.velocity_east();
+      gps_data.nspeed_ms   = gps.velocity_north();
+      gps_data.dspeed_ms   = gps.velocity_down();
+      
+      // The fucking avr_g++ does NOT support dynamic C++ with class like obects in structs declared as static :(
+      // Hate this primitivity
+      gps_data.heading_x   = gps.velocity_vector().x;
+      gps_data.heading_y   = gps.velocity_vector().y;
+      gps_data.heading_z   = gps.velocity_vector().z;
+      
+      gps_data.gcourse_cd  = (int)gps.ground_course_cd / 100;
+      gps_data.status_fix  = gps.fix;
+      gps_data.satelites   = gps.num_sats;
+      gps_data.time_week   = gps.time_week;
+      gps_data.time_week_s = gps.time_week_ms / 1000.0;
+    } else {
+      // Dunno atm
+    }
+    gps.new_data = false;
+  }
+  return gps_data;
+}
+
+BattData get_battery() {
+  static BattData res_data = {-1.f, -1.f, -1.f};
+
+  static int timer = 0;
+  long time = hal.scheduler->millis() - timer;
+  
+  if(time > 100UL) {
+    battery.read();
+
+    res_data.voltage_V    = battery.voltage();
+    res_data.current_A    = battery.current_amps();
+    res_data.consumpt_mAh = battery.current_total_mah();
+    
     timer = hal.scheduler->millis();
   }
 
