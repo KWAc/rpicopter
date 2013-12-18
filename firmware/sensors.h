@@ -6,7 +6,7 @@
 
 
 /* 
- * Reads the current altitude changes in degrees and returns it as a 3D vector 
+ * Reads the current altitude changes from the gyroscope in degrees and returns it as a 3D vector 
  */
 inline
 Vector3f get_gyroscope(float &roll, float &pitch, float &yaw) {
@@ -20,7 +20,7 @@ Vector3f get_gyroscope(float &roll, float &pitch, float &yaw) {
 }
 
 /* 
- * Reads the current attitude in degrees and returns it as a 3D vector 
+ * Reads the current attitude from the accelerometer in degrees and returns it as a 3D vector 
  */
 inline
 Vector3f get_attitude(float &roll, float &pitch, float &yaw) {
@@ -257,6 +257,26 @@ BattData get_battery() {
   }
 
   return res_data;
+}
+
+/*
+Function from a LiPo charging chart:
+4,20 V  100%
+4,13 V	90%
+4,06 V	80%
+3,99 V	70%
+3,92 V	60%
+3,85 V	50%
+3,78 V	40%
+3,71 V	30%
+3,64 V	20%
+3,57 V	10%
+3,50 V  0%
+
+Return: 0 - 1 (0%-100%) if in voltage range of this table :D
+*/
+float residual_LiPoCapac(float voltage_V, unsigned int num_cells) {
+  return  1.4286 * (voltage_V / (float)num_cells) - 5.f;
 }
 
 #endif

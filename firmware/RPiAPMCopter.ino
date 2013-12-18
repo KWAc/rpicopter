@@ -272,11 +272,11 @@ void setup() {
   init_compass();
 
   // GPS initializing
-  hal.console->printf("%.1f%%: Init GPS: ", 7.f*100.f/8.f);
+  hal.console->printf("%.1f%%: Init GPS", 7.f*100.f/8.f);
   init_gps();
   
   // battery monitor initializing
-  hal.console->printf("%.1f%%: Init battery monitor: ", 8.f*100.f/8.f);
+  hal.console->printf("\n%.1f%%: Init battery monitor\n", 8.f*100.f/8.f);
   init_batterymon();
 }
 
