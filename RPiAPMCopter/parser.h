@@ -130,7 +130,7 @@ bool config_pids(char* buffer) {
 // Parse incoming text
 // str = "%d,%d,%d,%d * checksum" % (p['roll'], p['pitch'], p['thr'], p['yaw'])
 // str = "%d,%d,%d; %d,%d,%d; %d,%d,%d * checksum"
-void parse_input(int &bytesAvail) {
+void parse_input(uint32_t bytesAvail) {
   static uint32_t offset = 0;
   char buffer[512];
   memset(buffer, 0, sizeof(buffer) );

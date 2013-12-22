@@ -65,27 +65,27 @@ AP_BattMonitor battery;
 // PID array (6 pids, two for each axis)
 PID PIDS[6];
 
-float     OUT_HEADING   = 0;
+float     OUT_HEADING   = 0.f;
 BaroData  OUT_BARO;
 GPSData   OUT_GPS;
 BattData  OUT_BATT;
 
-float OUT_PIT           = 0;
-float OUT_ROL           = 0;
-float OUT_YAW           = 0;
+float OUT_PIT           = 0.f;
+float OUT_ROL           = 0.f;
+float OUT_YAW           = 0.f;
 
 // Gyrometer calibration
-bool  GYRO_CALI         = 1;
-float GYRO_ROL_DRIFT    = 0;
-float GYRO_PIT_DRIFT    = 0;
-float GYRO_YAW_DRIFT    = 0;
+bool  GYRO_CALI         = 1.f;
+float GYRO_ROL_DRIFT    = 0.f;
+float GYRO_PIT_DRIFT    = 0.f;
+float GYRO_YAW_DRIFT    = 0.f;
 
-float GYRO_ROL_OFFS     = 0;
-float GYRO_PIT_OFFS     = 0;
-float GYRO_YAW_OFFS     = 0;
+float GYRO_ROL_OFFS     = 0.f;
+float GYRO_PIT_OFFS     = 0.f;
+float GYRO_YAW_OFFS     = 0.f;
 
 // Remote control
 uint32_t RC_PACKET_T = 0;
-int16_t  RC_CHANNELS[APM_IOCHANNEL_COUNT] = { 0,0,0,0,0,0,0,0 };
+int16_t  RC_CHANNELS[APM_IOCHANNEL_COUNT] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
 #endif

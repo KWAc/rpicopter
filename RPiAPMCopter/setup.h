@@ -72,12 +72,12 @@ void init_baro() {
 }
 
 void init_pids() {
-  PIDS[PID_PIT_RATE].kP(0.65);
-  PIDS[PID_PIT_RATE].kI(0.30);
+  PIDS[PID_PIT_RATE].kP(0.50);
+  PIDS[PID_PIT_RATE].kI(0.25);
   PIDS[PID_PIT_RATE].imax(50);
 
-  PIDS[PID_ROL_RATE].kP(0.65);
-  PIDS[PID_ROL_RATE].kI(0.30);
+  PIDS[PID_ROL_RATE].kP(0.50);
+  PIDS[PID_ROL_RATE].kI(0.25);
   PIDS[PID_ROL_RATE].imax(50);
 
   PIDS[PID_YAW_RATE].kP(1.25);

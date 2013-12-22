@@ -46,78 +46,67 @@
  * - filtering and processing sensor data necessary for flight
  */
 inline void fast_loop() {
-  static float filt_rol    = 0.f; // drift and other shit compensated Roll
-  static float filt_pit    = 0.f; // drift and other shit compensated Pitch
-  static float filt_yaw    = 0.f; // drift and other shit compensated Yaw
-
-  static float targ_yaw    = 0.f; // yaw target from rc
-  static float comp_yaw    = 0.f; // heading of the compass
-  static int timer         = 0; // timer for gyro and compass used for drift compensation
+  static float filt_rol = 0.f; // drift compensated Roll
+  static float filt_pit = 0.f; // drift compensated Pitch
+  static float filt_yaw = 0.f; // drift compensated Yaw
+  // additional filter or rc variables
+  static float targ_yaw = 0.f; // yaw target from rc
+  static float comp_yaw = 0.f; // heading of the compass
+  // timer for gyro and compass used for drift compensation
+  static uint32_t timer = 0;
 
   // Wait until new orientation data (normally 5 ms max)
-  while(inertial.sample_available() == 0);
+  while(inertial.wait_for_sample(INERTIAL_TIMEOUT) == 0);
 
   // serial bytes available?
-  int bytesAvailable = hal.console->available();
-  parse_input(bytesAvailable); 	// Parse incoming text
-
-  // Reduce throttle stepwise if no update for more than 500 ms
-  if(hal.scheduler->millis() - RC_PACKET_T > 500) {
-    // reduce throttle ..
-    if(RC_CHANNELS[2] > RC_THR_MIN) {
-      RC_CHANNELS[2] -= 1.25;
-    }
-    else { // .. and switch it off
-      RC_CHANNELS[2] = RC_THR_OFF;
-    }
-    // reset yaw, pitch and roll
-    RC_CHANNELS[3] = 0; // yaw
-    RC_CHANNELS[1] = 0; // pitch
-    RC_CHANNELS[0] = 0; // roll
-    hal.scheduler->delay(25); // Wait 25 ms 
-  }
+  parse_input(hal.console->available() ); 	// Parse incoming text
 
   // Variables to store radio in 
-  long rcthr, rcyaw, rcpit, rcrol;
+  float rcthr, rcyaw, rcpit, rcrol;
   // Read RC transmitter 
-  rcthr = RC_CHANNELS[2]; 
-  rcyaw = RC_CHANNELS[3];
-  rcpit = RC_CHANNELS[1];
-  rcrol = RC_CHANNELS[0];
+  rcthr = (float)RC_CHANNELS[2] > RC_THR_80P ? RC_THR_80P : (float)RC_CHANNELS[2]; 
+  rcyaw = (float)RC_CHANNELS[3];
+  rcpit = (float)RC_CHANNELS[1];
+  rcrol = (float)RC_CHANNELS[0];
 
-  // Set an upper limit for the throttle (80% of maximum)
-  // to allow to counter regulate if copter is changing angle
-  if(rcthr > RC_THR_80P) {
-    rcthr = RC_THR_80P;
+  // Reduce throttle if no update for more than 500 ms
+  uint32_t packet_t = hal.scheduler->millis() - RC_PACKET_T;
+  if(packet_t > 500 && rcthr > RC_THR_OFF) {
+    // how much to reduce?
+    float fDecr = 1.25 * ((float)packet_t / 25.f);
+    float fDelta = rcthr - fDecr;    
+    // reduce thrust..
+    rcthr = fDecr < 0 ? RC_THR_OFF : fDelta > RC_THR_MIN ? fDelta : RC_THR_OFF;
+    // reset yaw, pitch and roll
+    rcyaw = 0.f; // yaw
+    rcpit = 0.f; // pitch
+    rcrol = 0.f; // roll
   }
-
+  
   // Update sensor information
   inertial.update();
-  
   // Ask MPU6050's gyroscope for changes in attitude
   float gyroRol, gyroPit, gyroYaw;
   get_gyroscope(gyroRol, gyroPit, gyroYaw);
-
   // Ask MPU6050's accelerometer for attitude
   float attiRol, attiPit, attiYaw;
   get_attitude(attiRol, attiPit, attiYaw);
-
   // Remove offset for equal motor thrust at start (if ground is not totally even ..)
   attiRol -= GYRO_ROL_OFFS;
   attiPit -= GYRO_PIT_OFFS;
 
   // Compensate yaw drift a bit with the help of the compass    
-  int time = hal.scheduler->millis() - timer;
+  uint32_t time = timer != 0 ? hal.scheduler->millis() - timer : INERTIAL_TIMEOUT;
   timer = hal.scheduler->millis();
 
   // Calculate absolute attitude from relative gyrometer changes
-  filt_rol += gyroRol * time/1000;
+  filt_rol += gyroRol * (float)time/1000.f;
   filt_rol = wrap_180(filt_rol);
 
-  filt_pit += gyroPit * time/1000;
+  filt_pit += gyroPit * (float)time/1000.f;
   filt_pit = wrap_180(filt_pit);
 
-  filt_yaw += gyroYaw * time/1000;
+  filt_yaw += gyroYaw * (float)time/1000.f;
   filt_yaw = wrap_180(filt_yaw);
 
   /* 
@@ -126,13 +115,13 @@ inline void fast_loop() {
    * otherwise the rate is becomes very small very fast.
    * This minimizes noise from acceleration/deceleration to a minimum.
    */
-  filt_rol = sensor_fuse(filt_rol, attiRol, time, activation(attiRol, 20) );
-  filt_pit = sensor_fuse(filt_pit, attiPit, time, activation(attiPit, 20) );
+  filt_rol = sensor_fuse(filt_rol, attiRol, time, activation(attiRol, 20.f) );
+  filt_pit = sensor_fuse(filt_pit, attiPit, time, activation(attiPit, 20.f) );
 
   // For yaw changes the compass could be used, otherwise anneal to zero
   if(COMPASS_FOR_YAW) {
     if(COMPASS_INITIALIZED) {
-      float fThrPerc = ((float)rcthr - RC_THR_MIN) / (RC_THR_80P - RC_THR_MIN);
+      float fThrPerc = (rcthr - RC_THR_MIN) / (RC_THR_80P - RC_THR_MIN);
       compass.set_throttle(fThrPerc);
 
       bool healthy = get_compass_heading(comp_yaw, 0, 0);
@@ -151,12 +140,12 @@ inline void fast_loop() {
   // Throttle raised, turn on stabilisation.
   if(rcthr > RC_THR_ACRO) {
     // Stablise PIDS
-    float rol_stab_output = constrain_float(PIDS[PID_ROL_STAB].get_pid((float)rcrol - OUT_ROL, 1), -250, 250);
-    float pit_stab_output = constrain_float(PIDS[PID_PIT_STAB].get_pid((float)rcpit - OUT_PIT, 1), -250, 250); 
+    float rol_stab_output = constrain_float(PIDS[PID_ROL_STAB].get_pid(rcrol - OUT_ROL, 1), -250, 250);
+    float pit_stab_output = constrain_float(PIDS[PID_PIT_STAB].get_pid(rcpit - OUT_PIT, 1), -250, 250); 
     float yaw_stab_output = constrain_float(PIDS[PID_YAW_STAB].get_pid(wrap_180(targ_yaw - OUT_YAW), 1), -360, 360);
 
     // is pilot asking for yaw change - if so feed directly to rate pid (overwriting yaw stab output)
-    if(abs(rcyaw ) > 5) {
+    if(abs(rcyaw ) > 5.f) {
       yaw_stab_output = rcyaw;
       targ_yaw = attiYaw; // remember this yaw for when pilot stops
     }
@@ -166,10 +155,10 @@ inline void fast_loop() {
     float pit_output = constrain_float(PIDS[PID_PIT_RATE].get_pid(pit_stab_output - gyroPit, 1), -500, 500);  
     float yaw_output = constrain_float(PIDS[PID_YAW_RATE].get_pid(yaw_stab_output - gyroYaw, 1), -500, 500);  
 
-    float fFL = (float)rcthr + rol_output + pit_output - yaw_output;
-    float fBL = (float)rcthr + rol_output - pit_output + yaw_output;
-    float fFR = (float)rcthr - rol_output + pit_output + yaw_output;
-    float fBR = (float)rcthr - rol_output - pit_output - yaw_output;
+    float fFL = rcthr + rol_output + pit_output - yaw_output;
+    float fBL = rcthr + rol_output - pit_output + yaw_output;
+    float fFR = rcthr - rol_output + pit_output + yaw_output;
+    float fBR = rcthr - rol_output - pit_output - yaw_output;
 
     // mix pid outputs and send to the motors.
     hal.rcout->write(MOTOR_FL, fFL);
@@ -285,9 +274,9 @@ void loop() {
   fast_loop();        // time critical stuff
   
   // send some json formatted information about the model over serial port
-  medium_loop();      // barometer and attitude
-  slow_loop();        // compass
-  very_slow_loop();   // general configuration (e.g. PIDs) of the copter
+  //medium_loop();      // barometer and attitude
+  //slow_loop();        // compass
+  //very_slow_loop();   // general configuration (e.g. PIDs) of the copter
 
 }
 
