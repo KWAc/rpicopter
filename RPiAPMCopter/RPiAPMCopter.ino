@@ -189,8 +189,8 @@ inline void fast_loop() {
  * - Potentially slow calculations, logging and printing output should be done here
  */
  inline void medium_loop() {
-  static int timer = 0;
-  int time = hal.scheduler->millis() - timer;
+  static uint32_t timer = 0;
+  uint32_t time = hal.scheduler->millis() - timer;
   
   // send every 0.5 s
   if(time > 500) { 
@@ -206,8 +206,8 @@ inline void fast_loop() {
 }
  
 inline void slow_loop() {
-  static int timer = 0;
-  int time = hal.scheduler->millis() - timer;
+  static uint32_t timer = 0;
+  uint32_t time = hal.scheduler->millis() - timer;
   
   // send every 2.5 s
   if(time > 2500) {
@@ -218,8 +218,8 @@ inline void slow_loop() {
 }
 
 inline void very_slow_loop() {
-  static int timer = 0;
-  int time = hal.scheduler->millis() - timer;
+  static uint32_t timer = 0;
+  uint32_t time = hal.scheduler->millis() - timer;
   
   // send every 5 s
   if(time > 5000) {

@@ -92,8 +92,8 @@ void measure_gyro_drift(Vector3f &drift, Vector3f &offset, int &samples,
                         float bias = 20) 
 {
   static int   counter  = -1;
-  static long  timer    = 0;
-  long time = hal.scheduler->millis() - timer;
+  static uint32_t timer = 0;
+  uint32_t time = hal.scheduler->millis() - timer;
     
   static float lst_rol  = 0;
   static float lst_pit  = 0;
@@ -180,9 +180,9 @@ void measure_attitude_offset(Vector3f &offset)
 }
 
 BaroData get_baro() {
-  static int timer = 0;
+  static uint32_t timer = 0;
 
-  long time = hal.scheduler->millis() - timer;
+  uint32_t time = hal.scheduler->millis() - timer;
   static BaroData res_data = {-1.f, -1.f, -1.f, -1.f, -1.f};
   
   if(time > 100UL) {
@@ -243,8 +243,8 @@ GPSData get_gps() {
 BattData get_battery() {
   static BattData res_data = {-1.f, -1.f, -1.f};
 
-  static int timer = 0;
-  long time = hal.scheduler->millis() - timer;
+  static uint32_t timer = 0;
+  uint32_t time = hal.scheduler->millis() - timer;
   
   if(time > 100UL) {
     battery.read();
