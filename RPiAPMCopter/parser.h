@@ -1,12 +1,14 @@
 #ifndef PARSER_h
 #define PARSER_h
 
+#include "setup.h"
+
 
 uint8_t calc_chksum(char *str) {
   uint8_t nc = 0;
   for(int i=0; i < strlen(str); i++) 
     nc = (nc + str[i]) << 1;
-    
+
   return nc;
 }
 
@@ -21,11 +23,12 @@ bool verify_chksum(char *str, char *chk) {
   return false;
 }
 
+// remote control stuff
 void parse_rc(char* buffer) {
   // process cmd
   char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
   char *chk = strtok(NULL, "*");                    // chk = chksum
-  
+
   if(verify_chksum(str, chk) ) {                     // if chksum OK
     char *ch = strtok(str, ",");                    // first channel
     RC_CHANNELS[0] = (uint16_t)strtol(ch, NULL, 10);// parse       
@@ -34,15 +37,60 @@ void parse_rc(char* buffer) {
       RC_CHANNELS[i] = (uint16_t)strtol(ch, NULL, 10);   
     }
     RC_PACKET_T = hal.scheduler->millis();          // update last valid packet
-    memset(buffer, 0, sizeof(buffer));              // flush buffer after everything
   } 
-  else {
-    memset(buffer, 0, sizeof(buffer));              // flush buffer after everything
+  memset(buffer, 0, sizeof(buffer));              // flush buffer after everything
+}
+
+// drift compensation
+void parse_driftcomp(char* buffer) {
+  // process cmd
+  char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
+  char *chk = strtok(NULL, "*");                    // chk = chksum
+
+  if(verify_chksum(str, chk) ) {                    // if chksum OK
+    char *cstr;
+
+    for(int i = 0; i < COMP_ARGS; i++) {      // loop through final 3 RC_CHANNELS
+      if(i == 0)
+        cstr = strtok (buffer, ",");
+      else cstr = strtok (NULL, ",");
+
+      switch(i) {
+        case 0:
+          GYRO_ROL_COR = atof(cstr);
+          GYRO_ROL_COR = GYRO_ROL_COR  > 10.f ? 10.f : GYRO_ROL_COR < -10.f ? -10.f : GYRO_ROL_COR;
+        break;
+        case 1:
+          GYRO_PIT_COR = atof(cstr);
+          GYRO_PIT_COR = GYRO_PIT_COR  > 10.f ? 10.f : GYRO_PIT_COR < -10.f ? -10.f : GYRO_PIT_COR;
+        break;
+      }
+    }
+  } 
+  memset(buffer, 0, sizeof(buffer));              // flush buffer after everything
+}
+
+void parse_gyrocalib(char* buffer) {
+  // process cmd
+  char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
+  char *chk = strtok(NULL, "*");                    // chk = chksum
+
+  if(verify_chksum(str, chk) ) {                    // if chksum OK
+    char *cstr = strtok (buffer, ",");
+    bool bcalib = (bool)atoi(cstr);
+
+    // only if quadro is _not_ armed
+    if(bcalib) {
+      // This functions checks whether model is ready for a calibration
+      attitude_calibration();
+    }
   }
+
+  memset(buffer, 0, sizeof(buffer));
 }
 
 float *parse_PID(char* buffer) {
-  static float pids[3];
+  static float pids[PID_SIZE];
   memset(pids, 0, 3*sizeof(float) );
 
   if(buffer == NULL)
@@ -53,23 +101,25 @@ float *parse_PID(char* buffer) {
   for(; i < strlen(buffer); i++) {
     if(buffer[i] == '\0') {
       break;
-    } else if(buffer[i] != ',') {
+    } 
+    else if(buffer[i] != ',') {
       switch(p) {
-          case 0:
-          ckP[c] = buffer[i];
-          ckP[c+1] = '\0';
+      case 0:
+        ckP[c] = buffer[i];
+        ckP[c+1] = '\0';
         break;
-          case 1:
-            ckI[c] = buffer[i];
-            ckI[c+1] = '\0';
-          break;
-          case 2:
-            cimax[c] = buffer[i];
-            cimax[c+1] = '\0';
-          break;
+      case 1:
+        ckI[c] = buffer[i];
+        ckI[c+1] = '\0';
+        break;
+      case 2:
+        cimax[c] = buffer[i];
+        cimax[c+1] = '\0';
+        break;
       }
       c++;
-    } else {
+    } 
+    else {
       p++;
       c = 0;
       continue;
@@ -79,7 +129,7 @@ float *parse_PID(char* buffer) {
   pids[0] = atof(ckP);
   pids[1] = atof(ckI);
   pids[2] = atof(cimax);
-  
+
   return pids;
 }
 
@@ -87,43 +137,42 @@ bool config_pids(char* buffer) {
   // process cmd
   char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
   char *chk = strtok(NULL, "*");                    // chk = chksum
-  
+
   if(verify_chksum(str, chk) ) {                    // if chksum OK
     float *pids = NULL;
     char *cstr;
-    
-    for(int i = 0; i < PID_NR_OF_ARGS; i++) {
+
+    for(int i = 0; i < PID_ARGS; i++) {
       if(i == 0)
         cstr = strtok (buffer, ";");
       else cstr = strtok (NULL, ";");
-      
+
       pids = parse_PID(cstr);      
       switch(i) {
-        case 0:
-          PIDS[PID_PIT_RATE].kP(pids[0]);
-          PIDS[PID_PIT_RATE].kI(pids[1]);
-          PIDS[PID_PIT_RATE].imax(pids[2]);
+      case 0:
+        PIDS[PID_PIT_RATE].kP(pids[0]);
+        PIDS[PID_PIT_RATE].kI(pids[1]);
+        PIDS[PID_PIT_RATE].imax(pids[2]);
         break;
-        case 1:
-          PIDS[PID_ROL_RATE].kP(pids[0]);
-          PIDS[PID_ROL_RATE].kI(pids[1]);
-          PIDS[PID_ROL_RATE].imax(pids[2]);
+      case 1:
+        PIDS[PID_ROL_RATE].kP(pids[0]);
+        PIDS[PID_ROL_RATE].kI(pids[1]);
+        PIDS[PID_ROL_RATE].imax(pids[2]);
         break;
-        case 2:
-          PIDS[PID_YAW_RATE].kP(pids[0]);
-          PIDS[PID_YAW_RATE].kI(pids[1]);
-          PIDS[PID_YAW_RATE].imax(pids[2]);
+      case 2:
+        PIDS[PID_YAW_RATE].kP(pids[0]);
+        PIDS[PID_YAW_RATE].kI(pids[1]);
+        PIDS[PID_YAW_RATE].imax(pids[2]);
         break;
-        case 3: 
-          PIDS[PID_PIT_STAB].kP(pids[0]);
-          PIDS[PID_ROL_STAB].kP(pids[1]);
-          PIDS[PID_YAW_STAB].kP(pids[2]);
+      case 3: 
+        PIDS[PID_PIT_STAB].kP(pids[0]);
+        PIDS[PID_ROL_STAB].kP(pids[1]);
+        PIDS[PID_YAW_STAB].kP(pids[2]);
         break;
       }
     }
-  } else {
-    memset(buffer, 0, sizeof(buffer));              // flush buffer after everything
   }
+  memset(buffer, 0, sizeof(buffer));              // flush buffer after everything
   return true;
 }
 
@@ -142,7 +191,7 @@ void parse_input(uint32_t bytesAvail) {
 
       char *ctype = strtok(buffer, "#");                // type of string
       char *command = strtok(NULL, "#");                // command string
-      
+
       // process cmd
       if(strcmp(ctype, "RC") == 0) {
         parse_rc(command);
@@ -150,12 +199,20 @@ void parse_input(uint32_t bytesAvail) {
       if(strcmp(ctype, "PID") == 0) {
         config_pids(command);
       }
+      if(strcmp(ctype, "CMP") == 0) {
+        parse_driftcomp(command);
+      }
+      if(strcmp(ctype, "GYR") == 0) {
+        parse_gyrocalib(command);
+      }
 
       offset = 0;
-    } else if(c != '\r' && offset < sizeof(buffer)-1) {
+    } 
+    else if(c != '\r' && offset < sizeof(buffer)-1) {
       buffer[offset++] = c;                             // store in buffer and continue until newline
     }
   }
 }
 
 #endif
+

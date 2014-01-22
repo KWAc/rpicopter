@@ -7,7 +7,7 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.connect(('192.168.42.1', 7000))
 
 def make_pid(pit_rkp, pit_rki, pit_rimax, rol_rkp, rol_rki, rol_rimax, yaw_rkp, yaw_rki, yaw_rimax, pit_skp, rol_skp, yaw_skp):  
-  sCom = '{"type":"pid_config","pit_rkp":%.4f,"pit_rki":%.4f,"pit_rimax":%.4f,"rol_rkp":%.4f,"rol_rki":%.4f,"rol_rimax":%.4f,"yaw_rkp":%.4f,"yaw_rki":%.4f,"yaw_rimax":%.4f,"pit_skp":%.4f,"rol_skp":%.4f,"yaw_skp":%.4f}' % (
+  sCom = '{"type":"pid","pit_rkp":%.2f,"pit_rki":%.2f,"pit_rimax":%.2f,"rol_rkp":%.2f,"rol_rki":%.2f,"rol_rimax":%.2f,"yaw_rkp":%.2f,"yaw_rki":%.2f,"yaw_rimax":%.2f,"pit_skp":%.2f,"rol_skp":%.2f,"yaw_skp":%.2f}' % (
           pit_rkp, pit_rki, pit_rimax, 
           rol_rkp, rol_rki, rol_rimax, 
           yaw_rkp, yaw_rki, yaw_rimax, 

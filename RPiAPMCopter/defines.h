@@ -38,8 +38,9 @@
 #define APM_IOCHANNEL_COUNT 	8
 
 // PID array (6 pids, two for each axis)
-#define PID_SIZE          3
-#define PID_NR_OF_ARGS    4
+#define PID_SIZE        3 // Size of PID array
+#define PID_ARGS        4 // Nr of arguments for PID configuration
+#define COMP_ARGS       4 // Nr of arguments for on-flight drift compensation
 
 #define PID_PIT_RATE 	  0
 #define PID_ROL_RATE 	  1

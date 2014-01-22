@@ -22,38 +22,27 @@ void leds_on() {
     hal.gpio->write(C_LED_PIN, LED_ON);
 }
 
-// remote control
-void send_rc() { 
-  int rcthr = RC_CHANNELS[2]; 
-  int rcyaw = RC_CHANNELS[3];
-  int rcpit = RC_CHANNELS[1];
-  int rcrol = RC_CHANNELS[0];
-
-  hal.console->printf("{\"type\":\"rc_input\",\"roll\":%d,\"pitch\":%d,\"thr\":%d,\"yaw\":%d}\n",
-    rcrol, rcpit, rcthr, rcyaw);
-}
-
 // compass
 void send_comp(float heading) {
-  hal.console->printf("{\"type\":\"sens_comp\",\"heading\":%.4f}\n",
+  hal.console->printf("{\"type\":\"s_cmp\",\"h\":%.1f}\n",
     heading);
 }
 
 // attitude in degrees
 void send_attitude(float roll, float pitch, float yaw) {
-  hal.console->printf("{\"type\":\"sens_attitude\",\"roll\":%.4f,\"pitch\":%.4f,\"yaw\":%.4f}\n",
+  hal.console->printf("{\"type\":\"s_att\",\"r\":%.1f,\"p\":%.1f,\"y\":%.1f}\n",
     roll, pitch, yaw);
 }
 
 // barometer
 void send_baro(BaroData data) {
-  hal.console->printf("{\"type\":\"sens_baro\",\"pressure\":%.4f,\"altitude\":%.4f,\"temperature\":%.4f,\"climb_rate\":%.4f,\"samples\":%d}\n",
+    hal.console->printf("{\"type\":\"s_bar\",\"p\":%.1f,\"a\":%.1f,\"t\":%.1f,\"c\":%.1f,\"s\":%d}\n",
     data.pressure, data.altitude, data.temperature, data.climb_rate, (unsigned int)data.pressure_samples);
 }
 
 // gps
 void send_gps(GPSData data) {
-  hal.console->printf("{\"type\":\"sens_gps\",\"latitude\":%d,\"longitude\":%d,\"altitude_m\":%.4f,\"gspeed_ms\":%.4f,\"espeed_ms\":%.4f,\"nspeed_ms\":%.4f,\"dspeed_ms\":%.4f,\"h_x\":%.4f,\"h_y\":%.4f,\"h_z\":%.4f,\"gcourse_cd\":%d,\"satelites\":%d,\"tweek\":%d,\"tweek_s\":%d}\n",
+  hal.console->printf("{\"type\":\"s_gps\",\"lat\":%d,\"lon\":%d,\"a_m\":%.1f,\"g_ms\":%.1f,\"e_ms\":%.1f,\"n_ms\":%.1f,\"d_ms\":%.1f,\"h_x\":%.1f,\"h_y\":%.1f,\"h_z\":%.1f,\"g_cd\":%d,\"sat\":%d,\"tw\":%d,\"tw_s\":%d}\n",
     data.latitude, 
     data.longitude, 
     data.altitude_m, 
@@ -75,8 +64,19 @@ void send_gps(GPSData data) {
 
 // battery monitor
 void send_battery(BattData data) {
-  hal.console->printf("{\"type\":\"sens_battery\",\"voltage_V\":%.4f,\"current_A\":%.4f,\"consumpt_mAh\":%.4f}\n",
+  hal.console->printf("{\"type\":\"s_bat\",\"V\":%.1f,\"A\":%.1f,\"c_mAh\":%.1f}\n",
     data.voltage_V, data.current_A, data.consumpt_mAh);
+}
+
+// remote control
+void send_rc() { 
+  int rcthr = RC_CHANNELS[2]; 
+  int rcyaw = RC_CHANNELS[3];
+  int rcpit = RC_CHANNELS[1];
+  int rcrol = RC_CHANNELS[0];
+
+  hal.console->printf("{\"type\":\"rc_in\",\"r\":%d,\"p\":%d,\"t\":%d,\"y\":%d}\n",
+    rcrol, rcpit, rcthr, rcyaw);
 }
 
 // PID configuration
@@ -98,7 +98,7 @@ void send_pids() {
   float rol_skp   = PIDS[PID_ROL_STAB].kP();
   float yaw_skp   = PIDS[PID_YAW_STAB].kP();
 
-  hal.console->printf("{\"type\":\"pid_config\",\"pit_rkp\":%.4f,\"pit_rki\":%.4f,\"pit_rimax\":%.4f,\"rol_rkp\":%.4f,\"rol_rki\":%.4f,\"rol_rimax\":%.4f,\"yaw_rkp\":%.4f,\"yaw_rki\":%.4f,\"yaw_rimax\":%.4f,\"pit_skp\":%.4f,\"rol_skp\":%.4f,\"yaw_skp\":%.4f}\n",
+  hal.console->printf("{\"type\":\"pid_cnf\",\"pit_rkp\":%.2f,\"pit_rki\":%.2f,\"pit_rimax\":%.2f,\"rol_rkp\":%.2f,\"rol_rki\":%.2f,\"rol_rimax\":%.2f,\"yaw_rkp\":%.2f,\"yaw_rki\":%.2f,\"yaw_rimax\":%.2f,\"pit_skp\":%.2f,\"rol_skp\":%.2f,\"yaw_skp\":%.2f}\n",
     pit_rkp, pit_rki, pit_rimax,
     rol_rkp, rol_rki, rol_rimax,
     yaw_rkp, yaw_rki, yaw_rimax,

@@ -96,6 +96,13 @@ inline void fast_loop() {
   attiRol -= GYRO_ROL_OFFS;
   attiPit -= GYRO_PIT_OFFS;
 
+  // On-flight correction for drift(s) to any side(s)
+  // only if the user was sending some valid values(different from zero)
+  if( GYRO_ROL_COR || GYRO_PIT_COR) {
+    attiRol += GYRO_ROL_COR;
+    attiPit += GYRO_PIT_COR;
+  }
+  
   // Compensate yaw drift a bit with the help of the compass    
   uint32_t time = timer != 0 ? hal.scheduler->millis() - timer : INERTIAL_TIMEOUT;
   timer = hal.scheduler->millis();
@@ -185,23 +192,40 @@ inline void fast_loop() {
 }
 
 /* 
- * Slow and NOT time critical loop for: 
+ * SEMIFAST and NOT time critical loops for: 
  * - sending general information over the serial port
  * - Potentially slow calculations, logging and printing output should be done here
  */
- inline void medium_loop() {
+inline void semifast_loop() {
   static uint32_t timer = 0;
-  uint32_t time = hal.scheduler->millis() - timer;
+  uint32_t time;
   
-  // send every 0.5 s
-  if(time > 500) { 
-    OUT_BARO = get_baro();
-    OUT_GPS = get_gps();
+  time = hal.scheduler->millis() - timer;
+  if(time > 237) { 
+    send_attitude(OUT_ROL, OUT_PIT, OUT_YAW);
     
-    send_attitude(OUT_PIT, OUT_ROL, OUT_YAW);
+    timer = hal.scheduler->millis();
+  }
+}
+
+inline void medium_loop() {
+  static bool bStage[2] = {0, 0};
+  static uint32_t timer = 0;
+  uint32_t time;
+  
+  time = hal.scheduler->millis() - timer;
+  if(time > 1033 && !bStage[0]) {
+    OUT_BARO = get_baro();
     send_baro(OUT_BARO);
+    
+    bStage[0] = 1;
+  }
+  time = hal.scheduler->millis() - timer;
+  if(time > 1099 && !bStage[1]) {
+    OUT_GPS = get_gps();
     send_gps(OUT_GPS);
     
+    memset(bStage, 0, sizeof(bStage) );
     timer = hal.scheduler->millis();
   }
 }
@@ -210,8 +234,7 @@ inline void slow_loop() {
   static uint32_t timer = 0;
   uint32_t time = hal.scheduler->millis() - timer;
   
-  // send every 2.5 s
-  if(time > 2500) {
+  if(time > 2044) {
     send_comp(OUT_HEADING);
     
     timer = hal.scheduler->millis();
@@ -219,16 +242,23 @@ inline void slow_loop() {
 }
 
 inline void very_slow_loop() {
+  static bool bStage[3] = {0, 0, 0};
   static uint32_t timer = 0;
-  uint32_t time = hal.scheduler->millis() - timer;
+  uint32_t time;
   
   // send every 5 s
-  if(time > 5000) {
-    OUT_BATT = get_battery();
-    
+  time = hal.scheduler->millis() - timer;
+  if(time > 5075 && !bStage[0]) {
     send_pids();
+    
+     bStage[0] = 1;
+  }
+  time = hal.scheduler->millis() - timer;
+  if(time > 5150 && !bStage[1]) { 
+    OUT_BATT = get_battery();
     send_battery(OUT_BATT);
     
+    memset(bStage, 0, sizeof(bStage) );
     timer = hal.scheduler->millis();
   }
 }
@@ -240,33 +270,30 @@ void setup() {
   hal.console->printf("Setup device ..\n");
 
   // Enable the motors and set at 490Hz update
-  hal.console->printf("%.1f%%: Set ESC refresh rate to 490 Hz\n", 1.f*100.f/8.f);
+  hal.console->printf("%.1f%%: Set ESC refresh rate to 490 Hz\n", 1.f*100.f/7.f);
   hal.rcout->set_freq(0xF, 490);
   hal.rcout->enable_mask(0xFF);
 
   // PID Configuration
-  hal.console->printf("%.1f%%: Set PID configuration\n", 2.f*100.f/8.f);
+  hal.console->printf("%.1f%%: Set PID configuration\n", 2.f*100.f/7.f);
   init_pids();
 
-  hal.console->printf("%.1f%%: Init barometer\n", 3.f*100.f/8.f);
+  hal.console->printf("%.1f%%: Init barometer\n", 3.f*100.f/7.f);
   init_baro();
   
-  hal.console->printf("%.1f%%: Init inertial sensor\n", 4.f*100.f/8.f);
+  hal.console->printf("%.1f%%: Init inertial sensor\n", 4.f*100.f/7.f);
   init_inertial();
 
-  hal.console->printf("\n%.1f%%: Attitude calibration. Vehicle should stand on plane ground!\n", 5.f*100.f/8.f);
-  attitude_calibration();
-
   // Compass initializing
-  hal.console->printf("%.1f%%: Init compass: ", 6.f*100.f/8.f);
+  hal.console->printf("%.1f%%: Init compass: ", 5.f*100.f/7.f);
   init_compass();
 
   // GPS initializing
-  hal.console->printf("%.1f%%: Init GPS", 7.f*100.f/8.f);
+  hal.console->printf("%.1f%%: Init GPS", 6.f*100.f/7.f);
   init_gps();
   
   // battery monitor initializing
-  hal.console->printf("\n%.1f%%: Init battery monitor\n", 8.f*100.f/8.f);
+  hal.console->printf("\n%.1f%%: Init battery monitor\n", 7.f*100.f/7.f);
   init_batterymon();
 }
 
@@ -275,9 +302,10 @@ void loop() {
   fast_loop();        // time critical stuff
   
   // send some json formatted information about the model over serial port
-  //medium_loop();      // barometer and attitude
-  //slow_loop();        // compass
-  //very_slow_loop();   // general configuration (e.g. PIDs) of the copter
+  semifast_loop();
+  medium_loop();      // barometer and attitude
+  slow_loop();        // compass
+  very_slow_loop();   // general configuration (e.g. PIDs) of the copter
 
 }
 

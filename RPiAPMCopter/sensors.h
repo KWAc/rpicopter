@@ -130,12 +130,13 @@ void measure_gyro_drift(Vector3f &drift, Vector3f &offset, int &samples,
     lst_yaw = yaw;
 
     if(abs(drol-lst_drol) > 0.05 || abs(dpit-lst_dpit) > 0.05 || abs(dyaw-lst_dyaw) > 0.025) {
+/*
       hal.console->printf("Gyroscope is drifting too strong. Wait for next cycle.\n");
       hal.console->printf("roll:%.3f-%.3f, pitch:%.3f-%.3f, yaw:%.3f-%.3f\n", 
                           rol, drol, 
                           pit, dpit, 
                           yaw, dyaw);
-                        
+*/                        
       lst_drol = drol;
       lst_dpit = dpit;
       lst_dyaw = dyaw;
@@ -159,12 +160,13 @@ void measure_gyro_drift(Vector3f &drift, Vector3f &offset, int &samples,
     
     samples = counter;
     timer = hal.scheduler->millis();
-    
+/*
     hal.console->printf("Gyroscope calibration %d - roll:%.3f-%.3f, pitch:%.3f-%.3f, yaw:%.3f-%.3f\n", 
                         samples,
                         rol, drol, 
                         pit, dpit, 
                         yaw, dyaw);
+*/
   }
 }
 

@@ -74,15 +74,16 @@ float OUT_PIT           = 0.f;
 float OUT_ROL           = 0.f;
 float OUT_YAW           = 0.f;
 
-// Gyrometer calibration
-bool  GYRO_CALI         = 1.f;
-float GYRO_ROL_DRIFT    = 0.f;
-float GYRO_PIT_DRIFT    = 0.f;
-float GYRO_YAW_DRIFT    = 0.f;
-
+// Gyrometer calibration:
+// After boot of the APM and before flight the gyrometer is calibrated on (even) ground
 float GYRO_ROL_OFFS     = 0.f;
 float GYRO_PIT_OFFS     = 0.f;
 float GYRO_YAW_OFFS     = 0.f;
+
+// On flight correction in case the quadrocopter is drifting (values _signed_)
+// e.g. because of imbalances of the built, gyrometer not nice calibrated
+float GYRO_ROL_COR      = 0.f; // left to right or right to left
+float GYRO_PIT_COR      = 0.f; // front to back or back to front
 
 // Remote control
 uint32_t RC_PACKET_T = 0;

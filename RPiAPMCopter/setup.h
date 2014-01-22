@@ -1,6 +1,9 @@
 #ifndef SETUP_h
 #define SETUP_h
 
+#include "output.h"
+#include "sensors.h"
+
 
 /* 
  * Find the offset from total equilibrium.
@@ -16,7 +19,10 @@ Vector3f attitude_calibration() {
   // initially switch on LEDs
   leds_on(); bool led = true;
   
-  while(true) {
+  // RC_CHANNELS[2] == thrust
+  // run calibration only if motors _don't_ spin
+  // otherwise model would probably not calibrate properly or crash while flying
+  while(true && RC_CHANNELS[2] <= RC_THR_MIN) {
     samples_avg = 0;
     samples_dev = 0;
     
@@ -41,8 +47,8 @@ Vector3f attitude_calibration() {
       samples_acc[i] = cur_sample;
       samples_avg += cur_sample / ATTITUDE_SAMPLE_CNT;
     
-      flash_leds(led); led = !led;  // let LEDs blink
-      hal.scheduler->delay(50);     //Wait 50ms
+      flash_leds(led); led = !led;  // Let LEDs blink
+      hal.scheduler->delay(50);     // Wait 50ms
     }
     
     // Calc standard deviation
@@ -124,6 +130,8 @@ void init_compass() {
 void init_inertial() {
   // Turn on MPU6050 - quad must be kept still as gyros will calibrate
   inertial.init(AP_InertialSensor::COLD_START, AP_InertialSensor::RATE_100HZ);
+  // Calibrate the inertial
+  attitude_calibration();
 }
 
 void init_gps() {
