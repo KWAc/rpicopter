@@ -237,10 +237,16 @@ void MainWindow::sl_recvCommand() {
         bool bOk = false;
 
         if(checkForJSON(line) ) {
+            qDebug() << line;
             QVariantMap result = m_JSONParser.parse(line, &bOk).toMap();
             if(!bOk) {
-                qFatal("sl_recvCommand - An error occured during parsing");
-            } else if(!result.empty() ) {
+                qDebug() << "sl_recvCommand - An error occured during parsing";
+                return;
+            }
+            else {
+                if(result.empty() )
+                    return;
+
                 double fTimeElapsed_s = ((double)m_tSensorTime.elapsed() / 1000.f);
                 QPair<unsigned long, QVariantMap> pair(fTimeElapsed_s, result);
                 sl_UpdateSensorData(pair);

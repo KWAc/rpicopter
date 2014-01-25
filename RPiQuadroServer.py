@@ -93,13 +93,12 @@ def recv_thr():
           p = json.loads(ser_line)
         except (ValueError, KeyError, TypeError):
           # Print everything what is not valid json string to console
-          print ("JSON format error: %s" % ser_line)
-          #logging.debug("JSON format error: " + ser_line)
+          #print ("JSON format error: %s" % ser_line)
+          logging.debug("JSON format error: " + ser_line)
         else: 
           logging.info(ser_line)
           if client_adr != "":
             bytes = udp_sock.sendto(ser_line, client_adr)
-            #print("udp_sock send %d bytes" % bytes)
         
     THR_LOCK.release()
 
@@ -111,49 +110,47 @@ def trnm_thr():
     try:
       # Wait for UDP packet
       msg, client_adr = udp_sock.recvfrom(256)
-      
     except socket.timeout:
-      #logging.error("Read timeout on socket '{}': {}".format(adr, e))
-      pass # Dunno, I think logging socket timeouts could become slow and unnecessary
-     
-    try:
-      # parse JSON string from socket
-      p = json.loads(msg)
-    except (ValueError, KeyError, TypeError):
-      print (msg.strip() )
-      #logging.debug("JSON format error: " + msg.strip() )
+      # Log the problem
+      logging.error("Read timeout on socket '{}': {}".format(adr, e))
     else:
-      # remote control is about controlling the model (thrust and attitude)
-      if p['type'] == 'rc':
-        com = "RC#%d,%d,%d,%d" % (p['r'], p['p'], p['t'], p['y'])
-        THR_LOCK.acquire()
-        send_data(com)
-        THR_LOCK.release()
-        
-      # PID config is about to change the sensitivity of the model to changes in attitude
-      if p['type'] == 'pid':
-        com = "PID#%.2f,%.2f,%.2f;%.2f,%.2f,%.2f;%.2f,%.2f,%.2f;%.2f,%.2f,%.2f" % (
-          p['pit_rkp'], p['pit_rki'], p['pit_rimax'], 
-          p['rol_rkp'], p['rol_rki'], p['rol_rimax'], 
-          p['yaw_rkp'], p['yaw_rki'], p['yaw_rimax'], 
-          p['pit_skp'], p['rol_skp'], p['yaw_skp'] )
-        THR_LOCK.acquire()
-        send_data(com)
-        THR_LOCK.release()
-        
-      # This section is about correcting drifts while model is flying (e.g. due to imbalances of the model)
-      if p['type'] == 'cmp':
-        com = "CMP#%.2f,%.2f" % (p['r'], p['p'])
-        THR_LOCK.acquire()
-        send_data(com)
-        THR_LOCK.release()
-        
-      # With this section you may start the calibration of the gyro again
-      if p['type'] == 'gyr':
-        com = "GYR#%d" % (p['cal'])
-        THR_LOCK.acquire()
-        send_data(com)
-        THR_LOCK.release()
+      try:
+        # parse JSON string from socket
+        p = json.loads(msg)
+      except (ValueError, KeyError, TypeError):
+        logging.debug("JSON format error: " + msg.strip() )
+      else:
+        # remote control is about controlling the model (thrust and attitude)
+        if p['type'] == 'rc':
+          com = "RC#%d,%d,%d,%d" % (p['r'], p['p'], p['t'], p['y'])
+          THR_LOCK.acquire()
+          send_data(com)
+          THR_LOCK.release()
+          
+        # PID config is about to change the sensitivity of the model to changes in attitude
+        if p['type'] == 'pid':
+          com = "PID#%.2f,%.2f,%.2f;%.2f,%.2f,%.2f;%.2f,%.2f,%.2f;%.2f,%.2f,%.2f" % (
+            p['pit_rkp'], p['pit_rki'], p['pit_rimax'], 
+            p['rol_rkp'], p['rol_rki'], p['rol_rimax'], 
+            p['yaw_rkp'], p['yaw_rki'], p['yaw_rimax'], 
+            p['pit_skp'], p['rol_skp'], p['yaw_skp'] )
+          THR_LOCK.acquire()
+          send_data(com)
+          THR_LOCK.release()
+          
+        # This section is about correcting drifts while model is flying (e.g. due to imbalances of the model)
+        if p['type'] == 'cmp':
+          com = "CMP#%.2f,%.2f" % (p['r'], p['p'])
+          THR_LOCK.acquire()
+          send_data(com)
+          THR_LOCK.release()
+          
+        # With this section you may start the calibration of the gyro again
+        if p['type'] == 'gyr':
+          com = "GYR#%d" % (p['cal'])
+          THR_LOCK.acquire()
+          send_data(com)
+          THR_LOCK.release()
   
 # Main program for sending and receiving
 # Working with two separate threads

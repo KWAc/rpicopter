@@ -92,6 +92,16 @@ struct RC_COM{
 
     QString COM_STR;
 };
+struct DRIFT_CAL{
+    DRIFT_CAL() {
+        ROL = 0; PIT = 0; COM_STR = "";
+    }
+
+    float ROL;
+    float PIT;
+
+    QString COM_STR;
+};
 struct CUSTOM_KEY {
     CUSTOM_KEY() {
         memset(KEY, 0, sizeof(KEY));
@@ -156,6 +166,7 @@ private:
     CUSTOM_KEY m_customKeyStatus;
     RC_COM m_COM;
     RANGE m_RANGE;
+    DRIFT_CAL m_DRIFT;
 
     float m_fYaw;
 
@@ -178,6 +189,30 @@ private:
         return com;
     }
 
+    static QString makeCommand(int iROL, int iPIT) {
+        QString com = "";
+        com.append("{\"type\":\"cmp\",\"r\":"); com.append(QString::number(iROL) ); com.append(",");
+        com.append("\"p\":");                  com.append(QString::number(iPIT) ); com.append("}");
+        return com;
+    }
+
+    void initGyroCalibration() {
+        if(m_COM.THR > m_RANGE.THR_MIN) {
+            qDebug() << "Gyrometer calibration failed, because throttle is too high";
+            return;
+        }
+
+        QString com = "";
+        com.append("{\"type\":\"gyr\",\"cal\":"); com.append(QString::number(true) ); com.append("}");
+
+        this->stop();
+        qDebug() << "Try to start gyrometer calibration";
+        for(int i = 0; i < 16; i++) {
+            m_pUdpSock->write(m_COM.COM_STR.toAscii(), m_COM.COM_STR.length() );
+        }
+        this->start();
+    }
+
 private slots:
     void sl_customKeyPressHandler() {
         update();
@@ -186,6 +221,11 @@ private slots:
             m_COM.ROL = 0;
             m_COM.YAW = 0;
             m_COM.THR = m_RANGE.THR_MIN;
+        }
+
+        if(m_customKeyStatus[Qt::Key_C] == true) {
+            initGyroCalibration();
+            m_customKeyStatus[Qt::Key_C] = false;
         }
 
         if(m_customKeyStatus[Qt::Key_W] == true) {
@@ -234,6 +274,32 @@ private slots:
             m_RANGE.setF4();
         }
 
+        QString cmp;
+        if(m_customKeyStatus[mapIndex(Qt::Key_8)] == true) {
+            m_DRIFT.PIT += 0.05 * m_fTimeConstEnh;
+            qDebug() << "Drift correction: Pitch=" << m_DRIFT.PIT;
+            cmp = makeCommand(m_DRIFT.ROL, m_DRIFT.PIT);
+            sl_sendJSON(cmp);
+        }
+        if(m_customKeyStatus[mapIndex(Qt::Key_2)] == true) {
+            m_DRIFT.PIT -= 0.05 * m_fTimeConstEnh;
+            qDebug() << "Drift correction: Pitch=" << m_DRIFT.PIT;
+            cmp = makeCommand(m_DRIFT.ROL, m_DRIFT.PIT);
+            sl_sendJSON(cmp);
+        }
+        if(m_customKeyStatus[mapIndex(Qt::Key_4)] == true) {
+            m_DRIFT.ROL += 0.05 * m_fTimeConstEnh;
+            qDebug() << "Drift correction: Roll=" << m_DRIFT.ROL;
+            cmp = makeCommand(m_DRIFT.ROL, m_DRIFT.PIT);
+            sl_sendJSON(cmp);
+        }
+        if(m_customKeyStatus[mapIndex(Qt::Key_6)] == true) {
+            m_DRIFT.ROL -= 0.05 * m_fTimeConstEnh;
+            qDebug() << "Drift correction: Roll=" << m_DRIFT.ROL;
+            cmp = makeCommand(m_DRIFT.ROL, m_DRIFT.PIT);
+            sl_sendJSON(cmp);
+        }
+
         float fStep = 2.5;
         if(m_customKeyStatus[mapIndex(Qt::Key_Up)] == true) {
             if(m_COM.THR + fStep <= m_RANGE.THR_80P)
@@ -262,13 +328,23 @@ private slots:
             m_COM.YAW > 0 ? m_COM.YAW -= 1 * m_fTimeConstRed : m_COM.YAW += 1 * m_fTimeConstRed;
         }
     }
+
+    void sl_sendJSON(QString sJSON) {
+        if(!m_pUdpSock)
+            return;
+
+        if (sJSON.length() > 0) {
+            m_pUdpSock->write(sJSON.toAscii(), sJSON.length() );
+            qDebug() << sJSON;
+        }
+    }
     void sl_sendCommand() {
         if(!m_pUdpSock)
             return;
 
         if (m_COM.COM_STR.length() > 0) {
             m_pUdpSock->write(m_COM.COM_STR.toAscii(), m_COM.COM_STR.length() );
-            //qDebug() << m_COM.COM_STR;
+            qDebug() << m_COM.COM_STR;
         }
     }
 
@@ -502,6 +578,7 @@ protected:
 
         painter.rotate(m_fYaw);
         painter.drawLine(lineAxisY);
+        painter.setPen(Qt::red);
         painter.drawLine(lineAxisX);
     }
     void keyPressEvent ( QKeyEvent * event ) {
@@ -559,6 +636,19 @@ protected:
             case Qt::Key_F4:
             m_customKeyStatus[i] = true;
             break;
+
+            case Qt::Key_8:
+            m_customKeyStatus[i] = true;
+            break;
+            case Qt::Key_2:
+            m_customKeyStatus[i] = true;
+            break;
+            case Qt::Key_4:
+            m_customKeyStatus[i] = true;
+            break;
+            case Qt::Key_6:
+            m_customKeyStatus[i] = true;
+            break;
         }
     }
     void keyReleaseEvent ( QKeyEvent * event ) {
@@ -614,6 +704,19 @@ protected:
             m_customKeyStatus[i] = false;
             break;
             case Qt::Key_F4:
+            m_customKeyStatus[i] = false;
+            break;
+
+            case Qt::Key_8:
+            m_customKeyStatus[i] = false;
+            break;
+            case Qt::Key_2:
+            m_customKeyStatus[i] = false;
+            break;
+            case Qt::Key_4:
+            m_customKeyStatus[i] = false;
+            break;
+            case Qt::Key_6:
             m_customKeyStatus[i] = false;
             break;
         }
