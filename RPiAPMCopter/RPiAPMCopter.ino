@@ -46,7 +46,7 @@
  * - fetching rc signals
  * - filtering and processing sensor data necessary for flight
  */
-inline void fast_loop() {
+inline void main_loop() {
   static float filt_rol = 0.f; // drift compensated Roll
   static float filt_pit = 0.f; // drift compensated Pitch
   static float filt_yaw = 0.f; // drift compensated Yaw
@@ -192,74 +192,29 @@ inline void fast_loop() {
 }
 
 /* 
- * SEMIFAST and NOT time critical loops for: 
+ * NOT time critical loop for: 
  * - sending general information over the serial port
  * - Potentially slow calculations, logging and printing output should be done here
  */
-inline void semifast_loop() {
-  static uint32_t timer = 0;
-  uint32_t time;
+// pEmitters: Array of iSize_N elements
+// iTickrate: the time in ms until the first emitter in the array will emit again
+inline void emitter_loop(Emitter **pEmitters, uint16_t iSize_N, uint32_t &iTimer, const uint16_t &iTickRate) {
+  OUT_BAR = get_baro();
+  OUT_GPS = get_gps();
+  OUT_BAT = get_battery();
   
-  time = hal.scheduler->millis() - timer;
-  if(time > 237) { 
-    send_attitude(OUT_ROL, OUT_PIT, OUT_YAW);
-    
-    timer = hal.scheduler->millis();
-  }
-}
-
-inline void medium_loop() {
-  static bool bStage[2] = {0, 0};
-  static uint32_t timer = 0;
-  uint32_t time;
-  
-  time = hal.scheduler->millis() - timer;
-  if(time > 1033 && !bStage[0]) {
-    OUT_BARO = get_baro();
-    send_baro(OUT_BARO);
-    
-    bStage[0] = 1;
-  }
-  time = hal.scheduler->millis() - timer;
-  if(time > 1099 && !bStage[1]) {
-    OUT_GPS = get_gps();
-    send_gps(OUT_GPS);
-    
-    memset(bStage, 0, sizeof(bStage) );
-    timer = hal.scheduler->millis();
-  }
-}
- 
-inline void slow_loop() {
-  static uint32_t timer = 0;
-  uint32_t time = hal.scheduler->millis() - timer;
-  
-  if(time > 2044) {
-    send_comp(OUT_HEADING);
-    
-    timer = hal.scheduler->millis();
-  }
-}
-
-inline void very_slow_loop() {
-  static bool bStage[3] = {0, 0, 0};
-  static uint32_t timer = 0;
-  uint32_t time;
-  
-  // send every 5 s
-  time = hal.scheduler->millis() - timer;
-  if(time > 5075 && !bStage[0]) {
-    send_pids();
-    
-     bStage[0] = 1;
-  }
-  time = hal.scheduler->millis() - timer;
-  if(time > 5150 && !bStage[1]) { 
-    OUT_BATT = get_battery();
-    send_battery(OUT_BATT);
-    
-    memset(bStage, 0, sizeof(bStage) );
-    timer = hal.scheduler->millis();
+  uint32_t time = hal.scheduler->millis() - iTimer;
+  for(uint16_t i = 0; i < iSize_N; i++) {
+    if(time > iTickRate + pEmitters[i]->getDelay(i) ) { 
+      if(pEmitters[i]->emit() ) {
+        if(i == (iSize_N - 1) ) { // Reset everything if last emitter successfully emitted
+          for(uint16_t i = 0; i < iSize_N; i++) {
+            pEmitters[i]->reset();
+          }
+          iTimer = hal.scheduler->millis();
+        }
+      }
+    }
   }
 }
 
@@ -271,8 +226,10 @@ void setup() {
 
   // Enable the motors and set at 490Hz update
   hal.console->printf("%.1f%%: Set ESC refresh rate to 490 Hz\n", 1.f*100.f/7.f);
-  hal.rcout->set_freq(0xF, 490);
-  hal.rcout->enable_mask(0xFF);
+  for(uint16_t i = 0; i < 8; i++) {
+      hal.rcout->enable_ch(i);
+  }
+  hal.rcout->set_freq(0xFF, 490);
 
   // PID Configuration
   hal.console->printf("%.1f%%: Set PID configuration\n", 2.f*100.f/7.f);
@@ -297,15 +254,20 @@ void setup() {
   init_batterymon();
 }
 
+Emitter *fast_emitters[1] = { &emitAtti };
+Emitter *medi_emitters[2] = { &emitBaro, &emitGPS };
+Emitter *slow_emitters[1] = { &emitComp };
+Emitter *uslw_emitters[2] = { &emitPIDS, &emitBatt };
+
 void loop() {
   // remote control and quadro control loop
-  fast_loop();        // time critical stuff
+  main_loop();        // time critical stuff
   
   // send some json formatted information about the model over serial port
-  semifast_loop();
-  medium_loop();      // barometer and attitude
-  slow_loop();        // compass
-  very_slow_loop();   // general configuration (e.g. PIDs) of the copter
+  emitter_loop(fast_emitters, 1, iFastTimer, 200);
+  emitter_loop(medi_emitters, 2, iMediTimer, 1000);
+  emitter_loop(slow_emitters, 1, iSlowTimer, 2000);
+  emitter_loop(uslw_emitters, 2, iUslwTimer, 5000);
 
 }
 

@@ -144,6 +144,6 @@ def main():
         keyevent(key)
         sCom = makecommand(ROL, PIT, THR, YAW)
         print sendcommand(sCom)
-        time.sleep(0.010)
+        time.sleep(0.0133)
 
 main()

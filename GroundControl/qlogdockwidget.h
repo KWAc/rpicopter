@@ -12,7 +12,7 @@ private:
 
     void Setup() {
         this->setWidget(&m_TextLog);
-        this->setMinimumSize(320, 240);
+        this->setMinimumSize(640, 240);
         m_TextLog.setTextInteractionFlags(Qt::NoTextInteraction);
     }
 

@@ -4,6 +4,37 @@
 #include "defines.h"
 
 
+class Emitter {
+public:
+  Emitter(void (*pf_foo)(), int delay = 0) {
+    bSend = false;
+    iDelay = delay;
+    pfEmitter = pf_foo;
+  }
+  
+  bool emit() {
+    if(!bSend && pfEmitter != NULL) {
+      pfEmitter();
+      bSend = true;
+      return true;
+    }
+    return false;
+  }
+  
+  void reset() {
+    bSend = false;
+  }
+ 
+  uint32_t getDelay(uint16_t iNum) {
+    return iDelay * (iNum+1);
+  }
+  
+private:
+  bool bSend;
+  int iDelay;
+  void (*pfEmitter)();
+};
+
 // barometer data container 
 struct BaroData {
   float pressure;
@@ -66,9 +97,9 @@ AP_BattMonitor battery;
 PID PIDS[6];
 
 float     OUT_HEADING   = 0.f;
-BaroData  OUT_BARO;
+BaroData  OUT_BAR;
 GPSData   OUT_GPS;
-BattData  OUT_BATT;
+BattData  OUT_BAT;
 
 float OUT_PIT           = 0.f;
 float OUT_ROL           = 0.f;
@@ -88,5 +119,11 @@ float GYRO_PIT_COR      = 0.f; // front to back or back to front
 // Remote control
 uint32_t RC_PACKET_T = 0;
 int16_t  RC_CHANNELS[APM_IOCHANNEL_COUNT] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+
+// Emitter timers
+uint32_t iFastTimer = 0;
+uint32_t iMediTimer = 0;
+uint32_t iSlowTimer = 0;
+uint32_t iUslwTimer = 0;
 
 #endif

@@ -13,6 +13,7 @@ private:
 
     void Setup() {
         this->setWidget(&m_AttitudeIndicator);
+        this->setMaximumWidth(204);
     }
 
 

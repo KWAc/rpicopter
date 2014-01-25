@@ -8,17 +8,19 @@ QT       += core gui network
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
-TARGET = GroundControl
-TEMPLATE = app
+TARGET =    GroundControl
+TEMPLATE =  app
 
 INCLUDEPATH += /usr/include/qjson
 
-LIBS += -lqjson
+LIBS +=     -lqjson
 
-SOURCES += main.cpp\
-        mainwindow.cpp \
-        qcustomplot.cpp \
-        qattitudeindicator.cpp
+SOURCES +=  main.cpp\
+            mainwindow.cpp \
+            qcustomplot.cpp \
+            qattitudeindicator.cpp \
+            qpiddockwidget.cpp \
+            qpiddialog.cpp
 
 HEADERS  += mainwindow.h\
             qcustomplot.h \
@@ -26,4 +28,6 @@ HEADERS  += mainwindow.h\
             qattitudeindicator.h \
             qattitudedockwidget.h \
             qrcwidget.h \
-            qlogdockwidget.h
+            qlogdockwidget.h \
+            qpiddockwidget.h \
+            qpiddialog.h

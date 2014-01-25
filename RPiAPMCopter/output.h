@@ -23,50 +23,55 @@ void leds_on() {
 }
 
 // compass
-void send_comp(float heading) {
+void send_comp() {
   hal.console->printf("{\"type\":\"s_cmp\",\"h\":%.1f}\n",
-    heading);
+    OUT_HEADING);
 }
+Emitter emitComp(&send_comp, 44);
 
 // attitude in degrees
-void send_attitude(float roll, float pitch, float yaw) {
+void send_attitude() {
   hal.console->printf("{\"type\":\"s_att\",\"r\":%.1f,\"p\":%.1f,\"y\":%.1f}\n",
-    roll, pitch, yaw);
+    OUT_ROL, OUT_PIT, OUT_YAW);
 }
+Emitter emitAtti(&send_attitude, 37);
 
 // barometer
-void send_baro(BaroData data) {
+void send_baro() {
     hal.console->printf("{\"type\":\"s_bar\",\"p\":%.1f,\"a\":%.1f,\"t\":%.1f,\"c\":%.1f,\"s\":%d}\n",
-    data.pressure, data.altitude, data.temperature, data.climb_rate, (unsigned int)data.pressure_samples);
+    OUT_BAR.pressure, OUT_BAR.altitude, OUT_BAR.temperature, OUT_BAR.climb_rate, (unsigned int)OUT_BAR.pressure_samples);
 }
+Emitter emitBaro(&send_baro, 66);
 
 // gps
-void send_gps(GPSData data) {
+void send_gps() {
   hal.console->printf("{\"type\":\"s_gps\",\"lat\":%d,\"lon\":%d,\"a_m\":%.1f,\"g_ms\":%.1f,\"e_ms\":%.1f,\"n_ms\":%.1f,\"d_ms\":%.1f,\"h_x\":%.1f,\"h_y\":%.1f,\"h_z\":%.1f,\"g_cd\":%d,\"sat\":%d,\"tw\":%d,\"tw_s\":%d}\n",
-    data.latitude, 
-    data.longitude, 
-    data.altitude_m, 
+    OUT_GPS.latitude, 
+    OUT_GPS.longitude, 
+    OUT_GPS.altitude_m, 
     
-    data.gspeed_ms, 
-    data.espeed_ms, 
-    data.nspeed_ms, 
-    data.dspeed_ms,
+    OUT_GPS.gspeed_ms, 
+    OUT_GPS.espeed_ms, 
+    OUT_GPS.nspeed_ms, 
+    OUT_GPS.dspeed_ms,
     
-    data.heading_x,
-    data.heading_y,
-    data.heading_z,
+    OUT_GPS.heading_x,
+    OUT_GPS.heading_y,
+    OUT_GPS.heading_z,
     
-    data.gcourse_cd, 
-    data.satelites, 
-    data.time_week, 
-    data.time_week_s);
+    OUT_GPS.gcourse_cd, 
+    OUT_GPS.satelites, 
+    OUT_GPS.time_week, 
+    OUT_GPS.time_week_s);
 }
+Emitter emitGPS(&send_gps, 66);
 
 // battery monitor
-void send_battery(BattData data) {
+void send_battery() {
   hal.console->printf("{\"type\":\"s_bat\",\"V\":%.1f,\"A\":%.1f,\"c_mAh\":%.1f}\n",
-    data.voltage_V, data.current_A, data.consumpt_mAh);
+    OUT_BAT.voltage_V, OUT_BAT.current_A, OUT_BAT.consumpt_mAh);
 }
+Emitter emitBatt(&send_battery, 75);
 
 // remote control
 void send_rc() { 
@@ -78,6 +83,7 @@ void send_rc() {
   hal.console->printf("{\"type\":\"rc_in\",\"r\":%d,\"p\":%d,\"t\":%d,\"y\":%d}\n",
     rcrol, rcpit, rcthr, rcyaw);
 }
+Emitter emitRC(&send_rc, 37);
 
 // PID configuration
 void send_pids() {
@@ -104,5 +110,6 @@ void send_pids() {
     yaw_rkp, yaw_rki, yaw_rimax,
     pit_skp, rol_skp, yaw_skp);
 }
+Emitter emitPIDS(&send_pids, 75);
 
 #endif

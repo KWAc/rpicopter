@@ -107,7 +107,6 @@ def recv_thr():
 def trnm_thr():
   global client_adr
   msg = ""
-  com = "" 
   while True:
     try:
       # Wait for UDP packet
@@ -120,7 +119,10 @@ def trnm_thr():
     try:
       # parse JSON string from socket
       p = json.loads(msg)
-
+    except (ValueError, KeyError, TypeError):
+      print (msg.strip() )
+      #logging.debug("JSON format error: " + msg.strip() )
+    else:
       # remote control is about controlling the model (thrust and attitude)
       if p['type'] == 'rc':
         com = "RC#%d,%d,%d,%d" % (p['r'], p['p'], p['t'], p['y'])
@@ -152,10 +154,6 @@ def trnm_thr():
         THR_LOCK.acquire()
         send_data(com)
         THR_LOCK.release()
-        
-    except (ValueError, KeyError, TypeError):
-      print (com.strip() )
-      #logging.debug("JSON format error: " + com.strip() )
   
 # Main program for sending and receiving
 # Working with two separate threads
