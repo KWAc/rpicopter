@@ -215,7 +215,6 @@ private:
 
 private slots:
     void sl_customKeyPressHandler() {
-        update();
         if(m_customKeyStatus[mapIndex(Qt::Key_Backspace)] == true) {
             m_COM.PIT = 0;
             m_COM.ROL = 0;
@@ -224,38 +223,45 @@ private slots:
         }
 
         if(m_customKeyStatus[Qt::Key_C] == true) {
+            //qDebug() << "C";
             initGyroCalibration();
             m_customKeyStatus[Qt::Key_C] = false;
         }
 
         if(m_customKeyStatus[Qt::Key_W] == true) {
+            //qDebug() << "W";
             if(m_COM.PIT + m_RANGE.PIT_MIN/10 >= m_RANGE.PIT_MIN)
                 m_COM.PIT += m_RANGE.PIT_MIN/10 * m_fTimeConstEnh;
             else m_COM.PIT = m_RANGE.PIT_MIN;
         }
         if(m_customKeyStatus[Qt::Key_S] == true) {
+            //qDebug() << "S";
             if(m_COM.PIT + m_RANGE.PIT_MAX/10 <= m_RANGE.PIT_MAX)
                 m_COM.PIT += m_RANGE.PIT_MAX/10 * m_fTimeConstEnh;
             else m_COM.PIT = m_RANGE.PIT_MAX;
         }
 
         if(m_customKeyStatus[Qt::Key_A] == true) {
+            //qDebug() << "A";
             if(m_COM.ROL + m_RANGE.ROL_MIN/10 >= m_RANGE.ROL_MIN)
                 m_COM.ROL += m_RANGE.ROL_MIN/10 * m_fTimeConstEnh;
             else m_COM.ROL = m_RANGE.ROL_MIN;
         }
         if(m_customKeyStatus[Qt::Key_D] == true) {
+            //qDebug() << "D";
             if(m_COM.ROL + m_RANGE.ROL_MAX/10 <= m_RANGE.ROL_MAX)
                 m_COM.ROL += m_RANGE.ROL_MAX/10 * m_fTimeConstEnh;
             else m_COM.ROL = m_RANGE.ROL_MAX;
         }
 
         if(m_customKeyStatus[Qt::Key_Q] == true) {
+            //qDebug() << "Q";
             if(m_COM.YAW + m_RANGE.YAW_MAX/10 <= m_RANGE.YAW_MAX)
                 m_COM.YAW += m_RANGE.YAW_MAX/10 * m_fTimeConstEnh;
             else m_COM.YAW = m_RANGE.YAW_MAX;
         }
         if(m_customKeyStatus[Qt::Key_E] == true) {
+            //qDebug() << "E";
             if(m_COM.YAW + m_RANGE.YAW_MIN/10 >= m_RANGE.YAW_MIN)
                 m_COM.YAW += m_RANGE.YAW_MIN/10 * m_fTimeConstEnh;
             else m_COM.YAW = m_RANGE.YAW_MIN;
@@ -302,20 +308,22 @@ private slots:
 
         float fStep = 2.5;
         if(m_customKeyStatus[mapIndex(Qt::Key_Up)] == true) {
+            qDebug() << "Up";
             if(m_COM.THR + fStep <= m_RANGE.THR_80P)
                 m_COM.THR += fStep * m_fTimeConstEnh;
             else m_COM.THR = m_RANGE.THR_80P;
         }
         if(m_customKeyStatus[mapIndex(Qt::Key_Down)] == true) {
+            qDebug() << "Down";
             if(m_COM.THR - fStep >= m_RANGE.THR_MIN)
                 m_COM.THR -= fStep * m_fTimeConstEnh;
             else m_COM.THR = m_RANGE.THR_MIN;
         }
 
+        update();
         m_COM.COM_STR = makeCommand(m_COM.ROL, m_COM.PIT, m_COM.YAW, m_COM.THR);
     }
     void sl_customKeyReleaseHandler() {
-        update();
         if(!m_customKeyStatus[Qt::Key_W] && !m_customKeyStatus[Qt::Key_S]) {
             m_COM.PIT > 0 ? m_COM.PIT -= 1 * m_fTimeConstRed : m_COM.PIT += 1 * m_fTimeConstRed;
         }
@@ -327,6 +335,8 @@ private slots:
         if(!m_customKeyStatus[Qt::Key_Q] && !m_customKeyStatus[Qt::Key_E]) {
             m_COM.YAW > 0 ? m_COM.YAW -= 1 * m_fTimeConstRed : m_COM.YAW += 1 * m_fTimeConstRed;
         }
+
+        update();
     }
 
     void sl_sendJSON(QString sJSON) {
@@ -365,13 +375,37 @@ protected:
         Q_UNUSED(pEvent);
         QPainter painter(this);
 
+        QPen redPM(Qt::red);
+
         QPen grayPM(Qt::darkGray);
         grayPM.setWidthF(0);
+
         QPen blackPM(Qt::black);
+        QPen blackPF(Qt::black);
         blackPM.setWidth(2);
         QBrush blackB(Qt::black);
         painter.setRenderHint(QPainter::Antialiasing, true);
 
+        if(!this->isEnabled() ) {
+            float centerW   = m_fWidth / 2;
+            float centerH   = m_fWidth / 2;
+
+            QFont serifFont("Times", 16, QFont::Bold);
+            QRectF rect(-centerW/2.0, -centerH, centerW, centerH);
+
+            painter.translate(m_fWidth/2, m_fHeight/2);
+            painter.setFont(serifFont);
+            painter.setPen(blackPM);
+            painter.drawText(rect, Qt::AlignCenter, tr("No connection.") );
+            painter.resetTransform();
+
+            redPM = QPen(Qt::gray);
+            grayPM = QPen(Qt::gray);
+            blackPF = QPen(Qt::gray);
+            blackPM = QPen(Qt::gray);
+            blackB = QBrush(Qt::gray);
+
+        }
         // Center plate black
         painter.setBrush(blackB);
         painter.setPen(blackPM);
@@ -383,7 +417,7 @@ protected:
         painter.rotate(m_fYaw);
         painter.drawEllipse(QRectF(-centerW/2.0, -centerH/2.0, centerW, centerH));
 
-        // Rotor bottom right        
+        // Rotor bottom right
         painter.resetTransform();
         painter.translate(m_fWidth/2, m_fHeight/2);
         painter.rotate(m_fYaw);
@@ -428,7 +462,6 @@ protected:
         QLineF bl_fr(-m_fWidth/4, m_fHeight/4, m_fWidth/4, -m_fHeight/4);
         QLineF br_fl(m_fWidth/4, m_fHeight/4, -m_fWidth/4, -m_fHeight/4);
 
-        QPen blackPF(Qt::black);
         blackPF.setWidth(m_fWidth < m_fHeight ? m_fWidth/48 : m_fHeight/48);
         painter.setPen(blackPF);
 
@@ -439,112 +472,114 @@ protected:
         painter.drawLine(bl_fr);
         painter.drawLine(br_fl);
 
-        // Highlighting active motors ..
-        QPen redHighlightP(QColor(255,0,0, 45));
-        redHighlightP.setWidth(16);
-        QBrush redHighlightB(QColor(255,0,0, 25));
-        painter.setPen(redHighlightP);
-        painter.setBrush(redHighlightB);
-        // bottom in red
-        if(m_customKeyStatus[Qt::Key_W] == true) {
-            // Rotor bottom left
-            painter.resetTransform();
-            painter.translate(m_fWidth/2, m_fHeight/2);
-            painter.rotate(m_fYaw);
-            painter.translate(-m_fWidth/4, m_fHeight/4);
-            painter.drawEllipse(QRectF(-diameter/2.0, -diameter/2.0, diameter, diameter));
+        if(this->isEnabled() ) {
+            // Highlighting active motors ..
+            QPen redHighlightP(QColor(255,0,0, 45));
+            redHighlightP.setWidth(16);
+            QBrush redHighlightB(QColor(255,0,0, 25));
+            painter.setPen(redHighlightP);
+            painter.setBrush(redHighlightB);
+            // bottom in red
+            if(m_customKeyStatus[Qt::Key_W] == true) {
+                // Rotor bottom left
+                painter.resetTransform();
+                painter.translate(m_fWidth/2, m_fHeight/2);
+                painter.rotate(m_fYaw);
+                painter.translate(-m_fWidth/4, m_fHeight/4);
+                painter.drawEllipse(QRectF(-diameter/2.0, -diameter/2.0, diameter, diameter));
 
-            // Rotor bottom right
-            painter.resetTransform();
-            painter.translate(m_fWidth/2, m_fHeight/2);
-            painter.rotate(m_fYaw);
-            painter.translate(m_fWidth/4, m_fHeight/4);
-            painter.drawEllipse(QRectF(-diameter/2.0, -diameter/2.0, diameter, diameter));
-        }
-        // top in red
-        if(m_customKeyStatus[Qt::Key_S] == true) {
-            // Rotor top left
-            painter.resetTransform();
-            painter.translate(m_fWidth/2, m_fHeight/2);
-            painter.rotate(m_fYaw);
-            painter.translate(-m_fWidth/4, -m_fHeight/4);
-            painter.drawEllipse(QRectF(-diameter/2.0, -diameter/2.0, diameter, diameter));
+                // Rotor bottom right
+                painter.resetTransform();
+                painter.translate(m_fWidth/2, m_fHeight/2);
+                painter.rotate(m_fYaw);
+                painter.translate(m_fWidth/4, m_fHeight/4);
+                painter.drawEllipse(QRectF(-diameter/2.0, -diameter/2.0, diameter, diameter));
+            }
+            // top in red
+            if(m_customKeyStatus[Qt::Key_S] == true) {
+                // Rotor top left
+                painter.resetTransform();
+                painter.translate(m_fWidth/2, m_fHeight/2);
+                painter.rotate(m_fYaw);
+                painter.translate(-m_fWidth/4, -m_fHeight/4);
+                painter.drawEllipse(QRectF(-diameter/2.0, -diameter/2.0, diameter, diameter));
 
-            // Rotor top right
-            painter.resetTransform();
-            painter.translate(m_fWidth/2, m_fHeight/2);
-            painter.rotate(m_fYaw);
-            painter.translate(m_fWidth/4, -m_fHeight/4);
-            painter.drawEllipse(QRectF(-diameter/2.0, -diameter/2.0, diameter, diameter));
-        }
+                // Rotor top right
+                painter.resetTransform();
+                painter.translate(m_fWidth/2, m_fHeight/2);
+                painter.rotate(m_fYaw);
+                painter.translate(m_fWidth/4, -m_fHeight/4);
+                painter.drawEllipse(QRectF(-diameter/2.0, -diameter/2.0, diameter, diameter));
+            }
 
-        // right in red
-        if(m_customKeyStatus[Qt::Key_A] == true) {
-            // Rotor bottom right
-            painter.resetTransform();
-            painter.translate(m_fWidth/2, m_fHeight/2);
-            painter.rotate(m_fYaw);
-            painter.translate(m_fWidth/4, m_fHeight/4);
-            painter.drawEllipse(QRectF(-diameter/2.0, -diameter/2.0, diameter, diameter));
+            // right in red
+            if(m_customKeyStatus[Qt::Key_A] == true) {
+                // Rotor bottom right
+                painter.resetTransform();
+                painter.translate(m_fWidth/2, m_fHeight/2);
+                painter.rotate(m_fYaw);
+                painter.translate(m_fWidth/4, m_fHeight/4);
+                painter.drawEllipse(QRectF(-diameter/2.0, -diameter/2.0, diameter, diameter));
 
-            // Rotor top right
-            painter.resetTransform();
-            painter.translate(m_fWidth/2, m_fHeight/2);
-            painter.rotate(m_fYaw);
-            painter.translate(m_fWidth/4, -m_fHeight/4);
-            painter.drawEllipse(QRectF(-diameter/2.0, -diameter/2.0, diameter, diameter));
-        }
+                // Rotor top right
+                painter.resetTransform();
+                painter.translate(m_fWidth/2, m_fHeight/2);
+                painter.rotate(m_fYaw);
+                painter.translate(m_fWidth/4, -m_fHeight/4);
+                painter.drawEllipse(QRectF(-diameter/2.0, -diameter/2.0, diameter, diameter));
+            }
 
-        // left in red
-        if(m_customKeyStatus[Qt::Key_D] == true) {
-            // Rotor top left
-            painter.resetTransform();
-            painter.translate(m_fWidth/2, m_fHeight/2);
-            painter.rotate(m_fYaw);
-            painter.translate(-m_fWidth/4, -m_fHeight/4);
-            painter.drawEllipse(QRectF(-diameter/2.0, -diameter/2.0, diameter, diameter));
+            // left in red
+            if(m_customKeyStatus[Qt::Key_D] == true) {
+                // Rotor top left
+                painter.resetTransform();
+                painter.translate(m_fWidth/2, m_fHeight/2);
+                painter.rotate(m_fYaw);
+                painter.translate(-m_fWidth/4, -m_fHeight/4);
+                painter.drawEllipse(QRectF(-diameter/2.0, -diameter/2.0, diameter, diameter));
 
-            // Rotor bottom left
-            painter.resetTransform();
-            painter.translate(m_fWidth/2, m_fHeight/2);
-            painter.rotate(m_fYaw);
-            painter.translate(-m_fWidth/4, m_fHeight/4);
-            painter.drawEllipse(QRectF(-diameter/2.0, -diameter/2.0, diameter, diameter));
-        }
+                // Rotor bottom left
+                painter.resetTransform();
+                painter.translate(m_fWidth/2, m_fHeight/2);
+                painter.rotate(m_fYaw);
+                painter.translate(-m_fWidth/4, m_fHeight/4);
+                painter.drawEllipse(QRectF(-diameter/2.0, -diameter/2.0, diameter, diameter));
+            }
 
 
-        // bottom left and top right in red
-        if(m_customKeyStatus[Qt::Key_Q] == true) {
-            // Rotor bottom left
-            painter.resetTransform();
-            painter.translate(m_fWidth/2, m_fHeight/2);
-            painter.rotate(m_fYaw);
-            painter.translate(-m_fWidth/4, m_fHeight/4);
-            painter.drawEllipse(QRectF(-diameter/2.0, -diameter/2.0, diameter, diameter));
+            // bottom left and top right in red
+            if(m_customKeyStatus[Qt::Key_Q] == true) {
+                // Rotor bottom left
+                painter.resetTransform();
+                painter.translate(m_fWidth/2, m_fHeight/2);
+                painter.rotate(m_fYaw);
+                painter.translate(-m_fWidth/4, m_fHeight/4);
+                painter.drawEllipse(QRectF(-diameter/2.0, -diameter/2.0, diameter, diameter));
 
-            // Rotor top right
-            painter.resetTransform();
-            painter.translate(m_fWidth/2, m_fHeight/2);
-            painter.rotate(m_fYaw);
-            painter.translate(m_fWidth/4, -m_fHeight/4);
-            painter.drawEllipse(QRectF(-diameter/2.0, -diameter/2.0, diameter, diameter));
-        }
+                // Rotor top right
+                painter.resetTransform();
+                painter.translate(m_fWidth/2, m_fHeight/2);
+                painter.rotate(m_fYaw);
+                painter.translate(m_fWidth/4, -m_fHeight/4);
+                painter.drawEllipse(QRectF(-diameter/2.0, -diameter/2.0, diameter, diameter));
+            }
 
-        // bottom right and top left in red
-        if(m_customKeyStatus[Qt::Key_E] == true) {
-            // Rotor bottom right
-            painter.resetTransform();
-            painter.translate(m_fWidth/2, m_fHeight/2);
-            painter.rotate(m_fYaw);
-            painter.translate(m_fWidth/4, m_fHeight/4);
-            painter.drawEllipse(QRectF(-diameter/2.0, -diameter/2.0, diameter, diameter));
+            // bottom right and top left in red
+            if(m_customKeyStatus[Qt::Key_E] == true) {
+                // Rotor bottom right
+                painter.resetTransform();
+                painter.translate(m_fWidth/2, m_fHeight/2);
+                painter.rotate(m_fYaw);
+                painter.translate(m_fWidth/4, m_fHeight/4);
+                painter.drawEllipse(QRectF(-diameter/2.0, -diameter/2.0, diameter, diameter));
 
-            // Rotor top left
-            painter.resetTransform();
-            painter.translate(m_fWidth/2, m_fHeight/2);
-            painter.rotate(m_fYaw);
-            painter.translate(-m_fWidth/4, -m_fHeight/4);
-            painter.drawEllipse(QRectF(-diameter/2.0, -diameter/2.0, diameter, diameter));
+                // Rotor top left
+                painter.resetTransform();
+                painter.translate(m_fWidth/2, m_fHeight/2);
+                painter.rotate(m_fYaw);
+                painter.translate(-m_fWidth/4, -m_fHeight/4);
+                painter.drawEllipse(QRectF(-diameter/2.0, -diameter/2.0, diameter, diameter));
+            }
         }
 
         // Draw Coordinate system
@@ -578,7 +613,7 @@ protected:
 
         painter.rotate(m_fYaw);
         painter.drawLine(lineAxisY);
-        painter.setPen(Qt::red);
+        painter.setPen(redPM);
         painter.drawLine(lineAxisX);
     }
     void keyPressEvent ( QKeyEvent * event ) {
@@ -590,64 +625,82 @@ protected:
         switch (key) {
             case Qt::Key_Backspace:
             m_customKeyStatus[i] = true;
+            qDebug() << "Backspace";
             break;
 
             case Qt::Key_A:
             m_customKeyStatus[i] = true;
+            qDebug() << "A";
             break;
             case Qt::Key_D:
             m_customKeyStatus[i] = true;
+            qDebug() << "D";
             break;
 
             case Qt::Key_W:
             m_customKeyStatus[i] = true;
+            qDebug() << "W";
             break;
             case Qt::Key_S:
             m_customKeyStatus[i] = true;
+            qDebug() << "S";
             break;
 
             case Qt::Key_Q:
             m_customKeyStatus[i] = true;
+            qDebug() << "Q";
             break;
             case Qt::Key_E:
             m_customKeyStatus[i] = true;
+            qDebug() << "E";
             break;
 
             case Qt::Key_C:
             m_customKeyStatus[i] = true;
+            qDebug() << "C";
             break;
 
             case Qt::Key_Up:
             m_customKeyStatus[i] = true;
+            qDebug() << "Up";
             break;
             case Qt::Key_Down:
             m_customKeyStatus[i] = true;
+            qDebug() << "Down";
             break;
 
             case Qt::Key_F1:
             m_customKeyStatus[i] = true;
+            qDebug() << "F1";
             break;
             case Qt::Key_F2:
             m_customKeyStatus[i] = true;
+            qDebug() << "F2";
             break;
             case Qt::Key_F3:
             m_customKeyStatus[i] = true;
+            qDebug() << "F3";
             break;
             case Qt::Key_F4:
             m_customKeyStatus[i] = true;
+            qDebug() << "F4";
             break;
 
             case Qt::Key_8:
             m_customKeyStatus[i] = true;
+            qDebug() << "F8";
             break;
             case Qt::Key_2:
             m_customKeyStatus[i] = true;
+            qDebug() << "F2";
             break;
             case Qt::Key_4:
             m_customKeyStatus[i] = true;
+            qDebug() << "F4";
             break;
             case Qt::Key_6:
             m_customKeyStatus[i] = true;
+            qDebug() << "F6";
             break;
         }
     }

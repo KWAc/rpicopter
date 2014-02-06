@@ -30,6 +30,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Own includes
 ////////////////////////////////////////////////////////////////////////////////
+#include "BattMonitor.h"
 #include "globals.h"
 #include "defines.h"
 #include "filter.h"
@@ -39,6 +40,16 @@
 #include "output.h"
 #include "setup.h"
 
+
+/*
+ * Sets references to values in the eight channel rc input
+ */ 
+inline void set_channels(float &pit, float &rol, float &yaw, float &thr) {
+  thr = (float)RC_CHANNELS[2] > RC_THR_80P ? RC_THR_80P : (float)RC_CHANNELS[2]; 
+  yaw = (float)RC_CHANNELS[3];
+  pit = (float)RC_CHANNELS[1];
+  rol = (float)RC_CHANNELS[0];
+}
 
 /* 
  * Fast and time critical loop for: 
@@ -58,30 +69,32 @@ inline void main_loop() {
 
   // Wait until new orientation data (normally 5 ms max)
   while(inertial.wait_for_sample(INERTIAL_TIMEOUT) == 0);
-
-  // serial bytes available?
+  
+  // Commands via serial port (in this case WiFi -> RPi -> APM2.5)
   parse_input(hal.console->available() ); 	// Parse incoming text
-
-  // Variables to store radio in 
+  
+  // Variables to store remote control commands
   float rcthr, rcyaw, rcpit, rcrol;
-  // Read RC transmitter 
-  rcthr = (float)RC_CHANNELS[2] > RC_THR_80P ? RC_THR_80P : (float)RC_CHANNELS[2]; 
-  rcyaw = (float)RC_CHANNELS[3];
-  rcpit = (float)RC_CHANNELS[1];
-  rcrol = (float)RC_CHANNELS[0];
-
+  set_channels(rcpit, rcrol, rcyaw, rcthr);
+  
   // Reduce throttle if no update for more than 500 ms
-  uint32_t packet_t = hal.scheduler->millis() - RC_PACKET_T;
+  uint32_t packet_t = hal.scheduler->millis() - iWiFiTimer;
   if(packet_t > 500 && rcthr > RC_THR_OFF) {
-    // how much to reduce?
-    float fDecr = 1.25 * ((float)packet_t / 25.f);
-    float fDelta = rcthr - fDecr;    
-    // reduce thrust..
-    rcthr = fDecr < 0 ? RC_THR_OFF : fDelta > RC_THR_MIN ? fDelta : RC_THR_OFF;
-    // reset yaw, pitch and roll
-    rcyaw = 0.f; // yaw
-    rcpit = 0.f; // pitch
-    rcrol = 0.f; // roll
+    // Try via radio signal
+    bool bRecv = radio_rc();
+    if(bRecv == true) {
+      set_channels(rcpit, rcrol, rcyaw, rcthr);
+    } else { // Nothing worked ..
+      // how much to reduce?
+      float fDecr = 1.25 * ((float)packet_t / 25.f);
+      float fDelta = rcthr - fDecr;    
+      // reduce thrust..
+      rcthr = fDecr < 0 ? RC_THR_OFF : fDelta > RC_THR_MIN ? fDelta : RC_THR_OFF;
+      // reset yaw, pitch and roll
+      rcyaw = 0.f; // yaw
+      rcpit = 0.f; // pitch
+      rcrol = 0.f; // roll
+    }
   }
   
   // Update sensor information
@@ -198,11 +211,7 @@ inline void main_loop() {
  */
 // pEmitters: Array of iSize_N elements
 // iTickrate: the time in ms until the first emitter in the array will emit again
-inline void emitter_loop(Emitter **pEmitters, uint16_t iSize_N, uint32_t &iTimer, const uint16_t &iTickRate) {
-  OUT_BAR = get_baro();
-  OUT_GPS = get_gps();
-  OUT_BAT = get_battery();
-  
+inline void scheduler(Emitter **pEmitters, uint16_t iSize_N, uint32_t &iTimer, const uint16_t &iTickRate) { 
   uint32_t time = hal.scheduler->millis() - iTimer;
   for(uint16_t i = 0; i < iSize_N; i++) {
     if(time > iTickRate + pEmitters[i]->getDelay(i) ) { 
@@ -220,8 +229,9 @@ inline void emitter_loop(Emitter **pEmitters, uint16_t iSize_N, uint32_t &iTimer
 
 void setup() {
   // Set baud rate when connected to RPi
-  hal.uartA->begin(BAUD_RATE_A);
-  hal.uartB->begin(BAUD_RATE_B);
+  hal.uartA->begin(BAUD_RATE_A); // USB
+  hal.uartB->begin(BAUD_RATE_B); // GPS
+  hal.uartC->begin(BAUD_RATE_C); // RADIO
   hal.console->printf("Setup device ..\n");
 
   // Enable the motors and set at 490Hz update
@@ -264,11 +274,10 @@ void loop() {
   main_loop();        // time critical stuff
   
   // send some json formatted information about the model over serial port
-  emitter_loop(fast_emitters, 1, iFastTimer, 200);
-  emitter_loop(medi_emitters, 2, iMediTimer, 1000);
-  emitter_loop(slow_emitters, 1, iSlowTimer, 2000);
-  emitter_loop(uslw_emitters, 2, iUslwTimer, 5000);
-
+  scheduler(fast_emitters, 1, iFastTimer, 75);
+  scheduler(medi_emitters, 2, iMediTimer, 1000);
+  scheduler(slow_emitters, 1, iSlowTimer, 2000);
+  scheduler(uslw_emitters, 2, iUslwTimer, 5000);
 }
 
 AP_HAL_MAIN();

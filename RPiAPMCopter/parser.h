@@ -23,6 +23,28 @@ bool verify_chksum(char *str, char *chk) {
   return false;
 }
 
+inline
+uint16_t map(uint16_t x, uint16_t out_min, uint16_t out_max, uint16_t in_min = 1100, uint16_t in_max = 1900) {
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+bool radio_rc() {
+  // array for raw channel values
+  uint16_t channels[APM_IOCHANNEL_COUNT];
+  memset(channels, 0, sizeof(channels) );
+  
+  if(hal.rcin->valid_channels() > 0) {
+    hal.rcin->read(channels, 8);
+    // Copy from channels array to something human readable - array entry 0 = input 1, etc.
+    RC_CHANNELS[2] = channels[2];                                 // throttle
+    RC_CHANNELS[3] = map(channels[3], -180, 180/*, 1068, 1915*/); // yaw
+    RC_CHANNELS[1] = map(channels[1], -45, 45/*, 1077, 1915*/);   // pitch
+    RC_CHANNELS[0] = map(channels[0], -45, 45/*, 1090, 1913*/);   // roll
+    return true;
+  }
+  return true;
+}
+
 // remote control stuff
 void parse_rc(char* buffer) {
   // process cmd
@@ -36,9 +58,9 @@ void parse_rc(char* buffer) {
       char *ch = strtok(NULL, ",");
       RC_CHANNELS[i] = (uint16_t)strtol(ch, NULL, 10);   
     }
-    RC_PACKET_T = hal.scheduler->millis();          // update last valid packet
+    iWiFiTimer = hal.scheduler->millis();          // update last valid packet
   } 
-  memset(buffer, 0, sizeof(buffer));              // flush buffer after everything
+  memset(buffer, 0, sizeof(buffer));                // flush buffer after everything
 }
 
 // drift compensation
@@ -84,6 +106,24 @@ void parse_gyrocalib(char* buffer) {
       // This functions checks whether model is ready for a calibration
       attitude_calibration();
     }
+  }
+
+  memset(buffer, 0, sizeof(buffer));
+}
+
+/*
+ * Changes the sensor type used for the battery monitor
+ */
+void parse_batterymon(char* buffer) {
+  // process cmd
+  char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
+  char *chk = strtok(NULL, "*");                    // chk = chksum
+
+  if(verify_chksum(str, chk) ) {                    // if chksum OK
+    char *cstr = strtok (buffer, ",");
+    int type = atoi(cstr);
+    
+    battery.setup_source(type);
   }
 
   memset(buffer, 0, sizeof(buffer));
@@ -204,6 +244,9 @@ void parse_input(uint32_t bytesAvail) {
       }
       if(strcmp(ctype, "GYR") == 0) {
         parse_gyrocalib(command);
+      }
+      if(strcmp(ctype, "BAT") == 0) {
+        parse_batterymon(command);
       }
 
       offset = 0;

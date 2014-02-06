@@ -51,7 +51,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_pPIDConfigDial = new QPIDConfig(m_pUdpSocket);
     m_pRCWidget = new QRCWidget(m_pUdpSocket, this);
     this->setCentralWidget(m_pRCWidget);
-    m_pRCWidget->setFocus();
+    m_pRCWidget->setDisabled(true);
 
     connect(m_pUdpSocket, SIGNAL(connected() ), this, SLOT(sl_recvCommand() ) );
     connect(&m_udpRecvTimer, SIGNAL(timeout() ), this, SLOT(sl_recvCommand() ) );
@@ -66,7 +66,7 @@ MainWindow::~MainWindow()
 }
 
 void MainWindow::sl_saveLog() {
-    QString sFileName = QFileDialog::getSaveFileName(this, tr("Save Log"),
+    QString sFileName = QFileDialog::getSaveFileName(this, tr("Save sensor log file"),
                                                      QString(), tr("txt (*.txt *.log *.json)"));
     QFile file( sFileName );
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
@@ -279,6 +279,9 @@ void MainWindow::connectToHost(const QString & hostName, quint16 port, QIODevice
         m_sHostName = hostName;
 
         m_pRCWidget->sl_startTimer();
+        m_pRCWidget->setDisabled(false);
+        m_pRCWidget->setFocus();
+
         m_udpRecvTimer.start(25);
         m_plotTimer.start(1000);
     }

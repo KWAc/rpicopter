@@ -2,6 +2,7 @@
 #include <QDebug>
 #include "qattitudeindicator.h"
 
+
 qreal defaultsRollRotate[numbRollLine]= {270.0,30.0,15.0,15.0,10.0,10.0,10.0,10.0,10.0,10.0,15.0,15.0,30.0};
 EN_TYPES_ATTITUDE defaultsTypeRoll[numbRollLine] = { normalRollLine,normalRollLine ,smallRollLine ,normalRollLine,
                                                      smallRollLine ,smallRollLine  ,normalRollLine,smallRollLine,

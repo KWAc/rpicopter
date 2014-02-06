@@ -139,9 +139,8 @@ void init_gps() {
 }
 
 void init_batterymon() {
-  // initialise the battery monitor
-  battery.init();
-  battery.set_monitoring(AP_BATT_MONITOR_VOLTAGE_AND_CURRENT);
+  // initialise the battery monitor for ATTO180 sensor by default :D
+  battery.setup_source(ATTO180);
 }
 
 #endif

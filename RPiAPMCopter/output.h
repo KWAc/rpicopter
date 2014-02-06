@@ -34,42 +34,45 @@ void send_attitude() {
   hal.console->printf("{\"type\":\"s_att\",\"r\":%.1f,\"p\":%.1f,\"y\":%.1f}\n",
     OUT_ROL, OUT_PIT, OUT_YAW);
 }
-Emitter emitAtti(&send_attitude, 37);
+Emitter emitAtti(&send_attitude, 3);
 
 // barometer
 void send_baro() {
+    BaroData baro = get_baro();
     hal.console->printf("{\"type\":\"s_bar\",\"p\":%.1f,\"a\":%.1f,\"t\":%.1f,\"c\":%.1f,\"s\":%d}\n",
-    OUT_BAR.pressure, OUT_BAR.altitude, OUT_BAR.temperature, OUT_BAR.climb_rate, (unsigned int)OUT_BAR.pressure_samples);
+    baro.pressure, baro.altitude, baro.temperature, baro.climb_rate, (unsigned int)baro.pressure_samples);
 }
 Emitter emitBaro(&send_baro, 66);
 
 // gps
 void send_gps() {
+  GPSData gps = get_gps();
   hal.console->printf("{\"type\":\"s_gps\",\"lat\":%d,\"lon\":%d,\"a_m\":%.1f,\"g_ms\":%.1f,\"e_ms\":%.1f,\"n_ms\":%.1f,\"d_ms\":%.1f,\"h_x\":%.1f,\"h_y\":%.1f,\"h_z\":%.1f,\"g_cd\":%d,\"sat\":%d,\"tw\":%d,\"tw_s\":%d}\n",
-    OUT_GPS.latitude, 
-    OUT_GPS.longitude, 
-    OUT_GPS.altitude_m, 
+    gps.latitude, 
+    gps.longitude, 
+    gps.altitude_m, 
     
-    OUT_GPS.gspeed_ms, 
-    OUT_GPS.espeed_ms, 
-    OUT_GPS.nspeed_ms, 
-    OUT_GPS.dspeed_ms,
+    gps.gspeed_ms, 
+    gps.espeed_ms, 
+    gps.nspeed_ms, 
+    gps.dspeed_ms,
     
-    OUT_GPS.heading_x,
-    OUT_GPS.heading_y,
-    OUT_GPS.heading_z,
+    gps.heading_x,
+    gps.heading_y,
+    gps.heading_z,
     
-    OUT_GPS.gcourse_cd, 
-    OUT_GPS.satelites, 
-    OUT_GPS.time_week, 
-    OUT_GPS.time_week_s);
+    gps.gcourse_cd, 
+    gps.satelites, 
+    gps.time_week, 
+    gps.time_week_s);
 }
 Emitter emitGPS(&send_gps, 66);
 
 // battery monitor
 void send_battery() {
+  BattData bat = get_battery();
   hal.console->printf("{\"type\":\"s_bat\",\"V\":%.1f,\"A\":%.1f,\"c_mAh\":%.1f}\n",
-    OUT_BAT.voltage_V, OUT_BAT.current_A, OUT_BAT.consumpt_mAh);
+    bat.voltage_V, bat.current_A, bat.consumpt_mAh);
 }
 Emitter emitBatt(&send_battery, 75);
 
