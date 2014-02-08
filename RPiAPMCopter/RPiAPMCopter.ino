@@ -78,11 +78,12 @@ inline void main_loop() {
   uint32_t packet_t = hal.scheduler->millis() - iWiFiTimer;
   if(packet_t > 500 && rcthr > RC_THR_OFF) {
     // Try via radio signal
+    /*
     bool bRecv = radio_rc();
     if(bRecv == true) {
       set_channels(rcpit, rcrol, rcyaw, rcthr);
     } 
-    else { // Nothing worked ..
+    else { // Nothing worked ..*/
       // how much to reduce?
       float fDecr = 1.25 * ((float)packet_t / 25.f);
       float fDelta = rcthr - fDecr;    
@@ -92,7 +93,7 @@ inline void main_loop() {
       rcyaw = 0.f; // yaw
       rcpit = 0.f; // pitch
       rcrol = 0.f; // roll
-    }
+    //}
   }
 
   // Update sensor information
