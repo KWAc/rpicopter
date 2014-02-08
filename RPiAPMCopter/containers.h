@@ -5,20 +5,6 @@
 #include <stddef.h>
 
 
-class Emitter {
-public:
-  Emitter(void (*pf_foo)(), int delay = 0);
-  
-  bool emit();
-  void reset();
-  uint32_t getDelay(uint16_t iNum);
-  
-private:
-  bool bSend;
-  int iDelay;
-  void (*pfEmitter)();
-};
-
 // barometer data container 
 struct BaroData {
   float pressure;

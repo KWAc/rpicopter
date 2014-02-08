@@ -78,4 +78,8 @@
 #define RC_ROL_MIN   -45
 #define RC_ROL_MAX   45
 
+// battery monitor types
+#define AP_BATT_CELL_COUNT         4
+#define AP_BATT_CAPACITY_DEFAULT   10000
+
 #endif /*DEFS_h*/

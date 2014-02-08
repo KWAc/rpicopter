@@ -1,8 +1,6 @@
 #ifndef PARSER_h
 #define PARSER_h
 
-#include "setup.h"
-
 
 uint8_t calc_chksum(char *str) {
   uint8_t nc = 0;
@@ -21,11 +19,6 @@ bool verify_chksum(char *str, char *chk) {
     return true;
 
   return false;
-}
-
-inline
-uint16_t map(uint16_t x, uint16_t out_min, uint16_t out_max, uint16_t in_min = 1100, uint16_t in_max = 1900) {
-  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
 bool radio_rc() {
@@ -93,6 +86,11 @@ void parse_driftcomp(char* buffer) {
 }
 
 void parse_gyrocalib(char* buffer) {
+  // If motors run: Do nothing!
+  if(RC_CHANNELS[2] > RC_THR_MIN) {
+    memset(buffer, 0, sizeof(buffer));
+    return;
+  }
   // process cmd
   char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
   char *chk = strtok(NULL, "*");                    // chk = chksum
@@ -104,7 +102,7 @@ void parse_gyrocalib(char* buffer) {
     // only if quadro is _not_ armed
     if(bcalib) {
       // This functions checks whether model is ready for a calibration
-      attitude_calibration();
+      hal_board.attitude_calibration();
     }
   }
 
@@ -173,7 +171,13 @@ float *parse_PID(char* buffer) {
   return pids;
 }
 
-bool config_pids(char* buffer) { 
+bool config_pids(char* buffer) {
+  // If motors run: Do nothing!
+  if(RC_CHANNELS[2] > RC_THR_MIN) {
+    memset(buffer, 0, sizeof(buffer));
+    return false;
+  }
+  
   // process cmd
   char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
   char *chk = strtok(NULL, "*");                    // chk = chksum
