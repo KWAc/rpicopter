@@ -10,10 +10,10 @@
 #include "config.h"
 #include "containers.h"
 
-class AP_InertialSensor_MPU6000;
-class AP_Compass_HMC5843;
-class AP_Baro_MS5611;
-class AP_GPS_UBLOX;
+class AP_InertialSensor;
+class Compass;
+class AP_Baro;
+class GPS;
 class BattMonitor;
 
 class BaroData;
@@ -31,25 +31,28 @@ float batt_rescapa(float voltage_V, unsigned int num_cells);
 // Container for sensor data and sensor configuration
 ///////////////////////////////////////////////////////////
 class Device {
-private:
+public:
   // PID configuration and remote contro
-  PID *m_pids;
+  PID m_pPIDS[6];
   // Hardware abstraction library interface
-  const AP_HAL::HAL *m_pHAL;
+  const AP_HAL::HAL  *m_pHAL;
   // MPU6050 accel/gyro chip
-  AP_InertialSensor_MPU6000 *m_pInert;
+  AP_InertialSensor  *m_pInert;
   // Magnetometer aka compass
-  AP_Compass_HMC5843 *m_pComp;
+  Compass            *m_pComp;
   // Barometer
-  AP_Baro_MS5611 *m_pBaro;
+  AP_Baro            *m_pBaro;
   // GPS
-  AP_GPS_UBLOX *m_pGPS;
+  GPS                *m_pGPS;
   // battery monitor
-  BattMonitor *m_pBat;
+  BattMonitor        *m_pBat;
 
   float m_fInertRolOffs;
   float m_fInertPitOffs;
   float m_fInertYawOffs;
+  
+  float m_fInertPitCor; // left to right or right to left
+  float m_fInertRolCor; // front to back or back to front
 
 // Maybe make it protected ..
 public:
@@ -65,13 +68,9 @@ public:
   float m_fYaw;
 
 public:
-  Device(const AP_HAL::HAL *,
-          AP_InertialSensor_MPU6000 *, 
-          AP_Compass_HMC5843 *, 
-          AP_Baro_MS5611 *, 
-          AP_GPS_UBLOX *, 
-          BattMonitor *,
-          PID *pPids);
+  // Accepts pointers to abstract base classes to handle different sensor types
+  Device( const AP_HAL::HAL *,
+          AP_InertialSensor *, Compass *, AP_Baro *, GPS *, BattMonitor * );
 
   Vector3f attitude_calibration();
   void gyro_drift(Vector3f &drift, Vector3f &offset, int &samples, float bias = 20);

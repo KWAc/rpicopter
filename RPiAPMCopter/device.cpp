@@ -1,6 +1,6 @@
 #include <AP_Compass.h>
 #include <AP_Baro.h>
-#include <AP_InertialSensor_MPU6000.h>
+#include <AP_InertialSensor.h>
 #include <AP_GPS.h>
 #include <AP_BattMonitor.h>
 
@@ -50,17 +50,15 @@ float sensor_fuse(float angle_cor, float angle_fix, float time, float rate) {
   return angle_cor += wrap_180(angle_fix-angle_cor)*(time/1000)*rate;
 }
 
-Device::Device(const AP_HAL::HAL *pHAL,
-        AP_InertialSensor_MPU6000 *pInert, 
-        AP_Compass_HMC5843 *pComp, 
-        AP_Baro_MS5611 *pBar, 
-        AP_GPS_UBLOX *pGPS, 
-        BattMonitor *pBat,
-        PID *pPids) 
+Device::Device( const AP_HAL::HAL *pHAL,
+                AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, GPS *pGPS, BattMonitor *pBat ) 
 {
   m_fInertRolOffs = 0.f;
   m_fInertPitOffs = 0.f;
   m_fInertYawOffs = 0.f;
+  
+  m_fInertRolCor  = 0.f;
+  m_fInertPitCor  = 0.f;
   
   // HAL
   m_pHAL   = pHAL;
@@ -71,7 +69,7 @@ Device::Device(const AP_HAL::HAL *pHAL,
   m_pGPS   = pGPS;
   m_pBat   = pBat;
   // PIDs
-  m_pids = pPids;
+  memset(m_pPIDS, 0, sizeof(m_pPIDS) );
 }
 
 /* 
@@ -155,21 +153,21 @@ void Device::init_barometer() {
 }
 
 void Device::init_pids() {
-  m_pids[PID_PIT_RATE].kP(0.50);
-  m_pids[PID_PIT_RATE].kI(0.25);
-  m_pids[PID_PIT_RATE].imax(50);
+  m_pPIDS[PID_PIT_RATE].kP(0.50);
+  m_pPIDS[PID_PIT_RATE].kI(0.25);
+  m_pPIDS[PID_PIT_RATE].imax(50);
 
-  m_pids[PID_ROL_RATE].kP(0.50);
-  m_pids[PID_ROL_RATE].kI(0.25);
-  m_pids[PID_ROL_RATE].imax(50);
+  m_pPIDS[PID_ROL_RATE].kP(0.50);
+  m_pPIDS[PID_ROL_RATE].kI(0.25);
+  m_pPIDS[PID_ROL_RATE].imax(50);
 
-  m_pids[PID_YAW_RATE].kP(1.25);
-  m_pids[PID_YAW_RATE].kI(0.25);
-  m_pids[PID_YAW_RATE].imax(50);
+  m_pPIDS[PID_YAW_RATE].kP(1.25);
+  m_pPIDS[PID_YAW_RATE].kI(0.25);
+  m_pPIDS[PID_YAW_RATE].imax(50);
 
-  m_pids[PID_PIT_STAB].kP(5.5);
-  m_pids[PID_ROL_STAB].kP(5.5);
-  m_pids[PID_YAW_STAB].kP(5.5);
+  m_pPIDS[PID_PIT_STAB].kP(5.5);
+  m_pPIDS[PID_ROL_STAB].kP(5.5);
+  m_pPIDS[PID_YAW_STAB].kP(5.5);
 }
 
 void Device::init_compass() {
@@ -224,13 +222,12 @@ void Device::init_batterymon() {
 Vector3f Device::read_gyro() {
   m_vGyro = m_pInert->get_gyro();
   
-  // In comparision to read_atti() x and y are exchanged. Why?
+  // Save 
   float fRol = ToDeg(m_vGyro.x);
-  float fPitch = ToDeg(m_vGyro.y);
   
-  m_vGyro.x = fPitch;
-  m_vGyro.y = fRol;
-  m_vGyro.z = ToDeg(m_vGyro.z);
+  m_vGyro.x = ToDeg(m_vGyro.y); // PITCH
+  m_vGyro.y = fRol;             // ROLL
+  m_vGyro.z = ToDeg(m_vGyro.z); // YAW
   
   return m_vGyro;
 }
@@ -242,9 +239,9 @@ Vector3f Device::read_atti() {
   m_vAtti = m_pInert->get_accel();  
   float r = sqrt(pow(m_vAtti.x, 2) + pow(m_vAtti.y, 2) + pow(m_vAtti.z, 2) );
   
-  m_vAtti.x  = -(ToDeg(acos(m_vAtti.x/r) ) - 90.f) - m_fInertPitOffs;
-  m_vAtti.y  = ToDeg(acos(m_vAtti.y/r) ) - 90.f - m_fInertRolOffs;
-  m_vAtti.z  = ToDeg(acos(m_vAtti.z/r) ) - 180.f - m_fInertYawOffs;
+  m_vAtti.x  = -(ToDeg(acos(m_vAtti.x/r) ) - 90.f) - m_fInertPitOffs + m_fInertPitCor;  // PITCH
+  m_vAtti.y  = ToDeg(acos(m_vAtti.y/r) ) - 90.f - m_fInertRolOffs + m_fInertRolCor;     // ROLL
+  m_vAtti.z  = ToDeg(acos(m_vAtti.z/r) ) - 180.f - m_fInertYawOffs;                     // YAW
   
   return m_vAtti;
 }

@@ -4,39 +4,34 @@
 #include "BattMonitor.h"
 #include "emitter.h"
 #include "device.h"
+#include "receiver.h"
 #include "config.h"
 
 
-// Motor control 
-PID PIDS[6]; // PID array (6 pids, two for each axis)
-// Remote control
-int16_t RC_CHANNELS[APM_IOCHANNEL_COUNT] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-
+///////////////////////////////////////////////////////////
 // ArduPilot Hardware Abstraction Layer
-const AP_HAL::HAL& hal = AP_HAL_AVR_APM2;
-// MPU6050 accel/gyro chip
-AP_InertialSensor_MPU6000 inertial;
-// Magnetometer aka compass
-AP_Compass_HMC5843 compass;
-// Barometer
-AP_Baro_MS5611 barometer(&AP_Baro_MS5611::spi);
-// GPS
-AP_GPS_UBLOX gps;
-// battery monitor
-BattMonitor battery;
+///////////////////////////////////////////////////////////
+const AP_HAL::HAL&         hal = AP_HAL_AVR_APM2;
 
-// Scheduler for serial output
-Emitters ser_scheduler(&hal);
-// Comprehensive sensor recording class
-Device hal_board(&hal, &inertial, &compass, &barometer, &gps, &battery, PIDS);
+///////////////////////////////////////////////////////////
+// Board specific sensors
+///////////////////////////////////////////////////////////
+/* TODO: Maybe add for support other ArduPilot hardware (APM1, PX4, ..) */
+AP_InertialSensor_MPU6000  _INERT;                      // MPU6050 accel/gyro chip
+AP_Compass_HMC5843         _COMP;                       // Magnetometer aka compass
+AP_Baro_MS5611             _BARO(&AP_Baro_MS5611::spi); // Barometer
+AP_GPS_UBLOX               _GPS;                        // GPS
+BattMonitor                _BAT;                        // battery monitor
 
-// On flight correction in case the quadrocopter is drifting (values _signed_)
-// e.g. because of imbalances of the built, gyrometer not nice calibrated
-float GYRO_ROL_COR      = 0.f; // left to right or right to left
-float GYRO_PIT_COR      = 0.f; // front to back or back to front
-
-// Timer for last package via WiFi connection
-uint32_t iWiFiTimer = 0;
+///////////////////////////////////////////////////////////
+// Abstracted hardware abstraction classes :D 
+// Take any sensor if derived from ArduPilot library!
+// Only exception is the battery monitor
+// to circumvent the usage of AP_Param for changing settings
+///////////////////////////////////////////////////////////
+Emitters                   _SCHED     (&hal);           // Scheduler for serial output
+Device                     _HAL_BOARD (&hal, &_INERT, &_COMP, &_BARO, &_GPS, &_BAT); // Comprehensive sensor recording class
+Receiver                   _RECVR     (&_HAL_BOARD);    // Receiver class for remote control and configuration of settings
 
 #endif
 
