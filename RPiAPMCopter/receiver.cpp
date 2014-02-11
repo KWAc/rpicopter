@@ -5,16 +5,16 @@
 
 Receiver::Receiver(Device *pHalBoard) {
   memset(m_cBuffer, 0, sizeof(m_cBuffer) );
-  
+
   m_pHalBoard   = pHalBoard;
-  
+
   memset(m_pChannelsRC, 0, sizeof(m_pChannelsRC) );
   m_iSerialTimer = m_pHalBoard->m_pHAL->scheduler->millis();
 }
 
 uint8_t Receiver::calc_chksum(char *str) {
   uint8_t nc = 0;
-  for(int i=0; i < strlen(str); i++) 
+  for(int i=0; i < strlen(str); i++)
     nc = (nc + str[i]) << 1;
 
   return nc;
@@ -42,10 +42,10 @@ bool Receiver::parse_ctrl_com(char* buffer) {
 
   if(verf_chksum(str, chk) ) {                    // if chksum OK
     char *ch = strtok(str, ",");                    // first channel
-    m_pChannelsRC[0] = (uint16_t)strtol(ch, NULL, 10);// parse       
+    m_pChannelsRC[0] = (uint16_t)strtol(ch, NULL, 10);// parse
     for(int i = 1; i < APM_IOCHANNEL_COUNT; i++) {  // loop through final 3 RC_CHANNELS
       char *ch = strtok(NULL, ",");
-      m_pChannelsRC[i] = (uint16_t)strtol(ch, NULL, 10);   
+      m_pChannelsRC[i] = (uint16_t)strtol(ch, NULL, 10);
     }
     m_iSerialTimer = m_pHalBoard->m_pHAL->scheduler->millis();           // update last valid packet
   }
@@ -66,7 +66,7 @@ bool Receiver::parse_gyr_cor(char* buffer) {
       if(i == 0)
         cstr = strtok (buffer, ",");
       else cstr = strtok (NULL, ",");
-      
+
       switch(i) {
         case 0:
           m_pHalBoard->m_fInertRolCor = atof(cstr);
@@ -78,7 +78,7 @@ bool Receiver::parse_gyr_cor(char* buffer) {
         break;
       }
     }
-  } 
+  }
 }
 
 bool Receiver::parse_gyr_cal(char* buffer) {
@@ -135,7 +135,7 @@ float *Receiver::parse_pid_substr(char* buffer) {
   for(; i < strlen(buffer); i++) {
     if(buffer[i] == '\0') {
       break;
-    } 
+    }
     else if(buffer[i] != ',') {
       switch(p) {
       case 0:
@@ -152,7 +152,7 @@ float *Receiver::parse_pid_substr(char* buffer) {
         break;
       }
       c++;
-    } 
+    }
     else {
       p++;
       c = 0;
@@ -173,7 +173,7 @@ bool Receiver::parse_pid_conf(char* buffer) {
   } else if(m_pChannelsRC[2] > RC_THR_MIN) {        // If motors run: Do nothing!
     return false;
   }
-  
+
   // process cmd
   char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
   char *chk = strtok(NULL, "*");                    // chk = chksum
@@ -187,7 +187,7 @@ bool Receiver::parse_pid_conf(char* buffer) {
         cstr = strtok (buffer, ";");
       else cstr = strtok (NULL, ";");
 
-      pids = parse_pid_substr(cstr);      
+      pids = parse_pid_substr(cstr);
       switch(i) {
       case 0:
         m_pHalBoard->m_pPIDS[PID_PIT_RATE].kP(pids[0]);
@@ -215,8 +215,8 @@ bool Receiver::parse_pid_conf(char* buffer) {
   return true;
 }
 
-bool Receiver::read_uartA(uint32_t bytesAvail) {
-  static uint32_t offset = 0;
+bool Receiver::read_uartA(uint16_t bytesAvail) {
+  static uint16_t offset = 0;
   memset(m_cBuffer, 0, sizeof(m_cBuffer) );
 
   bool bRet = false;
@@ -234,8 +234,8 @@ bool Receiver::read_uartA(uint32_t bytesAvail) {
   return bRet;
 }
 
-bool Receiver::read_uartC(uint32_t bytesAvail) {
-  static uint32_t offset = 0;
+bool Receiver::read_uartC(uint16_t bytesAvail) {
+  static uint16_t offset = 0;
   memset(m_cBuffer, 0, sizeof(m_cBuffer) );
 
   bool bRet = false;
@@ -243,10 +243,10 @@ bool Receiver::read_uartC(uint32_t bytesAvail) {
     char c = (char)m_pHalBoard->m_pHAL->uartC->read();               // read next byte
     if(c == '\n') {                                     // new line reached - process cmd
       m_cBuffer[offset] = '\0';                         // null terminator
-      
+
       bRet = parse(m_cBuffer);
       memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;
-    } 
+    }
     else if(c != '\r' && offset < sizeof(m_cBuffer)-1) {
       m_cBuffer[offset++] = c;                          // store in buffer and continue until newline
     }
@@ -284,5 +284,5 @@ bool Receiver::parse(char *buffer) {
 }
 
 uint32_t Receiver::time_elapsed() {
-  return m_pHalBoard->m_pHAL->scheduler->millis() - m_iSerialTimer; 
+  return m_pHalBoard->m_pHAL->scheduler->millis() - m_iSerialTimer;
 }

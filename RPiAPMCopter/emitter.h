@@ -12,15 +12,15 @@
 ///////////////////////////////////////////////////////////
 class Emitter {
 public:
-  Emitter(void (*pf_foo)(), int delay = 0);
-  
+  Emitter(void (*pf_foo)(), uint16_t delay = 0);
+
   bool emit();
   void reset();
-  uint32_t getDelay(uint16_t iNum);
-  
+  uint16_t getDelay(uint16_t iNum);
+
 private:
   bool bSend;
-  int iDelay;
+  uint16_t iDelay;
   void (*pfEmitter)();
 };
 ///////////////////////////////////////////////////////////
@@ -34,24 +34,24 @@ private:
   uint32_t m_iMediTimer;
   uint32_t m_iSlowTimer;
   uint32_t m_iUslwTimer;
-  int m_ifC, m_imC, m_isC, m_iuC;
-  
+  uint8_t m_ifC, m_imC, m_isC, m_iuC;
+
 protected:
   Emitter *m_fastList[8];
   Emitter *m_mediList[8];
   Emitter *m_slowList[8];
   Emitter *m_uslwList[8];
-  
-  void scheduler(Emitter **pEmitters, uint16_t iSize_N, uint32_t &iTimer, const uint16_t &iTickRate);
+
+  void scheduler(Emitter **pEmitters, const uint8_t iSize_N, uint32_t &iTimer, const int16_t iTickRate);
 
 public:
   Emitters(const AP_HAL::HAL *);
-  
+
   void addFastEmitter(Emitter *);
   void addMediEmitter(Emitter *);
   void addSlowEmitter(Emitter *);
-  void addUslwEmitter(Emitter *);  
-  
+  void addUslwEmitter(Emitter *);
+
   void run();
 };
 

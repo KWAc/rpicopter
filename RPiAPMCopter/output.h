@@ -67,22 +67,22 @@ void send_baro() {
 void send_gps() {
   GPSData gps = _HAL_BOARD.read_gps();
   hal.console->printf("{\"type\":\"s_gps\",\"lat\":%d,\"lon\":%d,\"a_m\":%.1f,\"g_ms\":%.1f,\"e_ms\":%.1f,\"n_ms\":%.1f,\"d_ms\":%.1f,\"h_x\":%.1f,\"h_y\":%.1f,\"h_z\":%.1f,\"g_cd\":%d,\"sat\":%d,\"tw\":%d,\"tw_s\":%d}\n",
-  gps.latitude, 
-  gps.longitude, 
-  gps.altitude_m, 
+  gps.latitude,
+  gps.longitude,
+  gps.altitude_m,
 
-  gps.gspeed_ms, 
-  gps.espeed_ms, 
-  gps.nspeed_ms, 
+  gps.gspeed_ms,
+  gps.espeed_ms,
+  gps.nspeed_ms,
   gps.dspeed_ms,
 
   gps.heading_x,
   gps.heading_y,
   gps.heading_z,
 
-  gps.gcourse_cd, 
-  gps.satelites, 
-  gps.time_week, 
+  gps.gcourse_cd,
+  gps.satelites,
+  gps.time_week,
   gps.time_week_s);
 }
 ///////////////////////////////////////////////////////////
@@ -96,11 +96,11 @@ void send_bat() {
 ///////////////////////////////////////////////////////////
 // remote control
 ///////////////////////////////////////////////////////////
-void send_rc() { 
-  int rcthr = _RECVR.m_pChannelsRC[2]; 
-  int rcyaw = _RECVR.m_pChannelsRC[3];
-  int rcpit = _RECVR.m_pChannelsRC[1];
-  int rcrol = _RECVR.m_pChannelsRC[0];
+void send_rc() {
+  int16_t rcthr = _RECVR.m_pChannelsRC[2];
+  int16_t rcyaw = _RECVR.m_pChannelsRC[3];
+  int16_t rcpit = _RECVR.m_pChannelsRC[1];
+  int16_t rcrol = _RECVR.m_pChannelsRC[0];
 
   hal.console->printf("{\"type\":\"rc_in\",\"r\":%d,\"p\":%d,\"t\":%d,\"y\":%d}\n",
   rcrol, rcpit, rcthr, rcyaw);

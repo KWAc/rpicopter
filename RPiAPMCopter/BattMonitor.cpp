@@ -1,13 +1,13 @@
 #include "BattMonitor.h"
 
 
-void BattMonitor::setup_source(int8_t volt_pin, 
-                        int8_t curr_pin, 
-                        float volt_multiplier, 
-                        float curr_amp_per_volt, 
-                        int32_t pack_capacity, 
-                        float curr_amp_offset, 
-                        int8_t monitoring ) 
+void BattMonitor::setup_source(int8_t volt_pin,
+                        int8_t curr_pin,
+                        float volt_multiplier,
+                        float curr_amp_per_volt,
+                        int32_t pack_capacity,
+                        float curr_amp_offset,
+                        int8_t monitoring )
 {
   _monitoring         = monitoring;
   _volt_pin           = volt_pin;
@@ -16,7 +16,7 @@ void BattMonitor::setup_source(int8_t volt_pin,
   _curr_amp_per_volt  = curr_amp_per_volt;
   _curr_amp_offset    = curr_amp_offset;
   _pack_capacity      = pack_capacity;
-  
+
   init();
 }
 

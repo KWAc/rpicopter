@@ -39,15 +39,15 @@
  * Sets references to values in the eight channel rc input
  */
 inline void set_channels(int16_t &pit, int16_t &rol, int16_t &yaw, int16_t &thr) {
-  thr = _RECVR.m_pChannelsRC[2] > RC_THR_80P ? RC_THR_80P : (float)_RECVR.m_pChannelsRC[2]; 
-  yaw = _RECVR.m_pChannelsRC[3];
-  pit = _RECVR.m_pChannelsRC[1];
   rol = _RECVR.m_pChannelsRC[0];
+  pit = _RECVR.m_pChannelsRC[1];
+  thr = _RECVR.m_pChannelsRC[2] > RC_THR_80P ? RC_THR_80P : _RECVR.m_pChannelsRC[2];
+  yaw = _RECVR.m_pChannelsRC[3];
 }
 
-/* 
- * Fast and time critical loop for: 
- * - controlling the quadrocopter 
+/*
+ * Fast and time critical loop for:
+ * - controlling the quadrocopter
  * - fetching rc signals
  * - filtering and processing sensor data necessary for flight
  */
@@ -73,7 +73,7 @@ inline void main_loop() {
   if(packet_t > SER_PKT_TIMEOUT && rcthr > RC_THR_OFF) {
     // how much to reduce?
     float fDecr = 1.25 * ((float)packet_t / 25.f);
-    int16_t fDelta = rcthr - (int16_t)fDecr;    
+    int16_t fDelta = rcthr - (int16_t)fDecr;
     // reduce thrust..
     rcthr = (int16_t)fDecr < 0 ? RC_THR_OFF : fDelta > RC_THR_MIN ? fDelta : RC_THR_OFF;
     // reset yaw, pitch and roll
@@ -88,9 +88,9 @@ inline void main_loop() {
   // Throttle raised, turn on stabilisation.
   if(rcthr > RC_THR_ACRO) {
     // Stabilise PIDS
-    float pit_stab_output = constrain_float(_HAL_BOARD.m_pPIDS[PID_PIT_STAB].get_pid((float)rcpit - vAttitude.x, 1), -250, 250); 
+    float pit_stab_output = constrain_float(_HAL_BOARD.m_pPIDS[PID_PIT_STAB].get_pid((float)rcpit - vAttitude.x, 1), -250, 250);
     float rol_stab_output = constrain_float(_HAL_BOARD.m_pPIDS[PID_ROL_STAB].get_pid((float)rcrol - vAttitude.y, 1), -250, 250);
-    float yaw_stab_output = constrain_float(_HAL_BOARD.m_pPIDS[PID_YAW_STAB].get_pid(wrap_180(targ_yaw - vAttitude.z), 1), -360, 360);
+    float yaw_stab_output = constrain_float(_HAL_BOARD.m_pPIDS[PID_YAW_STAB].get_pid(wrap180_float(targ_yaw - vAttitude.z), 1), -360, 360);
 
     // is pilot asking for yaw change - if so feed directly to rate pid (overwriting yaw stab output)
     if(abs(rcyaw ) > 5.f) {
@@ -99,20 +99,20 @@ inline void main_loop() {
     }
 
     // rate PIDS
-    int16_t pit_output = (int16_t)constrain_float(_HAL_BOARD.m_pPIDS[PID_PIT_RATE].get_pid(pit_stab_output - _HAL_BOARD.m_vGyro.x, 1), -500, 500); 
-    int16_t rol_output = (int16_t)constrain_float(_HAL_BOARD.m_pPIDS[PID_ROL_RATE].get_pid(rol_stab_output - _HAL_BOARD.m_vGyro.y, 1), -500, 500);   
-    int16_t yaw_output = (int16_t)constrain_float(_HAL_BOARD.m_pPIDS[PID_YAW_RATE].get_pid(yaw_stab_output - _HAL_BOARD.m_vGyro.z, 1), -500, 500);  
+    int16_t pit_output = (int16_t)constrain_float(_HAL_BOARD.m_pPIDS[PID_PIT_RATE].get_pid(pit_stab_output - _HAL_BOARD.m_vGyro.x, 1), -500, 500);
+    int16_t rol_output = (int16_t)constrain_float(_HAL_BOARD.m_pPIDS[PID_ROL_RATE].get_pid(rol_stab_output - _HAL_BOARD.m_vGyro.y, 1), -500, 500);
+    int16_t yaw_output = (int16_t)constrain_float(_HAL_BOARD.m_pPIDS[PID_YAW_RATE].get_pid(yaw_stab_output - _HAL_BOARD.m_vGyro.z, 1), -500, 500);
 
     int16_t fFL = rcthr + rol_output + pit_output - yaw_output;
     int16_t fBL = rcthr + rol_output - pit_output + yaw_output;
     int16_t fFR = rcthr - rol_output + pit_output + yaw_output;
     int16_t fBR = rcthr - rol_output - pit_output - yaw_output;
-    
+
     hal.rcout->write(MOTOR_FL, fFL);
     hal.rcout->write(MOTOR_BL, fBL);
     hal.rcout->write(MOTOR_FR, fFR);
     hal.rcout->write(MOTOR_BR, fBR);
-  } 
+  }
   else {
     // motors off
     hal.rcout->write(MOTOR_FL, RC_THR_OFF);
@@ -180,7 +180,7 @@ void loop() {
   main_loop();        // time critical stuff
 
   // send some json formatted information about the model over serial port
-  _SCHED.run(); // Wrote my own small and absolutely fair scheduler 
+  _SCHED.run(); // Wrote my own small and absolutely fair scheduler
 }
 
 AP_HAL_MAIN();

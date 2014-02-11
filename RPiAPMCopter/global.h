@@ -24,7 +24,7 @@ AP_GPS_UBLOX               _GPS;                        // GPS
 BattMonitor                _BAT;                        // battery monitor
 
 ///////////////////////////////////////////////////////////
-// Abstracted hardware abstraction classes :D 
+// Abstracted hardware abstraction classes :D
 // Take any sensor if derived from ArduPilot library!
 // Only exception is the battery monitor
 // to circumvent the usage of AP_Param for changing settings

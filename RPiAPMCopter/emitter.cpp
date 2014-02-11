@@ -1,7 +1,7 @@
 #include "emitter.h"
 
 
-Emitter::Emitter(void (*pf_foo)(), int delay) {
+Emitter::Emitter(void (*pf_foo)(), uint16_t delay) {
   bSend = false;
   iDelay = delay;
   pfEmitter = pf_foo;
@@ -20,24 +20,24 @@ void Emitter::reset() {
   bSend = false;
 }
 
-uint32_t Emitter::getDelay(uint16_t iNum) {
+uint16_t Emitter::getDelay(uint16_t iNum) {
   return iDelay * (iNum+1);
 }
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
 Emitters::Emitters(const AP_HAL::HAL *p) {
   m_pHAL = p;
-  
+
   memset(m_fastList, NULL, sizeof(m_fastList));
   memset(m_mediList, NULL, sizeof(m_mediList));
   memset(m_slowList, NULL, sizeof(m_slowList));
   memset(m_uslwList, NULL, sizeof(m_uslwList));
-  
+
   m_ifC = 0;
   m_imC = 0;
   m_isC = 0;
   m_iuC = 0;
-  
+
   m_iFastTimer = 0;
   m_iMediTimer = 0;
   m_iSlowTimer = 0;
@@ -77,13 +77,13 @@ void Emitters::addUslwEmitter(Emitter *p) {
 // pEmitters: Array of iSize_N elements
 // iTickrate: the time in ms until the first emitter in the array will emit again
 ///////////////////////////////////////////////////////////
-void Emitters::scheduler(Emitter **pEmitters, uint16_t iSize_N, uint32_t &iTimer, const uint16_t &iTickRate) { 
+void Emitters::scheduler(Emitter **pEmitters, uint8_t iSize_N, uint32_t &iTimer, const int16_t iTickRate) {
   if(m_pHAL == NULL)
     return;
-  
+
   uint32_t time = m_pHAL->scheduler->millis() - iTimer;
-  for(uint16_t i = 0; i < iSize_N; i++) {
-    if(time > iTickRate + pEmitters[i]->getDelay(i) ) { 
+  for(uint8_t i = 0; i < iSize_N; i++) {
+    if(time > iTickRate + pEmitters[i]->getDelay(i) ) {
       if(pEmitters[i]->emit() ) {
         if(i == (iSize_N - 1) ) { // Reset everything if last emitter successfully emitted
           for(uint16_t i = 0; i < iSize_N; i++) {

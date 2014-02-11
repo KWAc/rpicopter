@@ -29,7 +29,7 @@ class PID;
 class Device {
 private:
   uint32_t m_iTimer;
-  
+
 public:
   // PID configuration and remote contro
   PID m_pPIDS[6];
@@ -49,7 +49,7 @@ public:
   float m_fInertRolOffs;
   float m_fInertPitOffs;
   float m_fInertYawOffs;
-  
+
   float m_fInertPitCor; // left to right or right to left
   float m_fInertRolCor; // front to back or back to front
 
@@ -71,15 +71,14 @@ public:
           AP_InertialSensor *, Compass *, AP_Baro *, GPS *, BattMonitor * );
 
   Vector3f attitude_calibration();
-  void gyro_drift(Vector3f &drift, Vector3f &offset, int &samples, float bias = 20);
-  
+
   void init_barometer();
   void init_pids();
   void init_compass();
   void init_inertial();
   void init_gps();
   void init_batterymon();
-  
+
   /* Updating the inertial and calculates the attitude from fused sensor values */
   void update_inertial();       // saves result to m_vAttitude
   /* Not updating the intertial, to avoid double updates on other spots in the code :( Not elegant so far */
@@ -87,12 +86,12 @@ public:
   Vector3f  read_accel();       // converts sensor readout absolute attitude and saves in m_vAccel
   /* updating the sensors */
   BaroData  read_baro();
-  float     read_comp(float roll = 0.f, float pitch = 0.f);
+  float     read_comp(const float roll = 0.f, const float pitch = 0.f);
   GPSData   read_gps();
   BattData  read_bat();
-  
-  static float get_resbatcap(float voltage_V, unsigned int num_cells);
-  
+
+  static float get_resbatcap(const float voltage_V, const uint8_t num_cells);
+
   /* Return the Vector3f Inertial readouts */
   Vector3f get_atti();  // fused sensor values from accelerometer/gyrometer and maybe compass/GPS later
   Vector3f get_gyro();  // gyrometer sensor readout

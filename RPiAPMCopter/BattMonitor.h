@@ -36,19 +36,19 @@ enum BATT_SENSOR_TYPE {
 /*
  * AP_Param independent version of the battery monitor
  */
-class BattMonitor : 
+class BattMonitor :
 public AP_BattMonitor {
-public: 
+public:
   /*
    * Changes source of battery monitor
    * Makes usage of AP_Param unnecessary
    */
-  void setup_source( int8_t volt_pin, 
-  int8_t curr_pin, 
-  float volt_multiplier, 
-  float curr_amp_per_volt, 
-  int32_t pack_capacity, 
-  float curr_amp_offset, 
+  void setup_source( int8_t volt_pin,
+  int8_t curr_pin,
+  float volt_multiplier,
+  float curr_amp_per_volt,
+  int32_t pack_capacity,
+  float curr_amp_offset,
   int8_t monitoring );
   /*
    * Calls function above
