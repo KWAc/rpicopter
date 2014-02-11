@@ -172,7 +172,7 @@ Vector3f Device::attitude_calibration() {
   return offset;
 }
 
-Vector3f Device::get_attitude() {
+Vector3f Device::get_atti() {
   return Vector3f(m_vAttitude.x - m_fInertPitCor, // Pitch correction for inbalances
                   m_vAttitude.y - m_fInertRolCor, // Roll correction for inbalances
                   m_vAttitude.z);                 // Yaw is without correction on that point, because compass/GPS is thought to do that job, but not here
