@@ -32,7 +32,7 @@ bool Receiver::verf_chksum(char *str, char *chk) {
 }
 
 // remote control stuff
-bool Receiver::parse_ctrl_com(char* buffer, uint32_t &timer) {
+bool Receiver::parse_ctrl_com(char* buffer) {
   if(m_pChannelsRC == NULL) {
     return false;
   }
@@ -47,12 +47,13 @@ bool Receiver::parse_ctrl_com(char* buffer, uint32_t &timer) {
       char *ch = strtok(NULL, ",");
       m_pChannelsRC[i] = (uint16_t)strtol(ch, NULL, 10);   
     }
-    timer = m_pHalBoard->m_pHAL->scheduler->millis();           // update last valid packet
+    m_iSerialTimer = m_pHalBoard->m_pHAL->scheduler->millis();           // update last valid packet
   }
   return true;
 }
 
 // drift compensation
+// maximum value is between -10 and 10 degrees
 bool Receiver::parse_gyr_cor(char* buffer) {
   // process cmd
   char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
@@ -223,7 +224,7 @@ bool Receiver::read_uartA(uint32_t bytesAvail) {
     char c = (char)m_pHalBoard->m_pHAL->console->read();                 // read next byte
     if(c == '\n') {                                     // new line reached - process cmd
       m_cBuffer[offset] = '\0';                         // null terminator
-      bRet = parse(m_cBuffer, m_iSerialTimer);
+      bRet = parse(m_cBuffer);
       memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;
     }
     else if(c != '\r' && offset < sizeof(m_cBuffer)-1) {
@@ -243,7 +244,7 @@ bool Receiver::read_uartC(uint32_t bytesAvail) {
     if(c == '\n') {                                     // new line reached - process cmd
       m_cBuffer[offset] = '\0';                         // null terminator
       
-      bRet = parse(m_cBuffer, m_iSerialTimer);
+      bRet = parse(m_cBuffer);
       memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;
     } 
     else if(c != '\r' && offset < sizeof(m_cBuffer)-1) {
@@ -256,7 +257,7 @@ bool Receiver::read_uartC(uint32_t bytesAvail) {
 // Parse incoming text
 // str = "%d,%d,%d,%d * checksum" % (p['roll'], p['pitch'], p['thr'], p['yaw'])
 // str = "%d,%d,%d; %d,%d,%d; %d,%d,%d * checksum"
-bool Receiver::parse(char *buffer, uint32_t &timer) {
+bool Receiver::parse(char *buffer) {
   if(buffer == NULL) {
     return false;
   }
@@ -266,7 +267,7 @@ bool Receiver::parse(char *buffer, uint32_t &timer) {
 
   // process cmd
   if(strcmp(ctype, "RC") == 0) {
-    return parse_ctrl_com(command, timer);
+    return parse_ctrl_com(command);
   }
   if(strcmp(ctype, "PID") == 0) {
     return parse_pid_conf(command);
@@ -282,6 +283,6 @@ bool Receiver::parse(char *buffer, uint32_t &timer) {
   }
 }
 
-uint32_t Receiver::timeElapsed() {
-  return m_iSerialTimer; 
+uint32_t Receiver::time_elapsed() {
+  return m_pHalBoard->m_pHAL->scheduler->millis() - m_iSerialTimer; 
 }

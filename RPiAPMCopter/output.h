@@ -50,9 +50,8 @@ void send_comp() {
 // attitude in degrees
 ///////////////////////////////////////////////////////////
 void send_atti() {
-  Vector3f atti = _HAL_BOARD.read_atti(); 
   hal.console->printf("{\"type\":\"s_att\",\"r\":%.1f,\"p\":%.1f,\"y\":%.1f}\n",
-  _HAL_BOARD.m_fRol, _HAL_BOARD.m_fPit, _HAL_BOARD.m_fYaw);
+  _HAL_BOARD.m_vAttitude.y, _HAL_BOARD.m_vAttitude.x, _HAL_BOARD.m_vAttitude.z);
 }
 ///////////////////////////////////////////////////////////
 // barometer
@@ -92,7 +91,7 @@ void send_gps() {
 void send_bat() {
   BattData bat = _HAL_BOARD.read_bat();
   hal.console->printf("{\"type\":\"s_bat\",\"V\":%.1f,\"A\":%.1f,\"c_mAh\":%.1f,\"r_cap\":%.1f}\n",
-  bat.voltage_V+AP_BATT_VOLT_OFFSET, bat.current_A, bat.consumpt_mAh, batt_rescapa(bat.voltage_V+AP_BATT_VOLT_OFFSET, AP_BATT_CELL_COUNT) );
+  bat.voltage_V+AP_BATT_VOLT_OFFSET, bat.current_A, bat.consumpt_mAh, Device::get_resbatcap(bat.voltage_V+AP_BATT_VOLT_OFFSET, AP_BATT_CELL_COUNT) );
 }
 ///////////////////////////////////////////////////////////
 // remote control

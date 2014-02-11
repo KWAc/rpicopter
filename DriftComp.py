@@ -19,7 +19,7 @@ def chksum(str):
   return c
   
 def makecommand(roll, pitch):
-  sCom = '{"type":"drift_comp","roll":%.4f,"pitch":%.4f}' % (roll, pitch) 
+  sCom = '{"type":"cmp","r":%.4f,"p":%.4f}' % (roll, pitch) 
   return sCom
   
 def sendcommand(sCom):
@@ -40,16 +40,16 @@ def keyevent(key):
     BRFL  = 0
 	
   # forward backward
-  if key == ord("s") and PIT + 0.025 <= 10:
-    PIT += 0.025;
-  elif key == ord("w") and PIT - 0.025 >= -10:
-    PIT -= 0.025;
+  if key == ord("s") and PIT + 0.01 <= 10:
+    PIT += 0.010;
+  elif key == ord("w") and PIT - 0.01 >= -10:
+    PIT -= 0.010;
 
   # strafe left right
-  elif key == ord("d") and ROL + 0.025 <= 10:
-    ROL += 0.025;
-  elif key == ord("a") and ROL - 0.025 >= -10:
-    ROL -= 0.025;
+  elif key == ord("d") and ROL + 0.01 <= 10:
+    ROL += 0.010;
+  elif key == ord("a") and ROL - 0.01 >= -10:
+    ROL -= 0.010;
     
 def main():
   stdscr = curses.initscr()

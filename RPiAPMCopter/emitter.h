@@ -42,7 +42,7 @@ protected:
   Emitter *m_slowList[8];
   Emitter *m_uslwList[8];
   
-  inline void scheduler(Emitter **pEmitters, uint16_t iSize_N, uint32_t &iTimer, const uint16_t &iTickRate);
+  void scheduler(Emitter **pEmitters, uint16_t iSize_N, uint32_t &iTimer, const uint16_t &iTickRate);
 
 public:
   Emitters(const AP_HAL::HAL *);

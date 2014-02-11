@@ -281,26 +281,30 @@ private slots:
         }
 
         QString cmp;
+        // Quadro moves to front
         if(m_customKeyStatus[mapIndex(Qt::Key_8)] == true) {
-            m_DRIFT.PIT += 0.05 * m_fTimeConstEnh;
-            qDebug() << "Drift correction: Pitch=" << m_DRIFT.PIT;
-            cmp = makeCommand(m_DRIFT.ROL, m_DRIFT.PIT);
-            sl_sendJSON(cmp);
-        }
-        if(m_customKeyStatus[mapIndex(Qt::Key_2)] == true) {
             m_DRIFT.PIT -= 0.05 * m_fTimeConstEnh;
             qDebug() << "Drift correction: Pitch=" << m_DRIFT.PIT;
             cmp = makeCommand(m_DRIFT.ROL, m_DRIFT.PIT);
             sl_sendJSON(cmp);
         }
+        // Quadro moves backwards
+        if(m_customKeyStatus[mapIndex(Qt::Key_2)] == true) {
+            m_DRIFT.PIT += 0.05 * m_fTimeConstEnh;
+            qDebug() << "Drift correction: Pitch=" << m_DRIFT.PIT;
+            cmp = makeCommand(m_DRIFT.ROL, m_DRIFT.PIT);
+            sl_sendJSON(cmp);
+        }
+        // Quadro moves to the left
         if(m_customKeyStatus[mapIndex(Qt::Key_4)] == true) {
-            m_DRIFT.ROL += 0.05 * m_fTimeConstEnh;
+            m_DRIFT.ROL -= 0.05 * m_fTimeConstEnh;
             qDebug() << "Drift correction: Roll=" << m_DRIFT.ROL;
             cmp = makeCommand(m_DRIFT.ROL, m_DRIFT.PIT);
             sl_sendJSON(cmp);
         }
+        // // Quadro moves to the right
         if(m_customKeyStatus[mapIndex(Qt::Key_6)] == true) {
-            m_DRIFT.ROL -= 0.05 * m_fTimeConstEnh;
+            m_DRIFT.ROL += 0.05 * m_fTimeConstEnh;
             qDebug() << "Drift correction: Roll=" << m_DRIFT.ROL;
             cmp = makeCommand(m_DRIFT.ROL, m_DRIFT.PIT);
             sl_sendJSON(cmp);

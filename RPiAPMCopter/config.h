@@ -1,6 +1,7 @@
 #ifndef DEFS_h
 #define DEFS_h
 
+
 #if CONFIG_HAL_BOARD == HAL_BOARD_APM1
   #define A_LED_PIN             37
   #define B_LED_PIN             36
@@ -29,7 +30,8 @@
 
 #define ATTITUDE_SAMPLE_CNT 10
 
-#define INERTIAL_TIMEOUT  5 // in ms
+#define INERTIAL_TIMEOUT  5     // in ms
+#define SER_PKT_TIMEOUT   500   // in ms
 
 // Number of samples for gyrometer calibration
 #define COMPASS_FOR_YAW   0
@@ -79,8 +81,8 @@
 #define RC_ROL_MAX   45
 
 // battery monitor types
-#define AP_BATT_VOLT_OFFSET        0.5
-#define AP_BATT_CELL_COUNT         4
-#define AP_BATT_CAPACITY_DEFAULT   10000
+#define AP_BATT_VOLT_OFFSET        0.5   // Offset will get added to the voltage measured
+#define AP_BATT_CELL_COUNT         4     // Used for calculation of the percentage of the residual capacity
+#define AP_BATT_CAPACITY_DEFAULT   10000 // Total capacity of the battery
 
 #endif /*DEFS_h*/

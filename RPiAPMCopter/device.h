@@ -23,14 +23,13 @@ class GPSData;
 class PID;
 
 
-float sensor_fuse(float angle_cor, float angle_fix, float time, float rate = 0.025);
-float delta_angle(float fCurVal, float fOldVal);
-float batt_rescapa(float voltage_V, unsigned int num_cells);
-
 ///////////////////////////////////////////////////////////
 // Container for sensor data and sensor configuration
 ///////////////////////////////////////////////////////////
 class Device {
+private:
+  uint32_t m_iTimer;
+  
 public:
   // PID configuration and remote contro
   PID m_pPIDS[6];
@@ -57,15 +56,14 @@ public:
 // Maybe make it protected ..
 public:
   float     m_fComp;
+  // x = pitch, y = roll, z = yaw
   Vector3f  m_vGyro;
-  Vector3f  m_vAtti;
+  Vector3f  m_vAccel;
+  Vector3f  m_vAttitude;
+  // misc
   BaroData  m_ContBaro;
   GPSData   m_ContGPS;
   BattData  m_ContBat;
-  
-  float m_fRol;
-  float m_fPit;
-  float m_fYaw;
 
 public:
   // Accepts pointers to abstract base classes to handle different sensor types
@@ -82,12 +80,23 @@ public:
   void init_gps();
   void init_batterymon();
   
-  Vector3f  read_gyro();
-  Vector3f  read_atti();
+  /* Updating the inertial and calculates the attitude from fused sensor values */
+  void update_inertial();       // saves result to m_vAttitude
+  /* Not updating the intertial, to avoid double updates on other spots in the code :( Not elegant so far */
+  Vector3f  read_gyro();        // converts sensor readout to degrees and saves in m_vGyro
+  Vector3f  read_accel();       // converts sensor readout absolute attitude and saves in m_vAccel
+  /* updating the sensors */
   BaroData  read_baro();
   float     read_comp(float roll = 0.f, float pitch = 0.f);
   GPSData   read_gps();
   BattData  read_bat();
+  
+  static float get_resbatcap(float voltage_V, unsigned int num_cells);
+  
+  /* Return the Vector3f Inertial readouts */
+  Vector3f get_atti();  // fused sensor values from accelerometer/gyrometer and maybe compass/GPS later
+  Vector3f get_gyro();  // gyrometer sensor readout
+  Vector3f get_accel(); // accelerometer sensor readout
 };
 
 #endif
