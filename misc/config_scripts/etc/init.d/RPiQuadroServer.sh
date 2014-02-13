@@ -19,20 +19,20 @@ USER="root"
 . /lib/lsb/init-functions
 
 do_start() {
-    log_daemon_msg "Starting system $DAEMON $ARGS daemon"
-    mkdir -p "$WORK_DIR"
-    /sbin/start-stop-daemon --start --pidfile $PIDFILE \
-        --user $USER --group $USER \
-        -b --make-pidfile \
-        --chuid $USER \
-        --exec $DAEMON $ARGS
-    log_end_msg $?
+  log_daemon_msg "Starting system $DAEMON $ARGS daemon"
+  mkdir -p "$WORK_DIR"
+  /sbin/start-stop-daemon --start --pidfile $PIDFILE \
+    --user $USER --group $USER \
+    -b --make-pidfile \
+    --chuid $USER \
+    --exec $DAEMON $ARGS
+  log_end_msg $?
 }
 
 do_stop() {
-    log_daemon_msg "Stopping system $DAEMON $ARGS daemon"
-    /sbin/start-stop-daemon --stop --pidfile $PIDFILE --verbose
-    log_end_msg $?
+  log_daemon_msg "Stopping system $DAEMON $ARGS daemon"
+  /sbin/start-stop-daemon --stop --pidfile $PIDFILE --verbose
+  log_end_msg $?
 }
 
 case "$1" in

@@ -1,0 +1,3 @@
+check process RPiQuadroServer pidfile /var/run/RPiQuadroServer.pid
+ start program = "/etc/init.d/RPiQuadroServer.sh start"
+ stop program = "/etc/init.d/RPiQuadroServer.sh stop" 

@@ -220,6 +220,9 @@ private slots:
             m_COM.ROL = 0;
             m_COM.YAW = 0;
             m_COM.THR = m_RANGE.THR_MIN;
+
+            QString cmp = makeCommand(0, 0);
+            sl_sendJSON(cmp);
         }
 
         if(m_customKeyStatus[Qt::Key_C] == true) {
