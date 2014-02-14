@@ -1,9 +1,11 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include <QtGui>
+#include <QtWidgets>
 #include <QUdpSocket>
 #include <QIODevice>
+#include <QSerialPort>
+#include <QSerialPortInfo>
 #include <qjson/parser.h>
 
 #include "qplotdockwidget.h"
@@ -29,6 +31,9 @@ private:
 
     QString m_sHostName;
     QUdpSocket *m_pUdpSocket;
+    QSerialPort m_serialPort;
+    QSerialPortInfo m_serialPortInfo;
+
     bool m_bUdpSockCon;
     
     char m_cUdpRecvBuf[256];
@@ -62,6 +67,8 @@ private:
     QVector<double> m_vLatency_ms;
 
     QPIDConfig *m_pPIDConfigDial;
+
+    void searchSerialRadio();
 
 private slots:
     void sl_saveLog();

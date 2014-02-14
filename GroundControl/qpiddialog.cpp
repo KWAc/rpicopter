@@ -184,6 +184,6 @@ void QPIDConfig::sl_sendPIDs() {
                              << ",\"pit_skp\":" << m_pit_skp_V->value() << ",\"rol_skp\":" << m_rol_skp_V->value() << ",\"yaw_skp\":" << m_yaw_skp_V->value() << "}";
 
     for(int i = 0; i < 16; i++)
-        m_pUdpSock->write(com.toAscii(), com.length() );
+        m_pUdpSock->write(com.toLocal8Bit(), com.length() );
     qDebug() << com;
 }

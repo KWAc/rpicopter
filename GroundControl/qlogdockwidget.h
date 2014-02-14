@@ -1,8 +1,7 @@
 #ifndef Q_LOGDOCK
 #define Q_LOGDOCK
 
-#include <QtGui>
-
+#include <QtWidgets>
 
 
 class QLogDockWidget : public QDockWidget

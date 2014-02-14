@@ -1,8 +1,7 @@
 #ifndef Q_PIDDOCK
 #define Q_PIDDOCK
 
-#include <QtGui>
-
+#include <QtWidgets>
 
 
 class QPIDDockWidget : public QDockWidget

@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += core gui network
+QT       += core gui network serialport printsupport
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -20,7 +20,8 @@ SOURCES +=  main.cpp\
             qcustomplot.cpp \
             qattitudeindicator.cpp \
             qpiddockwidget.cpp \
-            qpiddialog.cpp
+            qpiddialog.cpp\
+            qrcwidget.cpp \
 
 HEADERS  += mainwindow.h\
             qcustomplot.h \

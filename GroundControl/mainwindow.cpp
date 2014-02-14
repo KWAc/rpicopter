@@ -49,7 +49,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_sHostName = "";
 
     m_pPIDConfigDial = new QPIDConfig(m_pUdpSocket);
-    m_pRCWidget = new QRCWidget(m_pUdpSocket, this);
+    m_pRCWidget = new QRCWidget(m_pUdpSocket, NULL, this);
     this->setCentralWidget(m_pRCWidget);
     m_pRCWidget->setDisabled(true);
 
@@ -59,6 +59,22 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(m_pFileMSave, SIGNAL(triggered() ), this, SLOT(sl_saveLog() ) );
     connect(m_pOptionMPIDConf, SIGNAL(triggered() ), this, SLOT(sl_configPIDs() ) );
+}
+
+void MainWindow::searchSerialRadio() {
+    // Example use QSerialPortInfo
+    foreach (const QSerialPortInfo &info, QSerialPortInfo::availablePorts() ) {
+        qDebug() << "Name : "        << info.portName();
+        qDebug() << "Description : " << info.description();
+        qDebug() << "Manufacturer: " << info.manufacturer();
+
+        // Example use QSerialPort
+        QSerialPort serial;
+        serial.setPort(info);
+        if (serial.open(QIODevice::ReadWrite) ) {
+            serial.close();
+        }
+    }
 }
 
 MainWindow::~MainWindow()
@@ -144,7 +160,7 @@ void MainWindow::sl_UpdateSensorData(QPair<unsigned long, QVariantMap> sensorRea
                 QStringRef latency(&line, iStart, iStop-iStart);
 
                 m_vNetwork_s.append(time_s);
-                m_vLatency_ms.append(QString(latency.toAscii()).toDouble());
+                m_vLatency_ms.append(QString(latency.toLocal8Bit()).toDouble());
                 break;
             }
         }

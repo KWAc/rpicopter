@@ -1,7 +1,7 @@
 #ifndef Q_PIDDIAL
 #define Q_PIDDIAL
 
-#include <QtGui>
+#include <QtWidgets>
 #include <QUdpSocket>
 
 

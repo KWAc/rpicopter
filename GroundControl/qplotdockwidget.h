@@ -1,7 +1,7 @@
 #ifndef PLOTDOCK_H
 #define PLOTDOCK_H
 
-#include <QtGui>
+#include <QtWidgets>
 #include "qcustomplot.h"
 
 

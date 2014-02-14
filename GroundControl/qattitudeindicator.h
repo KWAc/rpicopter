@@ -1,7 +1,7 @@
 #ifndef QATTITUDEINDICATOR_H
 #define QATTITUDEINDICATOR_H
 
-#include <QWidget>
+#include <QtWidgets>
 
 
 typedef enum _en_global_definitions_

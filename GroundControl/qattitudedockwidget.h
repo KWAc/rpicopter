@@ -1,7 +1,7 @@
 #ifndef Q_ATTITUDEDOCK
 #define Q_ATTITUDEDOCK
 
-#include <QtGui>
+#include <QtWidgets>
 #include "qattitudeindicator.h"
 
 

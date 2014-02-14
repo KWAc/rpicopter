@@ -1,5 +1,7 @@
 #include "qpiddockwidget.h"
 #include <qjson/parser.h>
+#include <QtWidgets>
+
 
 
 QPIDDockWidget::QPIDDockWidget(const QString & title, QWidget * parent, Qt::WindowFlags flags) : QDockWidget(title, parent, flags) {
