@@ -31,7 +31,7 @@ private:
 
     QString m_sHostName;
     QUdpSocket *m_pUdpSocket;
-    QSerialPort m_serialPort;
+    QSerialPort *m_pSerialPort;
     QSerialPortInfo m_serialPortInfo;
 
     bool m_bUdpSockCon;
@@ -68,7 +68,7 @@ private:
 
     QPIDConfig *m_pPIDConfigDial;
 
-    void searchSerialRadio();
+    bool searchSerialRadio();
 
 private slots:
     void sl_saveLog();

@@ -217,7 +217,6 @@ bool Receiver::parse_pid_conf(char* buffer) {
 
 bool Receiver::read_uartA(uint16_t bytesAvail) {
   static uint16_t offset = 0;
-  memset(m_cBuffer, 0, sizeof(m_cBuffer) );
 
   bool bRet = false;
   for(; bytesAvail > 0; bytesAvail--) {
@@ -236,7 +235,6 @@ bool Receiver::read_uartA(uint16_t bytesAvail) {
 
 bool Receiver::read_uartC(uint16_t bytesAvail) {
   static uint16_t offset = 0;
-  memset(m_cBuffer, 0, sizeof(m_cBuffer) );
 
   bool bRet = false;
   for(; bytesAvail > 0; bytesAvail--) {

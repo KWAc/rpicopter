@@ -6,6 +6,8 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
+    searchSerialRadio();
+
     m_pFileM = new QMenu(tr("File"), this);
     m_pOptionM = new QMenu(tr("Options"), this);
     this->menuBar()->addMenu(m_pFileM);
@@ -49,7 +51,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_sHostName = "";
 
     m_pPIDConfigDial = new QPIDConfig(m_pUdpSocket);
-    m_pRCWidget = new QRCWidget(m_pUdpSocket, NULL, this);
+    m_pRCWidget = new QRCWidget(m_pUdpSocket, m_pSerialPort, this);
     this->setCentralWidget(m_pRCWidget);
     m_pRCWidget->setDisabled(true);
 
@@ -61,24 +63,23 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_pOptionMPIDConf, SIGNAL(triggered() ), this, SLOT(sl_configPIDs() ) );
 }
 
-void MainWindow::searchSerialRadio() {
+bool MainWindow::searchSerialRadio() {
     // Example use QSerialPortInfo
     foreach (const QSerialPortInfo &info, QSerialPortInfo::availablePorts() ) {
         qDebug() << "Name : "        << info.portName();
         qDebug() << "Description : " << info.description();
         qDebug() << "Manufacturer: " << info.manufacturer();
 
-        // Example use QSerialPort
-        QSerialPort serial;
-        serial.setPort(info);
-        if (serial.open(QIODevice::ReadWrite) ) {
-            serial.close();
+        if(info.description().contains("FT232R")) {
+            m_serialPortInfo = info;
+            m_pSerialPort = new QSerialPort(info);
+            return m_pSerialPort->open(QIODevice::ReadWrite);
         }
     }
 }
 
-MainWindow::~MainWindow()
-{
+MainWindow::~MainWindow() {
+    m_pSerialPort->close();
 }
 
 void MainWindow::sl_saveLog() {

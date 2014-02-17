@@ -327,7 +327,7 @@ void QRCWidget::sendJSON2COM(const QString &sCommand) {
 
 void QRCWidget::sl_sendRC2UDP() {
     sendJSON2UDP(m_COM.str_makeWiFiCommand() );
-    sendJSON2COM(m_COM.str_makeRadioCommand() );
+    //sendJSON2COM(m_COM.str_makeRadioCommand() );
 }
 
 void QRCWidget::sl_startTimer() {

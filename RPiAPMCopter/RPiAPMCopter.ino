@@ -60,9 +60,9 @@ inline void main_loop() {
 
   // Commands via serial port (in this case WiFi -> RPi -> APM2.5)
   bool bOK = _RECVR.read_uartA(hal.console->available() ); 	// Try WiFi (serial) first
-  if(!bOK) {
+  /*if(!bOK) {
     _RECVR.read_uartC(hal.uartC->available() ); 	        // If not working: Try radio next
-  }
+  }*/
 
   // Variables to store remote control commands
   int16_t rcthr, rcyaw, rcpit, rcrol;
