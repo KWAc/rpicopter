@@ -60,7 +60,7 @@
 // Baud rate
 #define BAUD_RATE_A  115200 // IO USB
 #define BAUD_RATE_B  38400  // GPS
-#define BAUD_RATE_C  57600  // RADIO
+#define BAUD_RATE_C  9600   // RADIO
 
 // Radio min/max values for each stick for my radio (worked out at beginning of article)
 #define RC_THR_OFF   1000   // Motors completely off
@@ -84,5 +84,7 @@
 #define AP_BATT_VOLT_OFFSET        0.5   // Offset will get added to the voltage measured
 #define AP_BATT_CELL_COUNT         4     // Used for calculation of the percentage of the residual capacity
 #define AP_BATT_CAPACITY_DEFAULT   10000 // Total capacity of the battery
+
+#define MAIN_LOOP_T_MS 10                // Update frequency: 100 Hz ~ 10 ms per 1 s
 
 #endif /*DEFS_h*/

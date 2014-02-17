@@ -83,16 +83,23 @@ int RC_COM::calc_chksum(char *str) {
 
 QString RC_COM::str_makeRadioCommand() {
     QString com = "";
-    com.append("RC#");
-    com.append(QString::number((int)ROL, 10) ); com.append(",");
-    com.append(QString::number((int)PIT, 10) ); com.append(",");
-    com.append(QString::number((int)THR, 10) ); com.append(",");
-    com.append(QString::number((int)YAW, 10) );
-
-    uint8_t iChkSum = calc_chksum(com.toLocal8Bit().data() );
-    com.append("*");
-    com.append(QString::number(iChkSum, 16) ); com.append("\r\n");
-
+    
+    short thr_high  = (THR/100)%10;
+    short thr_low   = THR - (1000 + ((THR/100)%10) * 100)
+    short ypm = YAW < 0 ? -1 : 1;
+    short yaw = YAW < 0 ? (-1 * YAW) : YAW;
+    
+    com.append(QChar(thr_high) );           // throttle
+    com.append(QChar(thr_low) );            // throttle
+    com.append(QChar((short)(PIT+127) ) );  // pitch
+    com.append(QChar((short)(ROL+127) ) );  // roll
+    com.append(QChar((short)(ypm+127) ) );  // yaw
+    com.append(QChar((short)yaw) );         // yaw
+    
+    short iChkSum = calc_chksum(com.toLocal8Bit().data() );
+    
+    com.append(QChar(iChkSum) );            // checksum byte
+    com.append(QChar((short)254) );         // end byte
     return com;
 }
 
@@ -125,12 +132,15 @@ QRCWidget::QRCWidget(QUdpSocket *pSock, QSerialPort *pSerialPort, QWidget *paren
     m_iUpdateTime = 13;
     m_fTimeConstRed = (float)m_iUpdateTime/150.f;
     m_fTimeConstEnh = (float)m_iUpdateTime/75.f;
+    
+    m_iRadioCounter = 0;
 
     m_fWidth = m_fHeight = this->m_fWidth < this->m_fHeight ? this->width() : this->height();
 
     connect(&m_keyEventTimer, SIGNAL(timeout() ), this, SLOT(sl_customKeyPressHandler() ) );
     connect(&m_keyEventTimer, SIGNAL(timeout() ), this, SLOT(sl_customKeyReleaseHandler() ) );
     connect(&m_keyEventTimer, SIGNAL(timeout() ), this, SLOT(sl_sendRC2UDP() ) );
+    connect(&m_comPortTimer,  SIGNAL(timeout() ), this, SLOT(sl_sendRC2COM() ) );
 }
 
 void QRCWidget::setYaw(float fVal) {
@@ -318,16 +328,39 @@ void QRCWidget::sendJSON2UDP(const QString &sJSON) {
 void QRCWidget::sendJSON2COM(const QString &sCommand) {
     if(!m_pSerialPort)
         return;
-
+        
     if (sCommand.length() > 0) {
         m_pSerialPort->write(sCommand.toLocal8Bit(), sCommand.length() );
         qDebug() << "Radio: " << sCommand;
     }
+/*
+    // Send the command in byte steps 
+    // (to reduce the problems with the blocking of the serial port)
+    if (sCommand.length() > 0 && !m_comPortTimer.isActive() ) {
+        m_iRadioCounter = 0;
+        m_comPortTimer.start(1);
+        m_sRadioCom = sCommand;
+        qDebug() << "Radio: " << m_sRadioCom;
+    }
+*/
 }
 
 void QRCWidget::sl_sendRC2UDP() {
     sendJSON2UDP(m_COM.str_makeWiFiCommand() );
-    //sendJSON2COM(m_COM.str_makeRadioCommand() );
+    if(!m_comPortTimer.isActive() ) {
+        sendJSON2COM(m_COM.str_makeRadioCommand() );
+    }
+}
+
+// Send the command in 2 byte steps 
+// (to reduce the problems with the blocking of the serial port)
+void QRCWidget::sl_sendRC2COM() {
+    if(m_iRadioCounter < m_sRadioCom.length() ) {
+        m_pSerialPort->write(m_sRadioCom.data()[m_iRadioCounter].toLatin1(), 1 );
+        m_iRadioCounter++;
+    } else {
+        m_comPortTimer.stop();
+    }
 }
 
 void QRCWidget::sl_startTimer() {

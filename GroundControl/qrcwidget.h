@@ -77,12 +77,15 @@ Q_OBJECT
 
 private:
     QTimer m_keyEventTimer;
+    QTimer m_comPortTimer;
+    int m_iRadioCounter;
+    QString m_sRadioCom;
 
     float m_fTimeConstEnh;
     float m_fTimeConstRed;
     int   m_iUpdateTime;
 
-    QUdpSocket *m_pUdpSock;
+    QUdpSocket  *m_pUdpSock;
     QSerialPort *m_pSerialPort;
     
     CUSTOM_KEY m_customKeyStatus;
@@ -102,6 +105,7 @@ private slots:
     void sl_customKeyPressHandler();
     void sl_customKeyReleaseHandler();
     void sl_sendRC2UDP(); // Emitted by timer; Calls sendJSON2UDP
+    void sl_sendRC2COM(); // Emitted by timer; Calls sendJSON2UDP
 
 protected:
     void paintEvent(QPaintEvent *pEvent);

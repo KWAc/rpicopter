@@ -58,12 +58,6 @@ inline void main_loop() {
   // Wait until new orientation data (normally 5 ms max)
   while(_INERT.wait_for_sample(INERTIAL_TIMEOUT) == 0);
 
-  // Commands via serial port (in this case WiFi -> RPi -> APM2.5)
-  bool bOK = _RECVR.read_uartA(hal.console->available() ); 	// Try WiFi (serial) first
-  /*if(!bOK) {
-    _RECVR.read_uartC(hal.uartC->available() ); 	        // If not working: Try radio next
-  }*/
-
   // Variables to store remote control commands
   int16_t rcthr, rcyaw, rcpit, rcrol;
   set_channels(rcpit, rcrol, rcyaw, rcthr);
@@ -176,8 +170,20 @@ void setup() {
 }
 
 void loop() {
-  // remote control and quadro control loop
-  main_loop();        // time critical stuff
+  static unsigned long timer = 0;
+  
+  // Commands via serial port (in this case WiFi -> RPi -> APM2.5)
+  bool bOK = _RECVR.read_uartA(hal.console->available() ); 	// Try WiFi (serial) first
+  if(!bOK) {
+    _RECVR.read_uartC(hal.uartC->available() ); 	        // If not working: Try radio next
+  }
+  
+  // Main loop runs at 100 Hz
+  unsigned long time = hal.scheduler->millis() - timer;
+  if(time > MAIN_LOOP_T_MS) {
+    main_loop();        // time critical stuff
+    timer = hal.scheduler->millis();
+  }
 
   // send some json formatted information about the model over serial port
   _SCHED.run(); // Wrote my own small and absolutely fair scheduler

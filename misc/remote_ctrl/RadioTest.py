@@ -5,7 +5,7 @@ import serial
 import time
 
 com_port = 3
-baud_rate = '57600'
+baud_rate = '9600'
 #baud_rate = '115200'
 pySerial = serial.Serial(com_port, baud_rate)
  
@@ -35,9 +35,16 @@ def send_data(line):
 # Working with two separate threads
 def main():
   while(True):
-    time.sleep(0.1)
-    line = "RC#0,0,1200,0"
-    send_data(line);
+    time.sleep(0.02)
+    #line = "RC#0,0,1200,0"
+    #send_data(line);
+    
+    line = chr(2) + chr(99) + chr(87) + chr(117) + chr(126) + chr(178);
+    print (chksum(line))
+    line += chr(chksum(line))
+    line += chr(254)
+    pySerial.write(line)
+    
     pySerial.flushInput()
 #    while pySerial.inWaiting() > 0:
 #      print (pySerial.read() )

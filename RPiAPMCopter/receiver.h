@@ -25,6 +25,7 @@ private:
 
 protected:
   bool    parse_ctrl_com  (char*);
+  bool    parse_radio     (char*); // Very compact to fit into 8 bytes, stop byte and checksum byte inclusive
   bool    parse_gyr_cor   (char*);
   bool    parse_gyr_cal   (char*);
   bool    parse_bat_type  (char*);
