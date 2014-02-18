@@ -42,8 +42,6 @@ protected:
   Emitter *m_slowList[8];
   Emitter *m_uslwList[8];
 
-  void scheduler(Emitter **pEmitters, const uint8_t iSize_N, uint32_t &iTimer, const int16_t iTickRate);
-
 public:
   Emitters(const AP_HAL::HAL *);
 
@@ -51,6 +49,8 @@ public:
   void addMediEmitter(Emitter *);
   void addSlowEmitter(Emitter *);
   void addUslwEmitter(Emitter *);
+
+  void scheduler(Emitter **pEmitters, const uint8_t iSize_N, uint32_t &iTimer, const int16_t iTickRate);
 
   void run();
 };

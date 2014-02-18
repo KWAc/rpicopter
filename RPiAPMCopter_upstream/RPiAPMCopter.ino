@@ -35,10 +35,14 @@
 #include "math.h"
 
 
+inline void set_channels(int16_t &pit, int16_t &rol, int16_t &yaw, int16_t &thr);
+inline void main_loop();
+Emitter emitMain(&main_loop, MAIN_LOOP_T_MS, 1);
+
 /*
  * Sets references to values in the eight channel rc input
  */
-inline void set_channels(int16_t &pit, int16_t &rol, int16_t &yaw, int16_t &thr) {
+void set_channels(int16_t &pit, int16_t &rol, int16_t &yaw, int16_t &thr) {
   rol = _RECVR.m_pChannelsRC[0];
   pit = _RECVR.m_pChannelsRC[1];
   thr = _RECVR.m_pChannelsRC[2] > RC_THR_80P ? RC_THR_80P : _RECVR.m_pChannelsRC[2];
@@ -51,7 +55,7 @@ inline void set_channels(int16_t &pit, int16_t &rol, int16_t &yaw, int16_t &thr)
  * - fetching rc signals
  * - filtering and processing sensor data necessary for flight
  */
-inline void main_loop() {
+void main_loop() {
   // additional filter or rc variables
   static float targ_yaw = 0.f; // yaw target from rc
 
@@ -125,13 +129,15 @@ inline void main_loop() {
 }
 
 void setup() {
-  // Prepare scheduler
-  _SCHED.addFastEmitter(&emitAtti);
-  _SCHED.addMediEmitter(&emitBaro);
-  _SCHED.addMediEmitter(&emitGPS);
-  _SCHED.addSlowEmitter(&emitComp);
-  _SCHED.addUslwEmitter(&emitBat);
-  _SCHED.addUslwEmitter(&emitPID);
+  // Prepare scheduler for the main loop ..
+  _SCHED.addEmitter(&emitMain,  0);
+  // .. and the sensor output functions
+  _SCHED.addEmitter(&emitAtti,  75);
+  _SCHED.addEmitter(&emitBaro,  1000);
+  _SCHED.addEmitter(&emitGPS,   1000);
+  _SCHED.addEmitter(&emitComp,  2000);
+  _SCHED.addEmitter(&emitBat,   5000);
+  _SCHED.addEmitter(&emitPID,   5000);
 
   // Set baud rate when connected to RPi
   hal.uartA->begin(BAUD_RATE_A); // USB
@@ -176,13 +182,6 @@ void loop() {
   bool bOK = _RECVR.read_uartA(hal.console->available() ); 	// Try WiFi (serial) first
   if(!bOK) {
     _RECVR.read_uartC(hal.uartC->available() ); 	        // If not working: Try radio next
-  }
-  
-  // Main loop runs at 166.6 Hz
-  unsigned long time = hal.scheduler->millis() - timer;
-  if(time > MAIN_LOOP_T_MS) {
-    main_loop();        // time critical stuff
-    timer = hal.scheduler->millis();
   }
 
   // send some json formatted information about the model over serial port

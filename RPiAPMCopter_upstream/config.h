@@ -85,6 +85,7 @@
 #define AP_BATT_CELL_COUNT         4     // Used for calculation of the percentage of the residual capacity
 #define AP_BATT_CAPACITY_DEFAULT   10000 // Total capacity of the battery
 
-#define MAIN_LOOP_T_MS 6                // Update frequency: 100 Hz ~ 10 ms per 1 s
+#define MAIN_LOOP_T_MS       6           // Update frequency: 100 Hz ~ 10 ms per 1 s
+#define NO_PRC_SCHED         16
 
 #endif /*DEFS_h*/

@@ -73,7 +73,7 @@ bool MainWindow::searchSerialRadio() {
         if(info.description().contains("FT232R")) {
             m_serialPortInfo = info;
             m_pSerialPort = new QSerialPort(info);
-            m_pSerialPort->setBaudRate(QSerialPort::Baud57600);
+            m_pSerialPort->setBaudRate(QSerialPort::Baud9600);
             return m_pSerialPort->open(QIODevice::ReadWrite);
         }
     }

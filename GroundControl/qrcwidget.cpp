@@ -96,9 +96,12 @@ QString RC_COM::str_makeRadioCommand() {
     com.append(QChar((short)(ypm+127) ) );  // yaw
     com.append(QChar((short)yaw) );         // yaw
     
-    short iChkSum = calc_chksum(com.toLocal8Bit().data() );
+    int checksum = 0;
+    for(unsigned int i = 0; i < 6; i++) {
+      checksum = (checksum + com.data()[i].toLatin1() ) << 1;
+    }
     
-    com.append(QChar(iChkSum) );            // checksum byte
+    com.append(QChar(checksum) );            // checksum byte
     com.append(QChar((short)254) );         // end byte
     return com;
 }
@@ -132,8 +135,6 @@ QRCWidget::QRCWidget(QUdpSocket *pSock, QSerialPort *pSerialPort, QWidget *paren
     m_iUpdateTime = 13;
     m_fTimeConstRed = (float)m_iUpdateTime/150.f;
     m_fTimeConstEnh = (float)m_iUpdateTime/75.f;
-    
-    m_iRadioCounter = 0;
 
     m_fWidth = m_fHeight = this->m_fWidth < this->m_fHeight ? this->width() : this->height();
 
@@ -333,34 +334,11 @@ void QRCWidget::sendJSON2COM(const QString &sCommand) {
         m_pSerialPort->write(sCommand.toLocal8Bit(), sCommand.length() );
         qDebug() << "Radio: " << sCommand;
     }
-/*
-    // Send the command in byte steps 
-    // (to reduce the problems with the blocking of the serial port)
-    if (sCommand.length() > 0 && !m_comPortTimer.isActive() ) {
-        m_iRadioCounter = 0;
-        m_comPortTimer.start(1);
-        m_sRadioCom = sCommand;
-        qDebug() << "Radio: " << m_sRadioCom;
-    }
-*/
 }
 
 void QRCWidget::sl_sendRC2UDP() {
     sendJSON2UDP(m_COM.str_makeWiFiCommand() );
-    if(!m_comPortTimer.isActive() ) {
-        sendJSON2COM(m_COM.str_makeRadioCommand() );
-    }
-}
-
-// Send the command in 2 byte steps 
-// (to reduce the problems with the blocking of the serial port)
-void QRCWidget::sl_sendRC2COM() {
-    if(m_iRadioCounter < m_sRadioCom.length() ) {
-        m_pSerialPort->write(m_sRadioCom.data()[m_iRadioCounter].toLatin1(), 1 );
-        m_iRadioCounter++;
-    } else {
-        m_comPortTimer.stop();
-    }
+    sendJSON2COM(m_COM.str_makeRadioCommand() );
 }
 
 void QRCWidget::sl_startTimer() {

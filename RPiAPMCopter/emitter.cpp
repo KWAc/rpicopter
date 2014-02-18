@@ -82,17 +82,23 @@ void Emitters::scheduler(Emitter **pEmitters, uint8_t iSize_N, uint32_t &iTimer,
     return;
 
   uint32_t time = m_pHAL->scheduler->millis() - iTimer;
+  Emitter *pCurEmit = NULL;
   for(uint8_t i = 0; i < iSize_N; i++) {
-    if(time > iTickRate + pEmitters[i]->getDelay(i) ) {
-      if(pEmitters[i]->emit() ) {
-        if(i == (iSize_N - 1) ) { // Reset everything if last emitter successfully emitted
-          for(uint16_t i = 0; i < iSize_N; i++) {
-            pEmitters[i]->reset();
-          }
-          iTimer = m_pHAL->scheduler->millis();
-        }
-      }
+    pCurEmit = pEmitters[i];
+    if(time <= iTickRate + pCurEmit->getDelay(i) ) {
+      continue;
     }
+    if(!pCurEmit->emit() ) {
+      continue;
+    }
+    if(i != (iSize_N - 1) ) {
+      continue;
+    }
+    
+    for(uint16_t j = 0; j < iSize_N; j++) {
+      pEmitters[j]->reset();
+    }
+    iTimer = m_pHAL->scheduler->millis();
   }
 }
 
