@@ -63,14 +63,29 @@ RANGE::RANGE() {
 RC_COM::RC_COM() {
     ROL = 0; PIT = 0; YAW = 0; THR = 1100;
 }
+/*
+QString &RC_COM::str_makeWiFiCommand() {
+    m_sWiFiCommand = "";
+    m_sWiFiCommand.append("{\"type\":\"rc\",\"r\":");  m_sWiFiCommand.append(QString::number((int)ROL, 10) ); m_sWiFiCommand.append(",");
+    m_sWiFiCommand.append("\"p\":");                   m_sWiFiCommand.append(QString::number((int)PIT, 10) ); m_sWiFiCommand.append(",");
+    m_sWiFiCommand.append("\"t\":");                   m_sWiFiCommand.append(QString::number((int)THR, 10) ); m_sWiFiCommand.append(",");
+    m_sWiFiCommand.append("\"y\":");                   m_sWiFiCommand.append(QString::number((int)YAW, 10) ); m_sWiFiCommand.append("}");
+    return m_sWiFiCommand;
+}*/
 
-QString RC_COM::str_makeWiFiCommand() {
+QPair<int, char*> RC_COM::cstr_makeWiFiCommand() {
     QString com = "";
     com.append("{\"type\":\"rc\",\"r\":");  com.append(QString::number((int)ROL, 10) ); com.append(",");
     com.append("\"p\":");                   com.append(QString::number((int)PIT, 10) ); com.append(",");
     com.append("\"t\":");                   com.append(QString::number((int)THR, 10) ); com.append(",");
     com.append("\"y\":");                   com.append(QString::number((int)YAW, 10) ); com.append("}");
-    return com;
+
+    memset(m_cWiFiCommand, 0, sizeof(m_cWiFiCommand) );
+    for(int i = 0; i < com.size() && i < sizeof(m_cWiFiCommand); i++) {
+        m_cWiFiCommand[i] = com.at(i).toLatin1();
+    }
+
+    return QPair<int, char*> (com.size(), m_cWiFiCommand);
 }
 
 int RC_COM::calc_chksum(char *str) {
@@ -81,40 +96,51 @@ int RC_COM::calc_chksum(char *str) {
   return nc;
 }
 
-QString RC_COM::str_makeRadioCommand() {
-    QString com = "";
+QPair<int, char*> RC_COM::cstr_makeRadioCommand() {
+    uint8_t thr_high  = ((int)THR/100)%10;
+    uint8_t thr_low   = THR - (1000 + (((int)THR/100)%10) * 100);
+    uint8_t ypm = YAW < 0 ? -1 : 1;
+    uint8_t yaw = YAW < 0 ? (-1 * YAW) : YAW;
     
-    short thr_high  = (THR/100)%10;
-    short thr_low   = THR - (1000 + ((THR/100)%10) * 100)
-    short ypm = YAW < 0 ? -1 : 1;
-    short yaw = YAW < 0 ? (-1 * YAW) : YAW;
+    m_cRadioCommand[0] = thr_high;
+    m_cRadioCommand[1] = thr_low;
+    m_cRadioCommand[2] = uint8_t(PIT+127);
+    m_cRadioCommand[3] = uint8_t(ROL+127);
+    m_cRadioCommand[4] = uint8_t(ypm+127);
+    m_cRadioCommand[5] = uint8_t(yaw);
     
-    com.append(QChar(thr_high) );           // throttle
-    com.append(QChar(thr_low) );            // throttle
-    com.append(QChar((short)(PIT+127) ) );  // pitch
-    com.append(QChar((short)(ROL+127) ) );  // roll
-    com.append(QChar((short)(ypm+127) ) );  // yaw
-    com.append(QChar((short)yaw) );         // yaw
-    
-    int checksum = 0;
+    uint8_t checksum = 0;
     for(unsigned int i = 0; i < 6; i++) {
-      checksum = (checksum + com.data()[i].toLatin1() ) << 1;
+      checksum = (checksum + m_cRadioCommand[i] ) << 1;
     }
-    
-    com.append(QChar(checksum) );            // checksum byte
-    com.append(QChar((short)254) );         // end byte
-    return com;
+    m_cRadioCommand[6] = checksum;
+    m_cRadioCommand[7] = uint8_t(254);
+
+    return QPair<int, char*> (8, m_cRadioCommand);
 }
 
 DRIFT_CAL::DRIFT_CAL() {
     ROL = 0; PIT = 0;
 }
-
+/*
 QString DRIFT_CAL::str_makeCommand() {
     QString com = "";
     com.append("{\"type\":\"cmp\",\"r\":"); com.append(QString::number(ROL, 'f', 2) ); com.append(",");
     com.append("\"p\":");                   com.append(QString::number(PIT, 'f', 2) ); com.append("}");
     return com;
+}
+*/
+
+QPair<int, char*> DRIFT_CAL::cstr_makeWiFiCommand() {
+    QString com = "";
+    com.append("{\"type\":\"cmp\",\"r\":"); com.append(QString::number(ROL, 'f', 2) ); com.append(",");
+    com.append("\"p\":");                   com.append(QString::number(PIT, 'f', 2) ); com.append("}");
+
+    memset(m_cWiFiCommand, 0, sizeof(m_cWiFiCommand) );
+    for(int i = 0; i < com.size() && i < sizeof(m_cWiFiCommand); i++) {
+        m_cWiFiCommand[i] = com.at(i).toLatin1();
+    }
+    return QPair<int, char*> (com.size(), m_cWiFiCommand);
 }
 
 CUSTOM_KEY::CUSTOM_KEY() {
@@ -141,7 +167,6 @@ QRCWidget::QRCWidget(QUdpSocket *pSock, QSerialPort *pSerialPort, QWidget *paren
     connect(&m_keyEventTimer, SIGNAL(timeout() ), this, SLOT(sl_customKeyPressHandler() ) );
     connect(&m_keyEventTimer, SIGNAL(timeout() ), this, SLOT(sl_customKeyReleaseHandler() ) );
     connect(&m_keyEventTimer, SIGNAL(timeout() ), this, SLOT(sl_sendRC2UDP() ) );
-    connect(&m_comPortTimer,  SIGNAL(timeout() ), this, SLOT(sl_sendRC2COM() ) );
 }
 
 void QRCWidget::setYaw(float fVal) {
@@ -176,10 +201,15 @@ void QRCWidget::initGyro2UDP() {
     com.append(QString::number(true) ); 
     com.append("}");
 
+    memset(m_cWiFiCommand, 0, sizeof(m_cWiFiCommand) );
+    for(int i = 0; i < com.size() && i < sizeof(m_cWiFiCommand); i++) {
+        m_cWiFiCommand[i] = com.at(i).toLatin1();
+    }
+
     this->stop();
     qDebug() << "Try to start gyrometer calibration";
     for(int i = 0; i < 16; i++) {
-        sendJSON2UDP(com);
+        sendJSON2UDP(QPair<int, char*> (com.size(), m_cWiFiCommand) );
     }
     this->start();
 }
@@ -193,7 +223,8 @@ void QRCWidget::sl_customKeyPressHandler() {
 
         m_DRIFT.ROL = 0; 
         m_DRIFT.PIT = 0;
-        sendJSON2UDP(m_DRIFT.str_makeCommand());
+
+        sendJSON2UDP(m_DRIFT.cstr_makeWiFiCommand() );
     }
 
     if(m_customKeyStatus[Qt::Key_C] == true) {
@@ -257,30 +288,30 @@ void QRCWidget::sl_customKeyPressHandler() {
     // Quadro moves to front
     if(m_customKeyStatus[CUSTOM_KEY::mapCustomKeyIndex(Qt::Key_8)] == true) {
         m_DRIFT.PIT -= 0.05 * m_fTimeConstEnh;
-        QString cor = m_DRIFT.str_makeCommand();
+        QPair<int, char*> cor = m_DRIFT.cstr_makeWiFiCommand();
         sendJSON2UDP(cor);
-        qDebug() << "Drift correction: Pitch=" << cor;
+        qDebug() << "Drift correction: Pitch=" << cor.second;
     }
     // Quadro moves backwards
     if(m_customKeyStatus[CUSTOM_KEY::mapCustomKeyIndex(Qt::Key_2)] == true) {
         m_DRIFT.PIT += 0.05 * m_fTimeConstEnh;
-        QString cor = m_DRIFT.str_makeCommand();
+        QPair<int, char*> cor = m_DRIFT.cstr_makeWiFiCommand();
         sendJSON2UDP(cor);
-        qDebug() << "Drift correction: Pitch=" << cor;
+        qDebug() << "Drift correction: Pitch=" << cor.second;
     }
     // Quadro moves to the left
     if(m_customKeyStatus[CUSTOM_KEY::mapCustomKeyIndex(Qt::Key_4)] == true) {
         m_DRIFT.ROL -= 0.05 * m_fTimeConstEnh;
-        QString cor = m_DRIFT.str_makeCommand();
+        QPair<int, char*> cor = m_DRIFT.cstr_makeWiFiCommand();
         sendJSON2UDP(cor);
-        qDebug() << "Drift correction: Roll=" << cor;
+        qDebug() << "Drift correction: Roll=" << cor.second;
     }
     // // Quadro moves to the right
     if(m_customKeyStatus[CUSTOM_KEY::mapCustomKeyIndex(Qt::Key_6)] == true) {
         m_DRIFT.ROL += 0.05 * m_fTimeConstEnh;
-        QString cor = m_DRIFT.str_makeCommand();
+        QPair<int, char*> cor = m_DRIFT.cstr_makeWiFiCommand();
         sendJSON2UDP(cor);
-        qDebug() << "Drift correction: Roll=" << cor;
+        qDebug() << "Drift correction: Roll=" << cor.second;
     }
 
     float fStep = 2.5;
@@ -315,30 +346,40 @@ void QRCWidget::sl_customKeyReleaseHandler() {
 
     update();
 }
-
-void QRCWidget::sendJSON2UDP(const QString &sJSON) {
+/*
+void QRCWidget::sendJSON2UDP(QString &sJSON) {
     if(!m_pUdpSock)
         return;
 
     if (sJSON.length() > 0) {
-        m_pUdpSock->write(sJSON.toLocal8Bit(), sJSON.length() );
-        qDebug() << "WiFi: " << sJSON;
+        m_pUdpSock->write(sJSON.toLocal8Bit(), sJSON.toLocal8Bit().size() );
+        qDebug() << "WiFi: " << sJSON.toLocal8Bit();
+    }
+}*/
+
+void QRCWidget::sendJSON2UDP(QPair<int, char*> pair) {
+    if(!m_pUdpSock)
+        return;
+
+    if (pair.first > 0) {
+        qDebug() << "WiFi: " << pair.first << pair.second;
+        m_pUdpSock->write(pair.second, pair.first);
     }
 }
 
-void QRCWidget::sendJSON2COM(const QString &sCommand) {
+void QRCWidget::sendJSON2COM(QPair<int, char*> pair) {
     if(!m_pSerialPort)
         return;
-        
-    if (sCommand.length() > 0) {
-        m_pSerialPort->write(sCommand.toLocal8Bit(), sCommand.length() );
-        qDebug() << "Radio: " << sCommand;
+
+    if (pair.first > 0) {
+        //qDebug() << "COM: " << pair.first << pair.second;
+        m_pSerialPort->write(pair.second, pair.first);
     }
 }
 
 void QRCWidget::sl_sendRC2UDP() {
-    sendJSON2UDP(m_COM.str_makeWiFiCommand() );
-    sendJSON2COM(m_COM.str_makeRadioCommand() );
+    sendJSON2UDP(m_COM.cstr_makeWiFiCommand() );
+    sendJSON2COM(m_COM.cstr_makeRadioCommand() );
 }
 
 void QRCWidget::sl_startTimer() {

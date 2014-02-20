@@ -33,7 +33,11 @@ struct RANGE {
     int THR_80P;
 };
 
-struct RC_COM {
+class RC_COM {
+private:
+    char    m_cRadioCommand[8];
+    char    m_cWiFiCommand[512];
+public:
     RC_COM();
 
     float ROL;
@@ -43,17 +47,21 @@ struct RC_COM {
 
     int calc_chksum(char *str);
 
-    QString str_makeWiFiCommand ();
-    QString str_makeRadioCommand();
+    QPair<int, char*> cstr_makeWiFiCommand ();
+    QPair<int, char*> cstr_makeRadioCommand ();
 };
 
-struct DRIFT_CAL {
+class DRIFT_CAL {
+private:
+    char    m_cWiFiCommand[512];
+
+public:
     DRIFT_CAL();
     
     float ROL;
     float PIT;
 
-    QString str_makeCommand();
+    QPair<int, char*> cstr_makeWiFiCommand ();
 };
 
 struct CUSTOM_KEY {
@@ -76,6 +84,7 @@ class QRCWidget : public QFrame {
 Q_OBJECT
 
 private:
+    char   m_cWiFiCommand[512];
     QTimer m_keyEventTimer;
 
     float m_fTimeConstEnh;
@@ -94,8 +103,8 @@ private:
     float m_fWidth;
     float m_fHeight;
 
-    void sendJSON2UDP(const QString &sJSON);
-    void sendJSON2COM(const QString &sCommand);
+    void sendJSON2UDP(QPair<int, char*> );
+    void sendJSON2COM(QPair<int, char*> );
     void initGyro2UDP();
     
 private slots:

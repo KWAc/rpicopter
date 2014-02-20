@@ -1,42 +1,42 @@
-#include "emitter.h"
+#include "scheduler.h"
 
 
-Emitter::Emitter(void (*pf_foo)(), uint16_t delay, uint8_t mult) {
+Task::Task(void (*pf_foo)(), uint16_t delay, uint8_t mult) {
   m_bSend           = false;
   m_iDelay          = delay;
-  pfEmitter         = pf_foo;
+  pfTask            = pf_foo;
   m_iDelayMultplr   = mult;
   
   uint32_t m_iTimer = 0;
 }
 
-bool Emitter::emit() {
-  if(!m_bSend && pfEmitter != NULL) {
-    pfEmitter();
+bool Task::start() {
+  if(!m_bSend && pfTask != NULL) {
+    pfTask();
     m_bSend = true;
     return true;
   }
   return false;
 }
 
-void Emitter::reset() {
+void Task::reset() {
   m_bSend = false;
 }
 
-uint32_t Emitter::getTimer() {
+uint32_t Task::getTimer() {
   return m_iTimer;
 }
 
-void Emitter::setTimer(const uint32_t iTimer) {
+void Task::setTimer(const uint32_t iTimer) {
   m_iTimer = iTimer;
 }
 
-uint16_t Emitter::getDelay() {
+uint16_t Task::getDelay() {
   return m_iDelay * m_iDelayMultplr;
 }
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
-Emitters::Emitters(const AP_HAL::HAL *p) {
+Scheduler::Scheduler(const AP_HAL::HAL *p) {
   m_pHAL = p;
 
   memset(m_functionList, NULL, sizeof(m_functionList));
@@ -45,7 +45,7 @@ Emitters::Emitters(const AP_HAL::HAL *p) {
   m_iItems = 0;
 }
 
-void Emitters::addEmitter(Emitter *p, uint16_t iTickRate) {
+void Scheduler::addTask(Task *p, uint16_t iTickRate) {
   if(m_iItems < NO_PRC_SCHED && p != NULL) {
     m_functionList[m_iItems] = p;
     m_tickrateList[m_iItems] = iTickRate;
@@ -53,21 +53,21 @@ void Emitters::addEmitter(Emitter *p, uint16_t iTickRate) {
   }
 }
 
-bool Emitters::isEmitted(const uint8_t i) {
-  Emitter *pCurEmit = m_functionList[i];
-  uint32_t time = m_pHAL->scheduler->millis() - pCurEmit->getTimer();
+bool Scheduler::isStarted(const uint8_t i) {
+  Task *pCurTask = m_functionList[i];
+  uint32_t time = m_pHAL->scheduler->millis() - pCurTask->getTimer();
   
   // Time yet to start the current emitter?
-  if(time <= m_tickrateList[i] + pCurEmit->getDelay() ) {
+  if(time <= m_tickrateList[i] + pCurTask->getDelay() ) {
     return false;
   } else {
     // Release the block for the transmitter
-    pCurEmit->reset();
+    pCurTask->reset();
   }
   
-  if(pCurEmit->emit() ) {
+  if(pCurTask->start() ) {
     // Set timer to the current time
-    pCurEmit->setTimer(m_pHAL->scheduler->millis() );
+    pCurTask->setTimer(m_pHAL->scheduler->millis() );
   } else {
     return false;
   }
@@ -75,20 +75,20 @@ bool Emitters::isEmitted(const uint8_t i) {
   return true;
 }
 
-void Emitters::resetAll() {
+void Scheduler::resetAll() {
   // Reset everything if last emitter successfully emitted
   for(uint16_t i = 0; i < m_iItems; i++) {
     m_functionList[i]->reset();
   }
 }
 
-void Emitters::run() {
+void Scheduler::run() {
   if(m_pHAL == NULL)
     return;
 
   for(uint8_t i = 0; i < m_iItems; i++) {
-    // Run all emitters
-    if(!isEmitted(i) ) {
+    // Run all tasks
+    if(!isStarted(i) ) {
       continue;
     }
   }

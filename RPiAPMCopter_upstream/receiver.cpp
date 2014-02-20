@@ -238,35 +238,40 @@ bool Receiver::read_uartA(uint16_t bytesAvail) {
  * Everything fits into 7 bytes 
  */
 bool Receiver::parse_radio(char *buffer) {
-  int16_t throttle_high  = (uint8_t)buffer[0];       // 1. 1 - 9
-  int16_t throttle_low   = (uint8_t)buffer[1];       // 2. 0 - 99
-  int16_t pit            = (uint8_t)buffer[2] - 127; // 3. -45° - 45°
-  int16_t rol            = (uint8_t)buffer[3] - 127; // 4. -45° - 45°
-  int16_t yaw_pm         = (uint8_t)buffer[4] - 127; // 5. -1 || +1
-  int16_t yaw_val        = (uint8_t)buffer[5];       // 6. yaw angle in degrees 180°
-  
-  int16_t chk            = (uint8_t)buffer[6];       // 7. checksum
-  
-  int16_t thr            = 1000 + (throttle_high * 100) + throttle_low;
-  int16_t yaw            = yaw_val * yaw_pm;
-  
+  int16_t thr = 1000 + ((uint8_t)buffer[0] * 100) + (uint8_t)buffer[1]; // 1000 - 1900
+  int16_t pit = (uint8_t)buffer[2] - 127;                               // -45° - 45°
+  int16_t rol = (uint8_t)buffer[3] - 127;                               // -45° - 45°
+  int16_t yaw = (uint8_t)buffer[5] * ((uint8_t)buffer[4] - 127);        // -180° - 180°
+  int16_t chk = (uint8_t)buffer[6];                                     // checksum
+
   // Calculate checksum
   uint8_t checksum = 0;
   for(int i = 0; i < 6; i++) {
     checksum = (checksum + buffer[i]) << 1;
   }
-  // First check
-  if(checksum == chk) {  
-    // Second check
-    m_pChannelsRC[0] = rol > 45 ? 45 : rol < -45 ? -45 : rol;
-    m_pChannelsRC[1] = pit > 45 ? 45 : pit < -45 ? -45 : pit;
-    m_pChannelsRC[2] = thr > RC_THR_80P ? RC_THR_80P : thr < RC_THR_MIN ? RC_THR_MIN : thr;
-    m_pChannelsRC[3] = yaw > 180 ? 180 : yaw < -180 ? -180 : yaw;
+
+  // Validity check: 
+  // First checksum
+  if(checksum != chk)
+    return false;
+  // Later other values
+  if(rol > 45 || rol < -45)
+    return false;
+  if(pit > 45 || pit < -45)
+    return false;
+  if(yaw > 180 || yaw < -180)
+    return false;
+  if(thr > RC_THR_80P || thr < RC_THR_MIN)
+    return false;
     
-    m_iSerialTimer = m_pHalBoard->m_pHAL->scheduler->millis();           // update last valid packet
-    return true;
-  }
-  return false;
+  // Set values
+  m_pChannelsRC[0] = rol;
+  m_pChannelsRC[1] = pit;
+  m_pChannelsRC[2] = thr;
+  m_pChannelsRC[3] = yaw;
+  
+  m_iSerialTimer = m_pHalBoard->m_pHAL->scheduler->millis();           // update last valid packet
+  return true;
 }
 
 bool Receiver::read_uartC(uint16_t bytesAvail) {
@@ -274,15 +279,25 @@ bool Receiver::read_uartC(uint16_t bytesAvail) {
 
   bool bRet = false;
   for(; bytesAvail > 0; bytesAvail--) {
-    char c = (char)m_pHalBoard->m_pHAL->uartC->read();  // read next byte
-    if(c == (char)254) {                                // this control char is not used for any other symbol
-      m_cBuffer[offset] = '\0';                         // null terminator
-      
-      bRet = parse_radio(m_cBuffer);
-      memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;
+    // command must be exactly 8 bytes long
+    if(offset > RADIO_MAX_OFFS) {                             // if message is longer than it should be
+      memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;   // reset everything
+      return false;                                           // and break loop
+    }
+    char c = (char)m_pHalBoard->m_pHAL->uartC->read();        // read next byte
+    if(c == (char)254) {                                      // this control char is not used for any other symbol
+      m_cBuffer[offset] = '\0';                               // null terminator at 8th position
+      if(offset != RADIO_MAX_OFFS) {                          // theoretically a broken message can still be shorter than it should be
+        memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0; //so break here if something was wrong
+        return false;
+      }
+      else {                                                  // message has perfect length and stop byte
+        bRet = parse_radio(m_cBuffer);
+        memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;
+      }
     }
     else if(offset < sizeof(m_cBuffer)-1) {
-      m_cBuffer[offset++] = c;                          // store in buffer and continue until newline
+      m_cBuffer[offset++] = c;                                // store in buffer and continue until newline
     }
   }
   return bRet;

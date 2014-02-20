@@ -3,7 +3,7 @@
 
 #include "global.h"
 #include "containers.h"
-#include "emitter.h"
+#include "scheduler.h"
 
 
 void send_comp();
@@ -15,13 +15,13 @@ void send_rc();
 void send_pids();
 
 // function, delay, multiplier of the delay 
-Emitter emitAtti(&send_atti, 3,  1);
-Emitter emitRC  (&send_rc,   37, 1);
-Emitter emitComp(&send_comp, 44, 1);
-Emitter emitBaro(&send_baro, 66, 1);
-Emitter emitGPS (&send_gps,  66, 2);
-Emitter emitBat (&send_bat,  75, 1);
-Emitter emitPID (&send_pids, 75, 2);
+Task emitAtti(&send_atti, 3,  1);
+Task emitRC  (&send_rc,   37, 1);
+Task emitComp(&send_comp, 44, 1);
+Task emitBaro(&send_baro, 66, 1);
+Task emitGPS (&send_gps,  66, 2);
+Task emitBat (&send_bat,  75, 1);
+Task emitPID (&send_pids, 75, 2);
 
 ///////////////////////////////////////////////////////////
 // LED OUT

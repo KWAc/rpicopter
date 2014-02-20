@@ -77,6 +77,8 @@ bool MainWindow::searchSerialRadio() {
             return m_pSerialPort->open(QIODevice::ReadWrite);
         }
     }
+    m_pSerialPort = NULL;
+    return false;
 }
 
 MainWindow::~MainWindow() {

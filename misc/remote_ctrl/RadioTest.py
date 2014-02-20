@@ -39,7 +39,7 @@ def main():
     #line = "RC#0,0,1200,0"
     #send_data(line);
     
-    line = chr(2) + chr(99) + chr(87) + chr(117) + chr(126) + chr(178);
+    line = chr(2) + chr(50) + chr(127) + chr(127) + chr(128) + chr(0);
     print (chksum(line))
     line += chr(chksum(line))
     line += chr(254)

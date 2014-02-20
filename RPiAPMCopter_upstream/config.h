@@ -87,5 +87,6 @@
 
 #define MAIN_LOOP_T_MS       6           // Update frequency: 100 Hz ~ 10 ms per 1 s
 #define NO_PRC_SCHED         16
+#define RADIO_MAX_OFFS       7           // without stop bit
 
 #endif /*DEFS_h*/

@@ -37,7 +37,7 @@
 
 inline void set_channels(int16_t &pit, int16_t &rol, int16_t &yaw, int16_t &thr);
 inline void main_loop();
-Emitter emitMain(&main_loop, MAIN_LOOP_T_MS, 1);
+Task emitMain(&main_loop, MAIN_LOOP_T_MS, 1);
 
 /*
  * Sets references to values in the eight channel rc input
@@ -130,14 +130,14 @@ void main_loop() {
 
 void setup() {
   // Prepare scheduler for the main loop ..
-  _SCHED.addEmitter(&emitMain,  0);
+  _SCHED.addTask(&emitMain,  0);
   // .. and the sensor output functions
-  _SCHED.addEmitter(&emitAtti,  75);
-  _SCHED.addEmitter(&emitBaro,  1000);
-  _SCHED.addEmitter(&emitGPS,   1000);
-  _SCHED.addEmitter(&emitComp,  2000);
-  _SCHED.addEmitter(&emitBat,   5000);
-  _SCHED.addEmitter(&emitPID,   5000);
+  _SCHED.addTask(&emitAtti,  75);
+  _SCHED.addTask(&emitBaro,  1000);
+  _SCHED.addTask(&emitGPS,   1000);
+  _SCHED.addTask(&emitComp,  2000);
+  _SCHED.addTask(&emitBat,   5000);
+  _SCHED.addTask(&emitPID,   5000);
 
   // Set baud rate when connected to RPi
   hal.uartA->begin(BAUD_RATE_A); // USB
