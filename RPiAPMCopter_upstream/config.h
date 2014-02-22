@@ -31,7 +31,8 @@
 #define ATTITUDE_SAMPLE_CNT 10
 
 #define INERTIAL_TIMEOUT  5     // in ms
-#define SER_PKT_TIMEOUT   500   // in ms
+#define COM_PKT_TIMEOUT   500   // in ms
+#define UART_A_TIMEOUT    100   // in ms
 
 // Number of samples for gyrometer calibration
 #define COMPASS_FOR_YAW   0

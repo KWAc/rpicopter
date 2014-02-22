@@ -29,7 +29,7 @@ private:
   uint32_t  m_iTimer;                       // Timer variable
   uint16_t  m_iDelay;                       // Certain delay which is added to the tick rate
   uint8_t   m_iDelayMultplr;                // multiplier for m_iDelay (helpful if many emitters share the same tick rate). If m_iDelayMultplr zero: m_iDelay is zero too
-  void (*pfTask)();                      // function pointer
+  void (*pfTask)();                         // function pointer
 };
 ///////////////////////////////////////////////////////////
 // Simple task managemant

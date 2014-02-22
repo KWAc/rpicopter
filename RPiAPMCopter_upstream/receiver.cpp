@@ -9,7 +9,7 @@ Receiver::Receiver(Device *pHalBoard) {
   m_pHalBoard   = pHalBoard;
 
   memset(m_pChannelsRC, 0, sizeof(m_pChannelsRC) );
-  m_iSerialTimer = m_pHalBoard->m_pHAL->scheduler->millis();
+  m_iSParseTimer_A = m_iSParseTimer_C = m_iSParseTimer = m_pHalBoard->m_pHAL->scheduler->millis();
 }
 
 uint8_t Receiver::calc_chksum(char *str) {
@@ -48,7 +48,7 @@ bool Receiver::parse_ctrl_com(char* buffer) {
       char *ch = strtok(NULL, ",");
       m_pChannelsRC[i] = (uint16_t)strtol(ch, NULL, 10);
     }
-    m_iSerialTimer = m_pHalBoard->m_pHAL->scheduler->millis();           // update last valid packet
+    m_iSParseTimer = m_pHalBoard->m_pHAL->scheduler->millis();           // update last valid packet
   }
   return true;
 }
@@ -225,6 +225,9 @@ bool Receiver::read_uartA(uint16_t bytesAvail) {
     if(c == '\n') {                                     // new line reached - process cmd
       m_cBuffer[offset] = '\0';                         // null terminator
       bRet = parse(m_cBuffer);
+      if(bRet) {
+        m_iUartATimer = m_iSParseTimer;
+      }
       memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;
     }
     else if(c != '\r' && offset < sizeof(m_cBuffer)-1) {
@@ -270,7 +273,7 @@ bool Receiver::parse_radio(char *buffer) {
   m_pChannelsRC[2] = thr;
   m_pChannelsRC[3] = yaw;
   
-  m_iSerialTimer = m_pHalBoard->m_pHAL->scheduler->millis();           // update last valid packet
+  m_iSParseTimer = m_pHalBoard->m_pHAL->scheduler->millis();           // update last valid packet
   return true;
 }
 
@@ -293,6 +296,9 @@ bool Receiver::read_uartC(uint16_t bytesAvail) {
       }
       else {                                                  // message has perfect length and stop byte
         bRet = parse_radio(m_cBuffer);
+        if(bRet) {
+          m_iUartCTimer = m_iSParseTimer;
+        }
         memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;
       }
     }
@@ -332,6 +338,14 @@ bool Receiver::parse(char *buffer) {
   }
 }
 
-uint32_t Receiver::time_elapsed() {
-  return m_pHalBoard->m_pHAL->scheduler->millis() - m_iSerialTimer;
+uint32_t Receiver::timeLastSuccessfulParse() {
+  return m_pHalBoard->m_pHAL->scheduler->millis() - m_iSParseTimer;
+}
+
+uint32_t Receiver::timeLastSuccessfulParse_uartA() {
+  return m_pHalBoard->m_pHAL->scheduler->millis() - m_iSParseTimer_A;
+}
+
+uint32_t Receiver::timeLastSuccessfulParse_uartC() {
+  return m_pHalBoard->m_pHAL->scheduler->millis() - m_iSParseTimer_C;
 }

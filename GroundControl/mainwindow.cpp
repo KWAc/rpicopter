@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include <QJsonDocument>
 #include <QStringRef>
 
 
@@ -8,37 +9,19 @@ MainWindow::MainWindow(QWidget *parent)
 {
     searchSerialRadio();
 
-    m_pFileM = new QMenu(tr("File"), this);
-    m_pOptionM = new QMenu(tr("Options"), this);
-    this->menuBar()->addMenu(m_pFileM);
-    this->menuBar()->addMenu(m_pOptionM);
-
-    m_pFileMSave = new QAction(tr("Save Log"), m_pFileM);
-    m_pOptionMPIDConf = new QAction(tr("Configurate PIDs"), m_pOptionM);
-    m_pFileM->addAction(m_pFileMSave);
-    m_pOptionM->addAction(m_pOptionMPIDConf);
-
-    m_tSensorTime.start();
-
-    m_pUdpSocket = new QUdpSocket(this);
-    m_pUdpSocket->setSocketOption(QAbstractSocket::LowDelayOption, 1);
-
-    m_pPIDConfig = new QPIDDockWidget("PID Configuration");
-    m_pLogger = new QLogDockWidget("Logger");
-    m_pAttitude = new QAttitudeDockWidget("Attitude");
-    m_pBattery = new QPlotDockWidget("Battery Monitor", 2);
-    m_pBarometer = new QPlotDockWidget("Barometer Monitor", 3);
-    m_pNetworkDelay = new QPlotDockWidget("Network (WiFi) Monitor", 1);
-
-    sl_PrepareGraphs();
-
+    m_pStatusBar     = new QStatusBar(this);
+    m_pUdpSocket     = new QUdpSocket(this);
+    m_pPIDConfigDial = new QPIDConfig(m_pUdpSocket);
+    m_pRCWidget      = new QRCWidget(m_pUdpSocket, m_pSerialPort, this);
     m_pStatBarStream = new QTextStream(&m_sStatBarText);
-    *m_pStatBarStream << "No data from sensors received!";
 
-    m_pStatusBar = new QStatusBar(this);
-    this->setStatusBar(m_pStatusBar);
-    m_pStatusBar->showMessage(m_sStatBarText);
-    
+    m_pPIDConfig     = new QPIDDockWidget("PID Configuration");
+    m_pLogger        = new QLogDockWidget("Logger");
+    m_pAttitude      = new QAttitudeDockWidget("Attitude");
+    m_pBattery       = new QPlotDockWidget("Battery Monitor", 2);
+    m_pBarometer     = new QPlotDockWidget("Barometer Monitor", 3);
+    m_pNetworkDelay  = new QPlotDockWidget("Network (WiFi) Monitor", 1);
+
     this->addDockWidget(Qt::BottomDockWidgetArea, m_pAttitude);
     this->addDockWidget(Qt::BottomDockWidgetArea, m_pPIDConfig);
     this->addDockWidget(Qt::BottomDockWidgetArea, m_pLogger);
@@ -46,21 +29,59 @@ MainWindow::MainWindow(QWidget *parent)
     this->addDockWidget(Qt::RightDockWidgetArea, m_pBattery);
     this->addDockWidget(Qt::RightDockWidgetArea, m_pBarometer);
 
+    this->setStatusBar(m_pStatusBar);
+
+    prepareMenus();
+    prepareGraphs();
+    prepareWidgets();
+    connectWidgets();
+}
+
+void MainWindow::prepareMenus() {
+    // Prepare menu bars
+    m_pFileM = new QMenu(tr("File"), this);
+    m_pOptionM = new QMenu(tr("Options"), this);
+    this->menuBar()->addMenu(m_pFileM);
+    this->menuBar()->addMenu(m_pOptionM);
+
+    // Define actions
+    m_pFileMSave        = new QAction(tr("Save Log"), m_pFileM);
+    m_pOptionMPIDConf   = new QAction(tr("Configurate PIDs"), m_pOptionM);
+    m_pOptionRadioEnabled = new QAction(tr("Enable radio"), m_pOptionM);
+    m_pOptionRadioEnabled->setCheckable(true);
+    m_pOptionRadioEnabled->setChecked(true);
+
+    // Add action to menu
+    m_pFileM->addAction(m_pFileMSave);
+
+    m_pOptionM->addAction(m_pOptionMPIDConf);
+    m_pOptionM->addSeparator();
+    m_pOptionM->addAction(m_pOptionRadioEnabled);
+}
+
+void MainWindow::prepareWidgets() {
+    m_tSensorTime.start();
+
+    *m_pStatBarStream << "No data from sensors received!";
+    m_pStatusBar->showMessage(m_sStatBarText);
+
     memset(m_cUdpRecvBuf, 0, sizeof(m_cUdpRecvBuf) );
     m_bUdpSockCon = false;
     m_sHostName = "";
 
-    m_pPIDConfigDial = new QPIDConfig(m_pUdpSocket);
-    m_pRCWidget = new QRCWidget(m_pUdpSocket, m_pSerialPort, this);
+
     this->setCentralWidget(m_pRCWidget);
     m_pRCWidget->setDisabled(true);
+}
 
+void MainWindow::connectWidgets() {
     connect(m_pUdpSocket, SIGNAL(connected() ), this, SLOT(sl_recvCommand() ) );
     connect(&m_udpRecvTimer, SIGNAL(timeout() ), this, SLOT(sl_recvCommand() ) );
     connect(&m_plotTimer, SIGNAL(timeout() ), this, SLOT(sl_replotGraphs() ) );
-
     connect(m_pFileMSave, SIGNAL(triggered() ), this, SLOT(sl_saveLog() ) );
+
     connect(m_pOptionMPIDConf, SIGNAL(triggered() ), this, SLOT(sl_configPIDs() ) );
+    connect(m_pOptionRadioEnabled, SIGNAL(toggled(bool) ) , m_pRCWidget, SLOT(sl_setRadioEnabled(bool) ) );
 }
 
 bool MainWindow::searchSerialRadio() {
@@ -104,7 +125,7 @@ void MainWindow::sl_configPIDs() {
     //m_pRCWidget->stop();
 }
 
-void MainWindow::sl_PrepareGraphs() {
+void MainWindow::prepareGraphs() {
     m_pBarometer->GetGraph()->graph(0)->setPen(QPen(Qt::black));
     m_pBarometer->GetGraph()->graph(1)->setPen(QPen(Qt::black));
     m_pBarometer->GetGraph()->graph(2)->setPen(QPen(Qt::blue));
@@ -254,32 +275,27 @@ void MainWindow::sl_recvCommand() {
     // if data coming, then clean last message
     if(m_pUdpSocket->bytesAvailable() ) {
         QByteArray line(m_cUdpRecvBuf);
-        bool bOk = false;
 
         if(checkForJSON(line) ) {
-            qDebug() << line;
-            QVariantMap result = m_JSONParser.parse(line, &bOk).toMap();
-            if(!bOk) {
-                qDebug() << "sl_recvCommand - An error occured during parsing";
+            qDebug() << "Parse JSON: " << line;
+            QJsonDocument JSONDoc = QJsonDocument::fromJson(line);
+            QVariantMap result = JSONDoc.toVariant().toMap();
+
+            if(result.empty() )
                 return;
-            }
-            else {
-                if(result.empty() )
-                    return;
 
-                double fTimeElapsed_s = ((double)m_tSensorTime.elapsed() / 1000.f);
-                QPair<unsigned long, QVariantMap> pair(fTimeElapsed_s, result);
-                sl_UpdateSensorData(pair);
+            double fTimeElapsed_s = ((double)m_tSensorTime.elapsed() / 1000.f);
+            QPair<unsigned long, QVariantMap> pair(fTimeElapsed_s, result);
+            sl_UpdateSensorData(pair);
 
-                if(line != "") {
-                    QString sLog = "";
-                    QTextStream sSLog(&sLog); sSLog << fTimeElapsed_s << " s: " << line << '\n';
-                    m_pLogger->getTextEdit()->insertPlainText(sLog);
+            if(line != "") {
+                QString sLog = "";
+                QTextStream sSLog(&sLog); sSLog << fTimeElapsed_s << " s: " << line << '\n';
+                m_pLogger->getTextEdit()->insertPlainText(sLog);
 
-                    QTextCursor c =  m_pLogger->getTextEdit()->textCursor();
-                    c.movePosition(QTextCursor::End);
-                    m_pLogger->getTextEdit()->setTextCursor(c);
-                }
+                QTextCursor c =  m_pLogger->getTextEdit()->textCursor();
+                c.movePosition(QTextCursor::End);
+                m_pLogger->getTextEdit()->setTextCursor(c);
             }
         }
         memset(m_cUdpRecvBuf, 0, sizeof(m_cUdpRecvBuf) );
@@ -292,9 +308,12 @@ void MainWindow::sl_recvCommand() {
 }
 
 void MainWindow::connectToHost(const QString & hostName, quint16 port, QIODevice::OpenMode openMode) {
+    m_pUdpSocket->setSocketOption(QAbstractSocket::LowDelayOption, 1);
     m_pUdpSocket->connectToHost(hostName, port, openMode);
     m_bUdpSockCon = m_pUdpSocket->waitForConnected(1000);
+
     if(m_pUdpSocket->state() == QUdpSocket::ConnectedState) {
+        m_pUdpSocket->write(0, 0);
         qDebug("connectToHost: UDP socket connected");
         m_sHostName = hostName;
 

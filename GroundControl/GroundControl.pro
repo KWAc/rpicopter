@@ -4,16 +4,12 @@
 #
 #-------------------------------------------------
 
-QT       += core gui network serialport printsupport
+QT          += core gui network serialport printsupport
 
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+greaterThan(QT_MAJOR_VERSION, 5): QT += widgets
 
-TARGET =    GroundControl
+TARGET   =  GroundControl
 TEMPLATE =  app
-
-INCLUDEPATH += /usr/include/qjson
-
-LIBS +=     -lqjson
 
 SOURCES +=  main.cpp\
             mainwindow.cpp \

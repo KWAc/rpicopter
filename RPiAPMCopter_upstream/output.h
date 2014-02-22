@@ -15,13 +15,13 @@ void send_rc();
 void send_pids();
 
 // function, delay, multiplier of the delay 
-Task emitAtti(&send_atti, 3,  1);
-Task emitRC  (&send_rc,   37, 1);
-Task emitComp(&send_comp, 44, 1);
-Task emitBaro(&send_baro, 66, 1);
-Task emitGPS (&send_gps,  66, 2);
-Task emitBat (&send_bat,  75, 1);
-Task emitPID (&send_pids, 75, 2);
+Task taskAtti(&send_atti, 3,  1);
+Task taskRC  (&send_rc,   37, 1);
+Task taskComp(&send_comp, 44, 1);
+Task taskBaro(&send_baro, 66, 1);
+Task taskGPS (&send_gps,  66, 2);
+Task taskBat (&send_bat,  75, 1);
+Task taskPID (&send_pids, 75, 2);
 
 ///////////////////////////////////////////////////////////
 // LED OUT

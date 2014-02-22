@@ -6,7 +6,6 @@
 #include <QIODevice>
 #include <QSerialPort>
 #include <QSerialPortInfo>
-#include <qjson/parser.h>
 
 #include "qplotdockwidget.h"
 #include "qattitudedockwidget.h"
@@ -24,6 +23,7 @@ private:
     QMenu *m_pOptionM;
     QAction *m_pFileMSave;
     QAction *m_pOptionMPIDConf;
+    QAction *m_pOptionRadioEnabled;
 
     QTime m_tSensorTime;
     QTimer m_udpRecvTimer;
@@ -37,7 +37,6 @@ private:
     bool m_bUdpSockCon;
     
     char m_cUdpRecvBuf[256];
-    QJson::Parser m_JSONParser;
 
     QRCWidget *m_pRCWidget;
     
@@ -69,13 +68,16 @@ private:
     QPIDConfig *m_pPIDConfigDial;
 
     bool searchSerialRadio();
+    void connectWidgets();
+    void prepareWidgets();
+    void prepareMenus();
+    void prepareGraphs();
 
 private slots:
     void sl_saveLog();
     void sl_configPIDs();
 
     void sl_recvCommand();
-    void sl_PrepareGraphs();
     void sl_replotGraphs();
     void sl_UpdateSensorData(QPair<unsigned long, QVariantMap> map);
     

@@ -47,7 +47,9 @@ public:
 
     int calc_chksum(char *str);
 
+    QString str_makeWiFiCommand();
     QPair<int, char*> cstr_makeWiFiCommand ();
+
     QPair<int, char*> cstr_makeRadioCommand ();
 };
 
@@ -61,6 +63,7 @@ public:
     float ROL;
     float PIT;
 
+    QString str_makeWiFiCommand();
     QPair<int, char*> cstr_makeWiFiCommand ();
 };
 
@@ -106,6 +109,8 @@ private:
     void sendJSON2UDP(QPair<int, char*> );
     void sendJSON2COM(QPair<int, char*> );
     void initGyro2UDP();
+
+    bool m_bRadioEnabled;
     
 private slots:
     void sl_customKeyPressHandler();
@@ -120,6 +125,7 @@ protected:
     
 public slots:
     void sl_startTimer();
+    void sl_setRadioEnabled(bool state);
 
 public:
     QRCWidget(QUdpSocket *pSock, QSerialPort *pSerialPort = NULL, QWidget *parent = NULL);

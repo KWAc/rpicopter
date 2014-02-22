@@ -37,7 +37,7 @@
 
 inline void set_channels(int16_t &pit, int16_t &rol, int16_t &yaw, int16_t &thr);
 inline void main_loop();
-Task emitMain(&main_loop, MAIN_LOOP_T_MS, 1);
+Task taskMain(&main_loop, MAIN_LOOP_T_MS, 1);
 
 /*
  * Sets references to values in the eight channel rc input
@@ -67,8 +67,8 @@ void main_loop() {
   set_channels(rcpit, rcrol, rcyaw, rcthr);
 
   // Reduce throttle if no update for more than 500 ms
-  uint32_t packet_t = _RECVR.time_elapsed(); // Measure time elapsed since last successful package from WiFi or radio
-  if(packet_t > SER_PKT_TIMEOUT && rcthr > RC_THR_OFF) {
+  uint32_t packet_t = _RECVR.timeLastSuccessfulParse(); // Measure time elapsed since last successful package from WiFi or radio
+  if(packet_t > COM_PKT_TIMEOUT && rcthr > RC_THR_OFF) {
     // how much to reduce?
     float fDecr = 1.25 * ((float)packet_t / 25.f);
     int16_t fDelta = rcthr - (int16_t)fDecr;
@@ -130,14 +130,14 @@ void main_loop() {
 
 void setup() {
   // Prepare scheduler for the main loop ..
-  _SCHED.addTask(&emitMain,  0);
+  _SCHED.addTask(&taskMain,  0);
   // .. and the sensor output functions
-  _SCHED.addTask(&emitAtti,  75);
-  _SCHED.addTask(&emitBaro,  1000);
-  _SCHED.addTask(&emitGPS,   1000);
-  _SCHED.addTask(&emitComp,  2000);
-  _SCHED.addTask(&emitBat,   5000);
-  _SCHED.addTask(&emitPID,   5000);
+  _SCHED.addTask(&taskAtti,  75);
+  _SCHED.addTask(&taskBaro,  1000);
+  _SCHED.addTask(&taskGPS,   1000);
+  _SCHED.addTask(&taskComp,  2000);
+  _SCHED.addTask(&taskBat,   5000);
+  _SCHED.addTask(&taskPID,   5000);
 
   // Set baud rate when connected to RPi
   hal.uartA->begin(BAUD_RATE_A); // USB
@@ -180,7 +180,7 @@ void loop() {
   
   // Commands via serial port (in this case WiFi -> RPi -> APM2.5)
   bool bOK = _RECVR.read_uartA(hal.console->available() ); 	// Try WiFi (serial) first
-  if(!bOK) {
+  if(!bOK && _RECVR.timeLastSuccessfulParse_uartA() > UART_A_TIMEOUT) {
     _RECVR.read_uartC(hal.uartC->available() ); 	        // If not working: Try radio next
   }
 

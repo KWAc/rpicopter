@@ -63,25 +63,22 @@ RANGE::RANGE() {
 RC_COM::RC_COM() {
     ROL = 0; PIT = 0; YAW = 0; THR = 1100;
 }
-/*
-QString &RC_COM::str_makeWiFiCommand() {
-    m_sWiFiCommand = "";
-    m_sWiFiCommand.append("{\"type\":\"rc\",\"r\":");  m_sWiFiCommand.append(QString::number((int)ROL, 10) ); m_sWiFiCommand.append(",");
-    m_sWiFiCommand.append("\"p\":");                   m_sWiFiCommand.append(QString::number((int)PIT, 10) ); m_sWiFiCommand.append(",");
-    m_sWiFiCommand.append("\"t\":");                   m_sWiFiCommand.append(QString::number((int)THR, 10) ); m_sWiFiCommand.append(",");
-    m_sWiFiCommand.append("\"y\":");                   m_sWiFiCommand.append(QString::number((int)YAW, 10) ); m_sWiFiCommand.append("}");
-    return m_sWiFiCommand;
-}*/
 
-QPair<int, char*> RC_COM::cstr_makeWiFiCommand() {
+QString RC_COM::str_makeWiFiCommand() {
     QString com = "";
     com.append("{\"type\":\"rc\",\"r\":");  com.append(QString::number((int)ROL, 10) ); com.append(",");
     com.append("\"p\":");                   com.append(QString::number((int)PIT, 10) ); com.append(",");
     com.append("\"t\":");                   com.append(QString::number((int)THR, 10) ); com.append(",");
     com.append("\"y\":");                   com.append(QString::number((int)YAW, 10) ); com.append("}");
 
+    return com;
+}
+
+QPair<int, char*> RC_COM::cstr_makeWiFiCommand() {
+    QString com = str_makeWiFiCommand();
+
     memset(m_cWiFiCommand, 0, sizeof(m_cWiFiCommand) );
-    for(int i = 0; i < com.size() && i < sizeof(m_cWiFiCommand); i++) {
+    for(unsigned int i = 0; i < static_cast<unsigned int>(com.size() ) && i < sizeof(m_cWiFiCommand); i++) {
         m_cWiFiCommand[i] = com.at(i).toLatin1();
     }
 
@@ -122,22 +119,20 @@ QPair<int, char*> RC_COM::cstr_makeRadioCommand() {
 DRIFT_CAL::DRIFT_CAL() {
     ROL = 0; PIT = 0;
 }
-/*
-QString DRIFT_CAL::str_makeCommand() {
+
+QString DRIFT_CAL::str_makeWiFiCommand() {
     QString com = "";
     com.append("{\"type\":\"cmp\",\"r\":"); com.append(QString::number(ROL, 'f', 2) ); com.append(",");
     com.append("\"p\":");                   com.append(QString::number(PIT, 'f', 2) ); com.append("}");
+
     return com;
 }
-*/
 
 QPair<int, char*> DRIFT_CAL::cstr_makeWiFiCommand() {
-    QString com = "";
-    com.append("{\"type\":\"cmp\",\"r\":"); com.append(QString::number(ROL, 'f', 2) ); com.append(",");
-    com.append("\"p\":");                   com.append(QString::number(PIT, 'f', 2) ); com.append("}");
+    QString com = str_makeWiFiCommand();
 
     memset(m_cWiFiCommand, 0, sizeof(m_cWiFiCommand) );
-    for(int i = 0; i < com.size() && i < sizeof(m_cWiFiCommand); i++) {
+    for(unsigned int i = 0; i < static_cast<unsigned int>(com.size() ) && i < sizeof(m_cWiFiCommand); i++) {
         m_cWiFiCommand[i] = com.at(i).toLatin1();
     }
     return QPair<int, char*> (com.size(), m_cWiFiCommand);
@@ -147,6 +142,9 @@ CUSTOM_KEY::CUSTOM_KEY() {
     memset(KEY, 0, sizeof(KEY));
 }
 
+void QRCWidget::sl_setRadioEnabled(bool state) {
+    m_bRadioEnabled = state;
+}
 
 QRCWidget::QRCWidget(QUdpSocket *pSock, QSerialPort *pSerialPort, QWidget *parent) : QFrame(parent) {
     assert(pSock != NULL);
@@ -157,6 +155,8 @@ QRCWidget::QRCWidget(QUdpSocket *pSock, QSerialPort *pSerialPort, QWidget *paren
 
     this->setMinimumSize(480, 480);
     setFocusPolicy(Qt::StrongFocus);
+
+    m_bRadioEnabled = true;
 
     m_iUpdateTime = 13;
     m_fTimeConstRed = (float)m_iUpdateTime/150.f;
@@ -202,7 +202,7 @@ void QRCWidget::initGyro2UDP() {
     com.append("}");
 
     memset(m_cWiFiCommand, 0, sizeof(m_cWiFiCommand) );
-    for(int i = 0; i < com.size() && i < sizeof(m_cWiFiCommand); i++) {
+    for(unsigned int i = 0; i < static_cast<unsigned int>(com.size() ) && i < sizeof(m_cWiFiCommand); i++) {
         m_cWiFiCommand[i] = com.at(i).toLatin1();
     }
 
@@ -316,13 +316,13 @@ void QRCWidget::sl_customKeyPressHandler() {
 
     float fStep = 2.5;
     if(m_customKeyStatus[CUSTOM_KEY::mapCustomKeyIndex(Qt::Key_Up)] == true) {
-        qDebug() << "Up";
+        //qDebug() << "Up";
         if(m_COM.THR + fStep <= m_RANGE.THR_80P)
             m_COM.THR += fStep * m_fTimeConstEnh;
         else m_COM.THR = m_RANGE.THR_80P;
     }
     if(m_customKeyStatus[CUSTOM_KEY::mapCustomKeyIndex(Qt::Key_Down)] == true) {
-        qDebug() << "Down";
+        //qDebug() << "Down";
         if(m_COM.THR - fStep >= m_RANGE.THR_MIN)
             m_COM.THR -= fStep * m_fTimeConstEnh;
         else m_COM.THR = m_RANGE.THR_MIN;
@@ -346,23 +346,13 @@ void QRCWidget::sl_customKeyReleaseHandler() {
 
     update();
 }
-/*
-void QRCWidget::sendJSON2UDP(QString &sJSON) {
-    if(!m_pUdpSock)
-        return;
-
-    if (sJSON.length() > 0) {
-        m_pUdpSock->write(sJSON.toLocal8Bit(), sJSON.toLocal8Bit().size() );
-        qDebug() << "WiFi: " << sJSON.toLocal8Bit();
-    }
-}*/
 
 void QRCWidget::sendJSON2UDP(QPair<int, char*> pair) {
     if(!m_pUdpSock)
         return;
 
     if (pair.first > 0) {
-        qDebug() << "WiFi: " << pair.first << pair.second;
+        //qDebug() << "WiFi: " << pair.first << pair.second;
         m_pUdpSock->write(pair.second, pair.first);
     }
 }
@@ -379,7 +369,9 @@ void QRCWidget::sendJSON2COM(QPair<int, char*> pair) {
 
 void QRCWidget::sl_sendRC2UDP() {
     sendJSON2UDP(m_COM.cstr_makeWiFiCommand() );
-    sendJSON2COM(m_COM.cstr_makeRadioCommand() );
+    if(m_bRadioEnabled) {
+        sendJSON2COM(m_COM.cstr_makeRadioCommand() );
+    }
 }
 
 void QRCWidget::sl_startTimer() {
@@ -641,82 +633,82 @@ void QRCWidget::keyPressEvent ( QKeyEvent * event ) {
     switch (key) {
         case Qt::Key_Backspace:
         m_customKeyStatus[i] = true;
-        qDebug() << "Backspace";
+        //qDebug() << "Backspace";
         break;
 
         case Qt::Key_A:
         m_customKeyStatus[i] = true;
-        qDebug() << "A";
+        //qDebug() << "A";
         break;
         case Qt::Key_D:
         m_customKeyStatus[i] = true;
-        qDebug() << "D";
+        //qDebug() << "D";
         break;
 
         case Qt::Key_W:
         m_customKeyStatus[i] = true;
-        qDebug() << "W";
+        //qDebug() << "W";
         break;
         case Qt::Key_S:
         m_customKeyStatus[i] = true;
-        qDebug() << "S";
+        //qDebug() << "S";
         break;
 
         case Qt::Key_Q:
         m_customKeyStatus[i] = true;
-        qDebug() << "Q";
+        //qDebug() << "Q";
         break;
         case Qt::Key_E:
         m_customKeyStatus[i] = true;
-        qDebug() << "E";
+        //qDebug() << "E";
         break;
 
         case Qt::Key_C:
         m_customKeyStatus[i] = true;
-        qDebug() << "C";
+        //qDebug() << "C";
         break;
 
         case Qt::Key_Up:
         m_customKeyStatus[i] = true;
-        qDebug() << "Up";
+        //qDebug() << "Up";
         break;
         case Qt::Key_Down:
         m_customKeyStatus[i] = true;
-        qDebug() << "Down";
+        //qDebug() << "Down";
         break;
 
         case Qt::Key_F1:
         m_customKeyStatus[i] = true;
-        qDebug() << "F1";
+        //qDebug() << "F1";
         break;
         case Qt::Key_F2:
         m_customKeyStatus[i] = true;
-        qDebug() << "F2";
+        //qDebug() << "F2";
         break;
         case Qt::Key_F3:
         m_customKeyStatus[i] = true;
-        qDebug() << "F3";
+        //qDebug() << "F3";
         break;
         case Qt::Key_F4:
         m_customKeyStatus[i] = true;
-        qDebug() << "F4";
+        //qDebug() << "F4";
         break;
 
         case Qt::Key_8:
         m_customKeyStatus[i] = true;
-        qDebug() << "F8";
+        //qDebug() << "F8";
         break;
         case Qt::Key_2:
         m_customKeyStatus[i] = true;
-        qDebug() << "F2";
+        //qDebug() << "F2";
         break;
         case Qt::Key_4:
         m_customKeyStatus[i] = true;
-        qDebug() << "F4";
+        //qDebug() << "F4";
         break;
         case Qt::Key_6:
         m_customKeyStatus[i] = true;
-        qDebug() << "F6";
+        //qDebug() << "F6";
         break;
     }
 }
