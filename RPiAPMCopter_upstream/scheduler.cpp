@@ -1,13 +1,13 @@
 #include "scheduler.h"
 
 
-Task::Task(void (*pf_foo)(), uint16_t delay, uint8_t mult) {
+Task::Task(void (*pf_foo)(), uint_fast16_t delay, uint_fast8_t mult) {
   m_bSend           = false;
   m_iDelay          = delay;
   pfTask            = pf_foo;
   m_iDelayMultplr   = mult;
   
-  uint32_t m_iTimer = 0;
+  uint_fast32_t m_iTimer = 0;
 }
 
 bool Task::start() {
@@ -23,15 +23,15 @@ void Task::reset() {
   m_bSend = false;
 }
 
-uint32_t Task::getTimer() {
+uint_fast32_t Task::getTimer() {
   return m_iTimer;
 }
 
-void Task::setTimer(const uint32_t iTimer) {
+void Task::setTimer(const uint_fast32_t iTimer) {
   m_iTimer = iTimer;
 }
 
-uint16_t Task::getDelay() {
+uint_fast16_t Task::getDelay() {
   return m_iDelay * m_iDelayMultplr;
 }
 ///////////////////////////////////////////////////////////
@@ -45,7 +45,7 @@ Scheduler::Scheduler(const AP_HAL::HAL *p) {
   m_iItems = 0;
 }
 
-void Scheduler::addTask(Task *p, uint16_t iTickRate) {
+void Scheduler::addTask(Task *p, uint_fast16_t iTickRate) {
   if(m_iItems < NO_PRC_SCHED && p != NULL) {
     m_functionList[m_iItems] = p;
     m_tickrateList[m_iItems] = iTickRate;
@@ -53,9 +53,9 @@ void Scheduler::addTask(Task *p, uint16_t iTickRate) {
   }
 }
 
-bool Scheduler::isStarted(const uint8_t i) {
+bool Scheduler::isStarted(const uint_fast8_t i) {
   Task *pCurTask = m_functionList[i];
-  uint32_t time = m_pHAL->scheduler->millis() - pCurTask->getTimer();
+  uint_fast32_t time = m_pHAL->scheduler->millis() - pCurTask->getTimer();
   
   // Time yet to start the current emitter?
   if(time <= m_tickrateList[i] + pCurTask->getDelay() ) {
@@ -77,7 +77,7 @@ bool Scheduler::isStarted(const uint8_t i) {
 
 void Scheduler::resetAll() {
   // Reset everything if last emitter successfully emitted
-  for(uint16_t i = 0; i < m_iItems; i++) {
+  for(uint_fast16_t i = 0; i < m_iItems; i++) {
     m_functionList[i]->reset();
   }
 }
@@ -86,7 +86,7 @@ void Scheduler::run() {
   if(m_pHAL == NULL)
     return;
 
-  for(uint8_t i = 0; i < m_iItems; i++) {
+  for(uint_fast8_t i = 0; i < m_iItems; i++) {
     // Run all tasks
     if(!isStarted(i) ) {
       continue;

@@ -35,14 +35,14 @@
 #include "math.h"
 
 
-inline void set_channels(int16_t &pit, int16_t &rol, int16_t &yaw, int16_t &thr);
+inline void set_channels(int_fast16_t &pit, int_fast16_t &rol, int_fast16_t &yaw, int_fast16_t &thr);
 inline void main_loop();
 Task taskMain(&main_loop, MAIN_LOOP_T_MS, 1);
 
 /*
  * Sets references to values in the eight channel rc input
  */
-void set_channels(int16_t &pit, int16_t &rol, int16_t &yaw, int16_t &thr) {
+void set_channels(int_fast16_t &pit, int_fast16_t &rol, int_fast16_t &yaw, int_fast16_t &thr) {
   rol = _RECVR.m_pChannelsRC[0];
   pit = _RECVR.m_pChannelsRC[1];
   thr = _RECVR.m_pChannelsRC[2] > RC_THR_80P ? RC_THR_80P : _RECVR.m_pChannelsRC[2];
@@ -63,17 +63,17 @@ void main_loop() {
   while(_INERT.wait_for_sample(INERTIAL_TIMEOUT) == 0);
 
   // Variables to store remote control commands
-  int16_t rcthr, rcyaw, rcpit, rcrol;
+  int_fast16_t rcthr, rcyaw, rcpit, rcrol;
   set_channels(rcpit, rcrol, rcyaw, rcthr);
 
   // Reduce throttle if no update for more than 500 ms
-  uint32_t packet_t = _RECVR.timeLastSuccessfulParse(); // Measure time elapsed since last successful package from WiFi or radio
+  uint_fast32_t packet_t = _RECVR.timeLastSuccessfulParse(); // Measure time elapsed since last successful package from WiFi or radio
   if(packet_t > COM_PKT_TIMEOUT && rcthr > RC_THR_OFF) {
     // how much to reduce?
     float fDecr = 1.25 * ((float)packet_t / 25.f);
-    int16_t fDelta = rcthr - (int16_t)fDecr;
+    int_fast16_t fDelta = rcthr - (int_fast16_t)fDecr;
     // reduce thrust..
-    rcthr = (int16_t)fDecr < 0 ? RC_THR_OFF : fDelta > RC_THR_MIN ? fDelta : RC_THR_OFF;
+    rcthr = (int_fast16_t)fDecr < 0 ? RC_THR_OFF : fDelta > RC_THR_MIN ? fDelta : RC_THR_OFF;
     // reset yaw, pitch and roll
     rcyaw = 0; // yaw
     rcpit = 0; // pitch
@@ -82,29 +82,30 @@ void main_loop() {
 
   // Update sensor information
   _HAL_BOARD.update_inertial();
-  Vector3f vAttitude = _HAL_BOARD.get_atti(); // returns the fused sensor value (gyrometer and accelerometer)
+  Vector3f vAtti = _HAL_BOARD.get_atti_cor(); // returns the fused sensor value (gyrometer and accelerometer)
+  Vector3f vGyro = _HAL_BOARD.get_gyro_cor();     // returns the sensor value from the gyrometer
   // Throttle raised, turn on stabilisation.
   if(rcthr > RC_THR_ACRO) {
     // Stabilise PIDS
-    float pit_stab_output = constrain_float(_HAL_BOARD.m_pPIDS[PID_PIT_STAB].get_pid((float)rcpit - vAttitude.x, 1), -250, 250);
-    float rol_stab_output = constrain_float(_HAL_BOARD.m_pPIDS[PID_ROL_STAB].get_pid((float)rcrol - vAttitude.y, 1), -250, 250);
-    float yaw_stab_output = constrain_float(_HAL_BOARD.m_pPIDS[PID_YAW_STAB].get_pid(wrap180_float(targ_yaw - vAttitude.z), 1), -360, 360);
+    float pit_stab_output = constrain_float(_HAL_BOARD.m_pPIDS[PID_PIT_STAB].get_pid((float)rcpit - vAtti.x, 1), -250, 250);
+    float rol_stab_output = constrain_float(_HAL_BOARD.m_pPIDS[PID_ROL_STAB].get_pid((float)rcrol - vAtti.y, 1), -250, 250);
+    float yaw_stab_output = constrain_float(_HAL_BOARD.m_pPIDS[PID_YAW_STAB].get_pid(wrap180_f(targ_yaw - vAtti.z), 1), -360, 360);
 
     // is pilot asking for yaw change - if so feed directly to rate pid (overwriting yaw stab output)
     if(abs(rcyaw ) > 5.f) {
       yaw_stab_output = rcyaw;
-      targ_yaw = vAttitude.z; // remember this yaw for when pilot stops
+      targ_yaw = vAtti.z; // remember this yaw for when pilot stops
     }
 
     // rate PIDS
-    int16_t pit_output = (int16_t)constrain_float(_HAL_BOARD.m_pPIDS[PID_PIT_RATE].get_pid(pit_stab_output - _HAL_BOARD.m_vGyro.x, 1), -500, 500);
-    int16_t rol_output = (int16_t)constrain_float(_HAL_BOARD.m_pPIDS[PID_ROL_RATE].get_pid(rol_stab_output - _HAL_BOARD.m_vGyro.y, 1), -500, 500);
-    int16_t yaw_output = (int16_t)constrain_float(_HAL_BOARD.m_pPIDS[PID_YAW_RATE].get_pid(yaw_stab_output - _HAL_BOARD.m_vGyro.z, 1), -500, 500);
+    int_fast16_t pit_output = (int_fast16_t)constrain_float(_HAL_BOARD.m_pPIDS[PID_PIT_RATE].get_pid(pit_stab_output - vGyro.x, 1), -500, 500);
+    int_fast16_t rol_output = (int_fast16_t)constrain_float(_HAL_BOARD.m_pPIDS[PID_ROL_RATE].get_pid(rol_stab_output - vGyro.y, 1), -500, 500);
+    int_fast16_t yaw_output = (int_fast16_t)constrain_float(_HAL_BOARD.m_pPIDS[PID_YAW_RATE].get_pid(yaw_stab_output - vGyro.z, 1), -500, 500);
 
-    int16_t fFL = rcthr + rol_output + pit_output - yaw_output;
-    int16_t fBL = rcthr + rol_output - pit_output + yaw_output;
-    int16_t fFR = rcthr - rol_output + pit_output + yaw_output;
-    int16_t fBR = rcthr - rol_output - pit_output - yaw_output;
+    int_fast16_t fFL = rcthr + rol_output + pit_output - yaw_output;
+    int_fast16_t fBL = rcthr + rol_output - pit_output + yaw_output;
+    int_fast16_t fFR = rcthr - rol_output + pit_output + yaw_output;
+    int_fast16_t fBR = rcthr - rol_output - pit_output - yaw_output;
 
     hal.rcout->write(MOTOR_FL, fFL);
     hal.rcout->write(MOTOR_BL, fBL);
@@ -119,10 +120,10 @@ void main_loop() {
     hal.rcout->write(MOTOR_BR, RC_THR_OFF);
 
     // reset yaw target so we maintain this on take-off
-    targ_yaw = vAttitude.z;
+    targ_yaw = vAtti.z;
 
     // reset PID integrals whilst on the ground
-    for(int i = 0; i < 6; i++) {
+    for(uint_fast8_t i = 0; i < 6; i++) {
       _HAL_BOARD.m_pPIDS[i].reset_I();
     }
   }
@@ -147,7 +148,7 @@ void setup() {
 
   // Enable the motors and set at 490Hz update
   hal.console->printf("%.1f%%: Set ESC refresh rate to 490 Hz\n", 1.f*100.f/7.f);
-  for(uint16_t i = 0; i < 8; i++) {
+  for(uint_fast16_t i = 0; i < 8; i++) {
     hal.rcout->enable_ch(i);
   }
   hal.rcout->set_freq(0xFF, 490);
@@ -176,7 +177,7 @@ void setup() {
 }
 
 void loop() {
-  static uint32_t timer = 0;
+  static uint_fast32_t timer = 0;
   
   // Commands via serial port (in this case WiFi -> RPi -> APM2.5)
   bool bOK = _RECVR.read_uartA(hal.console->available() ); 	// Try WiFi (serial) first

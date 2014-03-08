@@ -5,28 +5,25 @@
 
 Receiver::Receiver(Device *pHalBoard) {
   memset(m_cBuffer, 0, sizeof(m_cBuffer) );
-
-  m_pHalBoard   = pHalBoard;
-
+  m_pHalBoard = pHalBoard;
   memset(m_pChannelsRC, 0, sizeof(m_pChannelsRC) );
   m_iSParseTimer_A = m_iSParseTimer_C = m_iSParseTimer = m_pHalBoard->m_pHAL->scheduler->millis();
 }
 
-uint8_t Receiver::calc_chksum(char *str) {
-  uint8_t nc = 0;
-  for(int i = 0; i < strlen(str); i++) {
+uint_fast8_t Receiver::calc_chksum(char *str) {
+  uint_fast8_t nc = 0;
+  for(uint_fast16_t i = 0; i < strlen(str); i++) {
     nc = (nc + str[i]) << 1;
   }
-
   return nc;
 }
 
 //checksum verifier
 bool Receiver::verf_chksum(char *str, char *chk) {
-  uint8_t nc = calc_chksum(str);
+  uint_fast8_t nc = calc_chksum(str);
 
-  long chkl = strtol(chk, NULL, 16);                // supplied chksum to long
-  if(chkl == (long)nc)                              // compare
+  uint_fast32_t chkl = strtol(chk, NULL, 16);                // supplied chksum to long
+  if(chkl == (uint_fast32_t)nc)                              // compare
     return true;
 
   return false;
@@ -43,10 +40,10 @@ bool Receiver::parse_ctrl_com(char* buffer) {
 
   if(verf_chksum(str, chk) ) {                    // if chksum OK
     char *ch = strtok(str, ",");                    // first channel
-    m_pChannelsRC[0] = (uint16_t)strtol(ch, NULL, 10);// parse
-    for(int i = 1; i < APM_IOCHANNEL_COUNT; i++) {  // loop through final 3 RC_CHANNELS
+    m_pChannelsRC[0] = (uint_fast16_t)strtol(ch, NULL, 10);// parse
+    for(uint_fast8_t i = 1; i < APM_IOCHANNEL_COUNT; i++) {  // loop through final 3 RC_CHANNELS
       char *ch = strtok(NULL, ",");
-      m_pChannelsRC[i] = (uint16_t)strtol(ch, NULL, 10);
+      m_pChannelsRC[i] = (uint_fast16_t)strtol(ch, NULL, 10);
     }
     m_iSParseTimer = m_pHalBoard->m_pHAL->scheduler->millis();           // update last valid packet
   }
@@ -63,19 +60,19 @@ bool Receiver::parse_gyr_cor(char* buffer) {
   if(verf_chksum(str, chk) ) {                    // if chksum OK
     char *cstr;
 
-    for(int i = 0; i < COMP_ARGS; i++) {            // loop through final 3 RC_CHANNELS
+    for(uint_fast8_t i = 0; i < COMP_ARGS; i++) {            // loop through final 3 RC_CHANNELS
       if(i == 0)
         cstr = strtok (buffer, ",");
       else cstr = strtok (NULL, ",");
 
       switch(i) {
         case 0:
-          m_pHalBoard->m_fInertRolCor = atof(cstr);
-          m_pHalBoard->m_fInertRolCor = m_pHalBoard->m_fInertRolCor  > 10.f ? 10.f : m_pHalBoard->m_fInertRolCor < -10.f ? -10.f : m_pHalBoard->m_fInertRolCor;
+          m_pHalBoard->setInertRolCor(atof(cstr) );
+          m_pHalBoard->setInertRolCor(m_pHalBoard->getInertRolCor()  > 10.f ? 10.f : m_pHalBoard->getInertRolCor() < -10.f ? -10.f : m_pHalBoard->getInertRolCor() );
         break;
         case 1:
-          m_pHalBoard->m_fInertPitCor = atof(cstr);
-          m_pHalBoard->m_fInertPitCor = m_pHalBoard->m_fInertPitCor  > 10.f ? 10.f : m_pHalBoard->m_fInertPitCor < -10.f ? -10.f : m_pHalBoard->m_fInertPitCor;
+          m_pHalBoard->setInertPitCor(atof(cstr) );
+          m_pHalBoard->setInertPitCor(m_pHalBoard->getInertPitCor()  > 10.f ? 10.f : m_pHalBoard->getInertPitCor() < -10.f ? -10.f : m_pHalBoard->getInertPitCor() );
         break;
       }
     }
@@ -101,7 +98,7 @@ bool Receiver::parse_gyr_cal(char* buffer) {
     // only if quadro is _not_ armed
     if(bcalib) {
       // This functions checks whether model is ready for a calibration
-      m_pHalBoard->attitude_calibration();
+      m_pHalBoard->calibrate_inertial();
     }
   }
   return true;
@@ -120,7 +117,7 @@ bool Receiver::parse_bat_type(char* buffer) {
 
   if(verf_chksum(str, chk) ) {                    // if chksum OK
     char *cstr = strtok (buffer, ",");
-    int type = atoi(cstr);
+    uint_fast8_t type = atoi(cstr);
 
     m_pHalBoard->m_pBat->setup_source(type);
   }
@@ -132,7 +129,7 @@ float *Receiver::parse_pid_substr(char* buffer) {
   memset(pids, 0, 3*sizeof(float) );
 
   char ckP[32], ckI[32], cimax[32];
-  unsigned int i = 0, c = 0, p = 0;
+  uint_fast16_t i = 0, c = 0, p = 0;
   for(; i < strlen(buffer); i++) {
     if(buffer[i] == '\0') {
       break;
@@ -183,7 +180,7 @@ bool Receiver::parse_pid_conf(char* buffer) {
     float *pids = NULL;
     char *cstr;
 
-    for(int i = 0; i < PID_ARGS; i++) {
+    for(uint_fast8_t i = 0; i < PID_ARGS; i++) {
       if(i == 0)
         cstr = strtok (buffer, ";");
       else cstr = strtok (NULL, ";");
@@ -216,8 +213,8 @@ bool Receiver::parse_pid_conf(char* buffer) {
   return true;
 }
 
-bool Receiver::read_uartA(uint16_t bytesAvail) {
-  static uint16_t offset = 0;
+bool Receiver::read_uartA(uint_fast16_t bytesAvail) {
+  static uint_fast16_t offset = 0;
 
   bool bRet = false;
   for(; bytesAvail > 0; bytesAvail--) {
@@ -226,7 +223,7 @@ bool Receiver::read_uartA(uint16_t bytesAvail) {
       m_cBuffer[offset] = '\0';                         // null terminator
       bRet = parse(m_cBuffer);
       if(bRet) {
-        m_iUartATimer = m_iSParseTimer;
+        m_iSParseTimer_A = m_iSParseTimer;
       }
       memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;
     }
@@ -241,15 +238,15 @@ bool Receiver::read_uartA(uint16_t bytesAvail) {
  * Everything fits into 7 bytes 
  */
 bool Receiver::parse_radio(char *buffer) {
-  int16_t thr = 1000 + ((uint8_t)buffer[0] * 100) + (uint8_t)buffer[1]; // 1000 - 1900
-  int16_t pit = (uint8_t)buffer[2] - 127;                               // -45° - 45°
-  int16_t rol = (uint8_t)buffer[3] - 127;                               // -45° - 45°
-  int16_t yaw = (uint8_t)buffer[5] * ((uint8_t)buffer[4] - 127);        // -180° - 180°
-  int16_t chk = (uint8_t)buffer[6];                                     // checksum
+  int_fast16_t thr = 1000 + ((uint_fast8_t)buffer[0] * 100) + (uint_fast8_t)buffer[1]; // 1000 - 1900
+  int_fast16_t pit = (uint_fast8_t)buffer[2] - 127;                               // -45° - 45°
+  int_fast16_t rol = (uint_fast8_t)buffer[3] - 127;                               // -45° - 45°
+  int_fast16_t yaw = (uint_fast8_t)buffer[5] * ((uint_fast8_t)buffer[4] - 127);        // -180° - 180°
+  int_fast16_t chk = (uint_fast8_t)buffer[6];                                     // checksum
 
   // Calculate checksum
-  uint8_t checksum = 0;
-  for(int i = 0; i < 6; i++) {
+  uint_fast8_t checksum = 0;
+  for(uint_fast8_t i = 0; i < 6; i++) {
     checksum = (checksum + buffer[i]) << 1;
   }
 
@@ -277,8 +274,8 @@ bool Receiver::parse_radio(char *buffer) {
   return true;
 }
 
-bool Receiver::read_uartC(uint16_t bytesAvail) {
-  static uint16_t offset = 0;
+bool Receiver::read_uartC(uint_fast16_t bytesAvail) {
+  static uint_fast16_t offset = 0;
 
   bool bRet = false;
   for(; bytesAvail > 0; bytesAvail--) {
@@ -297,7 +294,7 @@ bool Receiver::read_uartC(uint16_t bytesAvail) {
       else {                                                  // message has perfect length and stop byte
         bRet = parse_radio(m_cBuffer);
         if(bRet) {
-          m_iUartCTimer = m_iSParseTimer;
+          m_iSParseTimer_C = m_iSParseTimer;
         }
         memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;
       }
@@ -338,14 +335,14 @@ bool Receiver::parse(char *buffer) {
   }
 }
 
-uint32_t Receiver::timeLastSuccessfulParse() {
+uint_fast32_t Receiver::timeLastSuccessfulParse() {
   return m_pHalBoard->m_pHAL->scheduler->millis() - m_iSParseTimer;
 }
 
-uint32_t Receiver::timeLastSuccessfulParse_uartA() {
+uint_fast32_t Receiver::timeLastSuccessfulParse_uartA() {
   return m_pHalBoard->m_pHAL->scheduler->millis() - m_iSParseTimer_A;
 }
 
-uint32_t Receiver::timeLastSuccessfulParse_uartC() {
+uint_fast32_t Receiver::timeLastSuccessfulParse_uartC() {
   return m_pHalBoard->m_pHAL->scheduler->millis() - m_iSParseTimer_C;
 }

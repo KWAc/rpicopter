@@ -90,4 +90,6 @@
 #define NO_PRC_SCHED         16
 #define RADIO_MAX_OFFS       7           // without stop bit
 
+#define LOWPATH_FILT         0.5
+
 #endif /*DEFS_h*/

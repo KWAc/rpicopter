@@ -27,8 +27,8 @@
 
 
 enum BATT_SENSOR_TYPE {
-  ATTO45 = 0,
-  ATTO90 = 1,
+  ATTO45  = 0,
+  ATTO90  = 1,
   ATTO180 = 2
     // Maybe extent for other stuff
 };
@@ -43,18 +43,18 @@ public:
    * Changes source of battery monitor
    * Makes usage of AP_Param unnecessary
    */
-  void setup_source( int8_t volt_pin,
-  int8_t curr_pin,
-  float volt_multiplier,
-  float curr_amp_per_volt,
-  int32_t pack_capacity,
-  float curr_amp_offset,
-  int8_t monitoring );
+  void setup_source( int_fast8_t volt_pin,
+                     int_fast8_t curr_pin,
+                     float volt_multiplier,
+                     float curr_amp_per_volt,
+                     int_fast32_t pack_capacity,
+                     float curr_amp_offset,
+                     int_fast8_t monitoring );
   /*
    * Calls function above
    * If no proper source can be recognized, the standard settings (3DR power module) are used.
    */
-  void setup_source(const unsigned int &t = ATTO180);
+  void setup_source(const uint_fast8_t &t = ATTO180);
 };
 
 #endif

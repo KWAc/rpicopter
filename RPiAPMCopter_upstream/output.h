@@ -52,7 +52,7 @@ void send_comp() {
 ///////////////////////////////////////////////////////////
 void send_atti() {
   hal.console->printf("{\"type\":\"s_att\",\"r\":%.1f,\"p\":%.1f,\"y\":%.1f}\n",
-  _HAL_BOARD.m_vAttitude.y, _HAL_BOARD.m_vAttitude.x, _HAL_BOARD.m_vAttitude.z);
+  _HAL_BOARD.get_atti_raw().y, _HAL_BOARD.get_atti_raw().x, _HAL_BOARD.get_atti_raw().z);
 }
 ///////////////////////////////////////////////////////////
 // barometer
@@ -60,7 +60,7 @@ void send_atti() {
 void send_baro() {
   BaroData baro = _HAL_BOARD.read_baro();
   hal.console->printf("{\"type\":\"s_bar\",\"p\":%.1f,\"a\":%.1f,\"t\":%.1f,\"c\":%.1f,\"s\":%d}\n",
-  baro.pressure, baro.altitude, baro.temperature, baro.climb_rate, (unsigned int)baro.pressure_samples);
+  baro.pressure, baro.altitude, baro.temperature, baro.climb_rate, (uint_fast16_t)baro.pressure_samples);
 }
 ///////////////////////////////////////////////////////////
 // gps
@@ -89,19 +89,42 @@ void send_gps() {
 ///////////////////////////////////////////////////////////
 // battery monitor
 ///////////////////////////////////////////////////////////
+/*
+ * Function from a LiPo charging chart:
+ * 4,20 V  100%
+ * 4,13 V       90%
+ * 4,06 V       80%
+ * 3,99 V       70%
+ * 3,92 V       60%
+ * 3,85 V       50%
+ * 3,78 V       40%
+ * 3,71 V       30%
+ * 3,64 V       20%
+ * 3,57 V       10%
+ * 3,50 V  0%
+ * Return: 0 - 1 (0%-100%) if in voltage range of this table :D
+ */
+inline float remain_lipocap(const float voltage_V, const uint_fast8_t num_cells) {
+  float fCap =  1.4286 * (voltage_V / (float)num_cells) - 5.f;
+  return fCap < 0.f ? 0.f : fCap > 1.f ? 1.f : fCap;
+}
+
 void send_bat() {
   BattData bat = _HAL_BOARD.read_bat();
+  // TODO Add support for other battery types (NiMH, ..)
+  float fCapPerc = remain_lipocap(bat.voltage_V+AP_BATT_VOLT_OFFSET, AP_BATT_CELL_COUNT);
+  
   hal.console->printf("{\"type\":\"s_bat\",\"V\":%.1f,\"A\":%.1f,\"c_mAh\":%.1f,\"r_cap\":%.1f}\n",
-  bat.voltage_V+AP_BATT_VOLT_OFFSET, bat.current_A, bat.consumpt_mAh, Device::get_resbatcap(bat.voltage_V+AP_BATT_VOLT_OFFSET, AP_BATT_CELL_COUNT) );
+  bat.voltage_V+AP_BATT_VOLT_OFFSET, bat.current_A, bat.consumpt_mAh, fCapPerc);
 }
 ///////////////////////////////////////////////////////////
 // remote control
 ///////////////////////////////////////////////////////////
 void send_rc() {
-  int16_t rcthr = _RECVR.m_pChannelsRC[2];
-  int16_t rcyaw = _RECVR.m_pChannelsRC[3];
-  int16_t rcpit = _RECVR.m_pChannelsRC[1];
-  int16_t rcrol = _RECVR.m_pChannelsRC[0];
+  int_fast16_t rcthr = _RECVR.m_pChannelsRC[2];
+  int_fast16_t rcyaw = _RECVR.m_pChannelsRC[3];
+  int_fast16_t rcpit = _RECVR.m_pChannelsRC[1];
+  int_fast16_t rcrol = _RECVR.m_pChannelsRC[0];
 
   hal.console->printf("{\"type\":\"rc_in\",\"r\":%d,\"p\":%d,\"t\":%d,\"y\":%d}\n",
   rcrol, rcpit, rcthr, rcyaw);
