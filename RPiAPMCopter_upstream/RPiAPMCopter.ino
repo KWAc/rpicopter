@@ -129,6 +129,10 @@ void main_loop() {
   }
 }
 
+double progress_f(uint_fast8_t iStep, uint_fast8_t iMax) {
+  return (double)iStep*100.f/(double)iMax;
+}
+
 void setup() {
   // Prepare scheduler for the main loop ..
   _SCHED.addTask(&taskMain,  0);
@@ -147,38 +151,36 @@ void setup() {
   hal.console->printf("Setup device ..\n");
 
   // Enable the motors and set at 490Hz update
-  hal.console->printf("%.1f%%: Set ESC refresh rate to 490 Hz\n", 1.f*100.f/7.f);
+  hal.console->printf("%.1f%%: Set ESC refresh rate to 490 Hz\n", progress_f(1, 7) );
   for(uint_fast16_t i = 0; i < 8; i++) {
     hal.rcout->enable_ch(i);
   }
   hal.rcout->set_freq(0xFF, 490);
 
   // PID Configuration
-  hal.console->printf("%.1f%%: Set PID configuration\n", 2.f*100.f/7.f);
+  hal.console->printf("%.1f%%: Set PID configuration\n", progress_f(2, 7) );
   _HAL_BOARD.init_pids();
 
-  hal.console->printf("%.1f%%: Init barometer\n", 3.f*100.f/7.f);
+  hal.console->printf("%.1f%%: Init barometer\n", progress_f(3, 7) );
   _HAL_BOARD.init_barometer();
 
-  hal.console->printf("%.1f%%: Init inertial sensor\n", 4.f*100.f/7.f);
+  hal.console->printf("%.1f%%: Init inertial sensor\n", progress_f(4, 7) );
   _HAL_BOARD.init_inertial();
 
   // Compass initializing
-  hal.console->printf("%.1f%%: Init compass: ", 5.f*100.f/7.f);
+  hal.console->printf("%.1f%%: Init compass: ", progress_f(5, 7) );
   _HAL_BOARD.init_compass();
 
   // GPS initializing
-  hal.console->printf("%.1f%%: Init GPS", 6.f*100.f/7.f);
+  hal.console->printf("%.1f%%: Init GPS", progress_f(6, 7) );
   _HAL_BOARD.init_gps();
 
   // battery monitor initializing
-  hal.console->printf("\n%.1f%%: Init battery monitor\n", 7.f*100.f/7.f);
+  hal.console->printf("\n%.1f%%: Init battery monitor\n", progress_f(7, 7) );
   _HAL_BOARD.init_batterymon();
 }
 
-void loop() {
-  static uint_fast32_t timer = 0;
-  
+void loop() { 
   // Commands via serial port (in this case WiFi -> RPi -> APM2.5)
   bool bOK = _RECVR.read_uartA(hal.console->available() ); 	// Try WiFi (serial) first
   if(!bOK && _RECVR.timeLastSuccessfulParse_uartA() > UART_A_TIMEOUT) {

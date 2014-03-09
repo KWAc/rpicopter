@@ -12,7 +12,7 @@ Receiver::Receiver(Device *pHalBoard) {
 
 uint_fast8_t Receiver::calc_chksum(char *str) {
   uint_fast8_t nc = 0;
-  for(uint_fast16_t i = 0; i < strlen(str); i++) {
+  for(size_t i = 0; i < strlen(str); i++) {
     nc = (nc + str[i]) << 1;
   }
   return nc;
@@ -20,12 +20,11 @@ uint_fast8_t Receiver::calc_chksum(char *str) {
 
 //checksum verifier
 bool Receiver::verf_chksum(char *str, char *chk) {
-  uint_fast8_t nc = calc_chksum(str);
-
-  uint_fast32_t chkl = strtol(chk, NULL, 16);                // supplied chksum to long
-  if(chkl == (uint_fast32_t)nc)                              // compare
+  uint_fast8_t  nc  = calc_chksum(str);
+  long chkl = strtol(chk, NULL, 16);  // supplied chksum to long
+  if(chkl == (long)nc) {              // compare
     return true;
-
+  }
   return false;
 }
 
@@ -38,9 +37,9 @@ bool Receiver::parse_ctrl_com(char* buffer) {
   char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
   char *chk = strtok(NULL, "*");                    // chk = chksum
 
-  if(verf_chksum(str, chk) ) {                    // if chksum OK
+  if(verf_chksum(str, chk) ) {                      // if chksum OK
     char *ch = strtok(str, ",");                    // first channel
-    m_pChannelsRC[0] = (uint_fast16_t)strtol(ch, NULL, 10);// parse
+    m_pChannelsRC[0] = (uint_fast16_t)strtol(ch, NULL, 10);  // parse
     for(uint_fast8_t i = 1; i < APM_IOCHANNEL_COUNT; i++) {  // loop through final 3 RC_CHANNELS
       char *ch = strtok(NULL, ",");
       m_pChannelsRC[i] = (uint_fast16_t)strtol(ch, NULL, 10);
@@ -56,11 +55,12 @@ bool Receiver::parse_gyr_cor(char* buffer) {
   // process cmd
   char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
   char *chk = strtok(NULL, "*");                    // chk = chksum
-
-  if(verf_chksum(str, chk) ) {                    // if chksum OK
+  bool bRes = false;
+  
+  if(verf_chksum(str, chk) ) {                      // if chksum OK
     char *cstr;
 
-    for(uint_fast8_t i = 0; i < COMP_ARGS; i++) {            // loop through final 3 RC_CHANNELS
+    for(uint_fast8_t i = 0; i < COMP_ARGS; i++) {   // loop through final 3 RC_CHANNELS
       if(i == 0)
         cstr = strtok (buffer, ",");
       else cstr = strtok (NULL, ",");
@@ -69,14 +69,17 @@ bool Receiver::parse_gyr_cor(char* buffer) {
         case 0:
           m_pHalBoard->setInertRolCor(atof(cstr) );
           m_pHalBoard->setInertRolCor(m_pHalBoard->getInertRolCor()  > 10.f ? 10.f : m_pHalBoard->getInertRolCor() < -10.f ? -10.f : m_pHalBoard->getInertRolCor() );
+          bRes = true;
         break;
         case 1:
           m_pHalBoard->setInertPitCor(atof(cstr) );
           m_pHalBoard->setInertPitCor(m_pHalBoard->getInertPitCor()  > 10.f ? 10.f : m_pHalBoard->getInertPitCor() < -10.f ? -10.f : m_pHalBoard->getInertPitCor() );
+          bRes = true;
         break;
       }
     }
   }
+  return bRes;
 }
 
 bool Receiver::parse_gyr_cal(char* buffer) {
@@ -117,7 +120,7 @@ bool Receiver::parse_bat_type(char* buffer) {
 
   if(verf_chksum(str, chk) ) {                    // if chksum OK
     char *cstr = strtok (buffer, ",");
-    uint_fast8_t type = atoi(cstr);
+    int type = atoi(cstr);
 
     m_pHalBoard->m_pBat->setup_source(type);
   }
@@ -129,7 +132,7 @@ float *Receiver::parse_pid_substr(char* buffer) {
   memset(pids, 0, 3*sizeof(float) );
 
   char ckP[32], ckI[32], cimax[32];
-  uint_fast16_t i = 0, c = 0, p = 0;
+  size_t i = 0, c = 0, p = 0;
   for(; i < strlen(buffer); i++) {
     if(buffer[i] == '\0') {
       break;
@@ -333,6 +336,8 @@ bool Receiver::parse(char *buffer) {
   if(strcmp(ctype, "BAT") == 0) {
     return parse_bat_type(command);
   }
+  
+  return false;
 }
 
 uint_fast32_t Receiver::timeLastSuccessfulParse() {

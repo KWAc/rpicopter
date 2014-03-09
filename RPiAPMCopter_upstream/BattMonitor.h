@@ -20,10 +20,13 @@
 # define AP_BATT_CURR_AMP_PERVOLT_ATTO180 54.64  // Amp/Volt for AttoPilot 50V/180A sensor
 # define AP_BATT_CURR_AMP_PERVOLT_ATTO90 27.32  // Amp/Volt for AttoPilot 50V/90A sensor
 # define AP_BATT_CURR_AMP_PERVOLT_ATTO45 13.66  // Amp/Volt for AttoPilot 13.6V/45A sensor
-// battery monitor types
-# ifndef AP_BATT_CAPACITY_DEFAULT
-  # define AP_BATT_CAPACITY_DEFAULT            10000
-# endif
+// Self implemented battery monitor
+#ifdef AP_BATT_CAPACITY_DEFAULT
+  #undef  AP_BATT_CAPACITY_DEFAULT       // If already defines: un-define
+  #define AP_BATT_CAPACITY_DEFAULT 10000 // Total capacity of the battery
+#else 
+  #define AP_BATT_CAPACITY_DEFAULT 10000 // Total capacity of the battery
+#endif
 
 
 enum BATT_SENSOR_TYPE {
@@ -54,7 +57,7 @@ public:
    * Calls function above
    * If no proper source can be recognized, the standard settings (3DR power module) are used.
    */
-  void setup_source(const uint_fast8_t &t = ATTO180);
+  void setup_source(const int &t = ATTO180);
 };
 
 #endif

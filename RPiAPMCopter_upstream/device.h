@@ -7,7 +7,6 @@
 #include <AP_Math.h>
 #include <PID.h>
 
-#include "config.h"
 #include "containers.h"
 
 class AP_InertialSensor;

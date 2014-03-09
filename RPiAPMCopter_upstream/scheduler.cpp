@@ -6,8 +6,7 @@ Task::Task(void (*pf_foo)(), uint_fast16_t delay, uint_fast8_t mult) {
   m_iDelay          = delay;
   pfTask            = pf_foo;
   m_iDelayMultplr   = mult;
-  
-  uint_fast32_t m_iTimer = 0;
+  m_iTimer          = 0;
 }
 
 bool Task::start() {

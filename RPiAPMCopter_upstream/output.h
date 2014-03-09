@@ -45,14 +45,14 @@ void leds_on() {
 ///////////////////////////////////////////////////////////
 void send_comp() {
   hal.console->printf("{\"type\":\"s_cmp\",\"h\":%.1f}\n",
-  _HAL_BOARD.read_comp() );
+  (double)_HAL_BOARD.read_comp() );
 }
 ///////////////////////////////////////////////////////////
 // attitude in degrees
 ///////////////////////////////////////////////////////////
 void send_atti() {
   hal.console->printf("{\"type\":\"s_att\",\"r\":%.1f,\"p\":%.1f,\"y\":%.1f}\n",
-  _HAL_BOARD.get_atti_raw().y, _HAL_BOARD.get_atti_raw().x, _HAL_BOARD.get_atti_raw().z);
+  (double)_HAL_BOARD.get_atti_raw().y, (double)_HAL_BOARD.get_atti_raw().x, (double)_HAL_BOARD.get_atti_raw().z);
 }
 ///////////////////////////////////////////////////////////
 // barometer
@@ -60,7 +60,7 @@ void send_atti() {
 void send_baro() {
   BaroData baro = _HAL_BOARD.read_baro();
   hal.console->printf("{\"type\":\"s_bar\",\"p\":%.1f,\"a\":%.1f,\"t\":%.1f,\"c\":%.1f,\"s\":%d}\n",
-  baro.pressure, baro.altitude, baro.temperature, baro.climb_rate, (uint_fast16_t)baro.pressure_samples);
+  (double)baro.pressure, (double)baro.altitude, (double)baro.temperature, (double)baro.climb_rate, (uint_fast16_t)baro.pressure_samples);
 }
 ///////////////////////////////////////////////////////////
 // gps
@@ -70,16 +70,16 @@ void send_gps() {
   hal.console->printf("{\"type\":\"s_gps\",\"lat\":%d,\"lon\":%d,\"a_m\":%.1f,\"g_ms\":%.1f,\"e_ms\":%.1f,\"n_ms\":%.1f,\"d_ms\":%.1f,\"h_x\":%.1f,\"h_y\":%.1f,\"h_z\":%.1f,\"g_cd\":%d,\"sat\":%d,\"tw\":%d,\"tw_s\":%d}\n",
   gps.latitude,
   gps.longitude,
-  gps.altitude_m,
+  (double)gps.altitude_m,
 
-  gps.gspeed_ms,
-  gps.espeed_ms,
-  gps.nspeed_ms,
-  gps.dspeed_ms,
+  (double)gps.gspeed_ms,
+  (double)gps.espeed_ms,
+  (double)gps.nspeed_ms,
+  (double)gps.dspeed_ms,
 
-  gps.heading_x,
-  gps.heading_y,
-  gps.heading_z,
+  (double)gps.heading_x,
+  (double)gps.heading_y,
+  (double)gps.heading_z,
 
   gps.gcourse_cd,
   gps.satelites,
@@ -115,7 +115,7 @@ void send_bat() {
   float fCapPerc = remain_lipocap(bat.voltage_V+AP_BATT_VOLT_OFFSET, AP_BATT_CELL_COUNT);
   
   hal.console->printf("{\"type\":\"s_bat\",\"V\":%.1f,\"A\":%.1f,\"c_mAh\":%.1f,\"r_cap\":%.1f}\n",
-  bat.voltage_V+AP_BATT_VOLT_OFFSET, bat.current_A, bat.consumpt_mAh, fCapPerc);
+  (double)(bat.voltage_V+AP_BATT_VOLT_OFFSET), (double)bat.current_A, (double)bat.consumpt_mAh, (double)fCapPerc);
 }
 ///////////////////////////////////////////////////////////
 // remote control
@@ -151,10 +151,10 @@ void send_pids() {
   float yaw_skp   = _HAL_BOARD.m_pPIDS[PID_YAW_STAB].kP();
 
   hal.console->printf("{\"type\":\"pid_cnf\",\"pit_rkp\":%.2f,\"pit_rki\":%.2f,\"pit_rimax\":%.2f,\"rol_rkp\":%.2f,\"rol_rki\":%.2f,\"rol_rimax\":%.2f,\"yaw_rkp\":%.2f,\"yaw_rki\":%.2f,\"yaw_rimax\":%.2f,\"pit_skp\":%.2f,\"rol_skp\":%.2f,\"yaw_skp\":%.2f}\n",
-  pit_rkp, pit_rki, pit_rimax,
-  rol_rkp, rol_rki, rol_rimax,
-  yaw_rkp, yaw_rki, yaw_rimax,
-  pit_skp, rol_skp, yaw_skp);
+  (double)pit_rkp, (double)pit_rki, (double)pit_rimax,
+  (double)rol_rkp, (double)rol_rki, (double)rol_rimax,
+  (double)yaw_rkp, (double)yaw_rki, (double)yaw_rimax,
+  (double)pit_skp, (double)rol_skp, (double)yaw_skp);
 }
 
 #endif

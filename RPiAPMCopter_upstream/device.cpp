@@ -5,6 +5,7 @@
 #include <AP_BattMonitor.h>
 
 #include "device.h"
+#include "config.h"
 #include "BattMonitor.h"
 #include "math.h"
 
@@ -342,7 +343,7 @@ Vector3f Device::calibrate_inertial() {
       offset = read_accel();
 
       m_pHAL->console->printf("Gyroscope calibration - Offsets are roll:%f, pitch:%f, yaw:%f.\n",
-                              offset.y, offset.x, offset.z);
+                              (double)offset.y, (double)offset.x, (double)offset.z);
 
       fInertPitOffs += offset.x / (float)ATTITUDE_SAMPLE_CNT;
       fInertRolOffs += offset.y / (float)ATTITUDE_SAMPLE_CNT;
@@ -374,6 +375,6 @@ Vector3f Device::calibrate_inertial() {
 
   //leds_off();   // switch off leds
   m_pHAL->console->printf("Gyroscope calibrated - Offsets are roll:%f, pitch:%f, yaw:%f.\nAverage euclidian distance:%f, standard deviation:%f\n",
-                          m_fInertRolOffs, m_fInertPitOffs, m_fInertYawOffs, samples_avg, samples_dev);
+                          (double)m_fInertRolOffs, (double)m_fInertPitOffs, (double)m_fInertYawOffs, (double)samples_avg, (double)samples_dev);
   return offset;
 }
