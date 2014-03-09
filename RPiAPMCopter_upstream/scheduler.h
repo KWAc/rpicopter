@@ -43,13 +43,13 @@ private:
   uint_fast16_t  m_tickrateList[NO_PRC_SCHED];    // tick rates are intervals e.g.: Call rate is 100 ms + delay[ms]*multiplier 
 
   bool isStarted(const uint_fast8_t iInd);
-  void resetAll();
 
 public:
   Scheduler(const AP_HAL::HAL *);
 
   void addTask(Task *pTask, uint_fast16_t iTickRate);
   void run();
+  void resetAll();
 };
 
 #endif

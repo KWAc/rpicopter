@@ -104,18 +104,22 @@ void send_gps() {
  * 3,50 V  0%
  * Return: 0 - 1 (0%-100%) if in voltage range of this table :D
  */
+/*
 inline float remain_lipocap(const float voltage_V, const uint_fast8_t num_cells) {
   float fCap =  1.4286 * (voltage_V / (float)num_cells) - 5.f;
   return fCap < 0.f ? 0.f : fCap > 1.f ? 1.f : fCap;
 }
-
+*/
 void send_bat() {
   BattData bat = _HAL_BOARD.read_bat();
   // TODO Add support for other battery types (NiMH, ..)
-  float fCapPerc = remain_lipocap(bat.voltage_V+AP_BATT_VOLT_OFFSET, AP_BATT_CELL_COUNT);
-  
+  //float fCapPerc = remain_lipocap(bat.voltage_V+AP_BATT_VOLT_OFFSET, AP_BATT_CELL_COUNT);
+  /*
   hal.console->printf("{\"type\":\"s_bat\",\"V\":%.1f,\"A\":%.1f,\"c_mAh\":%.1f,\"r_cap\":%.1f}\n",
   (double)(bat.voltage_V+AP_BATT_VOLT_OFFSET), (double)bat.current_A, (double)bat.consumpt_mAh, (double)fCapPerc);
+  */
+  hal.console->printf("{\"type\":\"s_bat\",\"V\":%.1f,\"A\":%.1f,\"c_mAh\":%.1f}\n",
+  (double)bat.voltage_V, (double)bat.current_A, (double)bat.consumpt_mAh);
 }
 ///////////////////////////////////////////////////////////
 // remote control

@@ -24,20 +24,30 @@ Device::Device( const AP_HAL::HAL *pHAL,
   m_vAttitude.y   = 0.f;
   m_vAttitude.z   = 0.f;
 
+  if(COMPASS_FOR_YAW) {
+    m_fComp = -read_comp(0, 0);
+  } else {
+    m_fComp = 0.f;
+  }
+  
   // HAL
-  m_pHAL   = pHAL;
+  m_pHAL     = pHAL;
   // Sensors
-  m_pInert = pInert;
-  m_pComp  = pComp;
-  m_pBaro  = pBar;
-  m_pGPS   = pGPS;
-  m_pBat   = pBat;
+  m_pInert   = pInert;
+  m_pComp    = pComp;
+  m_pBaro    = pBar;
+  m_pGPS     = pGPS;
+  m_pBat     = pBat;
 
+  // Initialize all members
   // Timer for sensor fusion
-  m_iTimer = m_pHAL->scheduler->millis();
-
+  m_iTimer   = m_pHAL->scheduler->millis();
   // PIDs
   memset(m_pPIDS, 0, sizeof(m_pPIDS) );
+  // Misc. sensors
+  m_ContBaro = read_baro();
+  m_ContGPS  = read_gps();
+  m_ContBat  = read_bat();
 }
   
 uint_fast32_t Device::time_elapsed_ms() {
@@ -61,15 +71,21 @@ void Device::update_inertial() {
   // Calculate attitude from relative gyrometer changes
   m_vAttitude += m_vGyro * time_s;
   m_vAttitude  = wrap180_V3f(m_vAttitude);
-  // For yaw changes the compass could be used as reference, 
-  // otherwise take the gyrometer
+  // For yaw changes, the compass could be used as reference, 
+  // otherwise take the gyrometer or GPS
   if(COMPASS_FOR_YAW) {
-    m_vAccel.z = -read_comp(0, 0);
+    m_fComp = -read_comp(0, 0);
+    m_vAccel.z = m_fComp;
   } else {
     m_vAccel.z = m_vAttitude.z;
   }
-  // Calculate absolute attitude from relative gyrometer changes
-  m_vAttitude = anneal_V3f(m_vAttitude, m_vAccel, time_s, 20.f, 5.f);
+  // Don't anneal to accelerometer if pitch is near 90° (near pitch == 90°: roll becomes strange)
+  // On the other hand, the annealing rate is very small with such high angles
+  // Only do if: 80° > pitch > -80°
+  // TODO: Implement a check whether gyrometer and accelerometer values are similar (?and use the mean instead to anneal?)
+  if(m_vAccel.x < 80.f && m_vAccel.x > -80.f) {
+     m_vAttitude = anneal_V3f(m_vAttitude, m_vAccel, time_s, 20.f, 5.f);
+  }
 }
 
 float Device::getInertPitCor() {

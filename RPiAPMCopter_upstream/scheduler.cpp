@@ -38,8 +38,8 @@ uint_fast16_t Task::getDelay() {
 Scheduler::Scheduler(const AP_HAL::HAL *p) {
   m_pHAL = p;
 
-  memset(m_functionList, NULL, sizeof(m_functionList));
-  memset(m_tickrateList, 0, sizeof(m_tickrateList));
+  memset(m_functionList, 0, sizeof(m_functionList) );
+  memset(m_tickrateList, 0, sizeof(m_tickrateList) );
   
   m_iItems = 0;
 }

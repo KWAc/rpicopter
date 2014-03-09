@@ -81,9 +81,9 @@
 #define RC_ROL_MIN   -45
 #define RC_ROL_MAX   45
 
-// battery monitor types
-#define AP_BATT_VOLT_OFFSET        0.5   // Offset will get added to the voltage measured
-#define AP_BATT_CELL_COUNT         4     // Used for calculation of the percentage of the residual capacity
+// battery monitor types (deprecated: Should be done in GUI/ground station)
+//#define AP_BATT_VOLT_OFFSET        0.5   // Offset will get added to the voltage measured
+//#define AP_BATT_CELL_COUNT         4     // Used for calculation of the percentage of the residual capacity
 
 #define MAIN_LOOP_T_MS       6           // Update frequency: 100 Hz ~ 10 ms per 1 s
 #define NO_PRC_SCHED         16

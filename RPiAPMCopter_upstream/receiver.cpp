@@ -180,7 +180,6 @@ bool Receiver::parse_pid_conf(char* buffer) {
   char *chk = strtok(NULL, "*");                    // chk = chksum
 
   if(verf_chksum(str, chk) ) {                    // if chksum OK
-    float *pids = NULL;
     char *cstr;
 
     for(uint_fast8_t i = 0; i < PID_ARGS; i++) {
@@ -188,7 +187,7 @@ bool Receiver::parse_pid_conf(char* buffer) {
         cstr = strtok (buffer, ";");
       else cstr = strtok (NULL, ";");
 
-      pids = parse_pid_substr(cstr);
+      float *pids = parse_pid_substr(cstr);
       switch(i) {
       case 0:
         m_pHalBoard->m_pPIDS[PID_PIT_RATE].kP(pids[0]);
