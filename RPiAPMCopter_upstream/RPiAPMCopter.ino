@@ -13,9 +13,13 @@
 #include <AP_ADC.h>
 #include <AP_HAL.h>
 #include <AP_HAL_AVR.h>
-#include <GCS_MAVLink.h> // Rediculous dependency to AP_InertialSensor_MPU6000
-#include <DataFlash.h>   // Rediculous dependency to AP_InertialSensor_MPU6000
+#include <AP_AHRS.h>
+#include <AP_Airspeed.h>
+#include <AP_Vehicle.h>
 #include <AP_Declination.h>
+
+#include <GCS_MAVLink.h>
+#include <DataFlash.h>
 #include <Filter.h>
 #include <PID.h>
 ////////////////////////////////////////////////////////////////////////////////

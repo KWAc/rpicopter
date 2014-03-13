@@ -259,11 +259,13 @@ void Device::init_batterymon() {
  * Reads the current altitude changes from the gyroscope in degrees and returns it as a 3D vector
  */
 Vector3f Device::read_gyro() {
+  if(!m_pInert->healthy() ) {
+    return m_vGyro;
+  }
+  
   m_vGyro = m_pInert->get_gyro();
-
   // Save
   float fRol = ToDeg(m_vGyro.x);
-
   m_vGyro.x = ToDeg(m_vGyro.y); // PITCH
   m_vGyro.y = fRol;             // ROLL
   m_vGyro.z = ToDeg(m_vGyro.z); // YAW
@@ -275,6 +277,10 @@ Vector3f Device::read_gyro() {
  * Reads the current attitude from the accelerometer in degrees and returns it as a 3D vector
  */
 Vector3f Device::read_accel() {
+  if(!m_pInert->healthy() ) {
+    return m_vAccel;
+  }
+
   m_vAccel = m_pInert->get_accel();
   float r = sqrt(pow(m_vAccel.x, 2) + pow(m_vAccel.y, 2) + pow(m_vAccel.z, 2) );
 

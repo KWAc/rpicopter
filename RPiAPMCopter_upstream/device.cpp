@@ -24,6 +24,9 @@ Device::Device( const AP_HAL::HAL *pHAL,
   m_vAttitude.y   = 0.f;
   m_vAttitude.z   = 0.f;
 
+  m_fCmpH         = 0.f;
+  m_fGpsH         = 0.f;
+  
   if(CMP_FOR_YAW) {
     m_fCmpH = -read_comp(0, 0);
   } else {
@@ -235,8 +238,12 @@ void Device::init_batterymon() {
  * Reads the current altitude changes from the gyroscope in degrees and returns it as a 3D vector
  */
 Vector3f Device::read_gyro() {
+  if(!m_pInert->healthy() ) {
+    m_pHAL->console->println("read_gyro(): Inertial not healthy\n");
+    return m_vGyro;
+  }
+  
   m_vGyro = m_pInert->get_gyro();
-
   // Save values
   float fRol = ToDeg(m_vGyro.x); // in comparison to the accelerometer data swapped
   float fPit = ToDeg(m_vGyro.y); // in comparison to the accelerometer data swapped
@@ -245,6 +252,7 @@ Vector3f Device::read_gyro() {
   m_vGyro.x = fPit; // PITCH
   m_vGyro.y = fRol; // ROLL
   m_vGyro.z = fYaw; // YAW
+  
   return m_vGyro;
 }
 
@@ -253,6 +261,11 @@ Vector3f Device::read_gyro() {
  * From: "Tilt Sensing Using a Three-Axis Accelerometer"
  */
 Vector3f Device::read_accel() { 
+  if(!m_pInert->healthy() ) {
+    m_pHAL->console->println("read_accel(): Inertial not healthy\n");
+    return m_vAccel;
+  }
+
   // Low Pass Filter
   Vector3f vAccelTmp_mss = m_pInert->get_accel();
   m_vAccel = m_vAccelLast_mss = vAccelTmp_mss * LOWPATH_FILT + (m_vAccelLast_mss * (1.0 - LOWPATH_FILT));
@@ -264,6 +277,7 @@ Vector3f Device::read_accel() {
   //m_vAccel.y = ToDeg(atan2(-m_vAccel.y, -fuXZ) ) - m_fInertRolOffs; // ROLL
   m_vAccel.y = ToDeg(atan2(-m_vAccel.y, -m_vAccel.z) ) - m_fInertRolOffs;
   m_vAccel.z = 0.f;                                                 // YAW:   Cannot be calculated because accelerometer is aligned with the gravitational field vector
+
   return m_vAccel;
 }
 
@@ -273,23 +287,30 @@ Vector3f Device::read_accel() {
  * All units in degrees
  */
 float Device::read_comp(const float roll, const float pitch) {
-  m_fCmpH = 999;
-
-  m_pComp->read();
   if (!m_pComp->healthy() ) {
-    m_pHAL->console->println("Compass not healthy\n");
+    m_pHAL->console->println("read_comp(): Compass not healthy\n");
     return m_fCmpH;
   }
+  
+  m_pComp->read();
+  
   Matrix3f dcm_matrix;
   dcm_matrix.from_euler(roll, pitch, 0);
   m_fCmpH = m_pComp->calculate_heading(dcm_matrix);
   m_fCmpH = ToDeg(m_fCmpH);
-  m_pComp->null_offsets();
+  m_pComp->learn_offsets();
+
   return m_fCmpH;
 }
 
 GPSData Device::read_gps() {
+  if(m_pGPS->status() == GPS::NO_GPS) {
+    m_pHAL->console->println("read_gps(): GPS not healthy\n");
+    return m_ContGPS;
+  }
+
   m_pGPS->update();
+  
   if(m_pGPS->new_data) {
     if(m_pGPS->fix) {
       m_ContGPS.latitude    = m_pGPS->latitude;
@@ -321,13 +342,13 @@ GPSData Device::read_gps() {
 }
 
 BaroData Device::read_baro() {
-  m_pBaro->read();
-
   if (!m_pBaro->healthy) {
-    m_pHAL->console->println("Barometer not healthy\n");
+    m_pHAL->console->println("read_baro(): Barometer not healthy\n");
     return m_ContBaro;
   }
 
+  m_pBaro->read();
+  
   m_ContBaro.pressure = m_pBaro->get_pressure();
   m_ContBaro.altitude = m_pBaro->get_altitude();
   m_ContBaro.temperature = m_pBaro->get_temperature();
