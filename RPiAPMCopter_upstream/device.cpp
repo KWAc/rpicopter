@@ -24,10 +24,10 @@ Device::Device( const AP_HAL::HAL *pHAL,
   m_vAttitude.y   = 0.f;
   m_vAttitude.z   = 0.f;
 
-  if(COMPASS_FOR_YAW) {
-    m_fComp = -read_comp(0, 0);
+  if(CMP_FOR_YAW) {
+    m_fCmpH = -read_comp(0, 0);
   } else {
-    m_fComp = 0.f;
+    m_fCmpH = 0.f;
   }
   
   // HAL
@@ -44,10 +44,12 @@ Device::Device( const AP_HAL::HAL *pHAL,
   m_iTimer   = m_pHAL->scheduler->millis();
   // PIDs
   memset(m_pPIDS, 0, sizeof(m_pPIDS) );
-  // Misc. sensors
+  /*
+  // Don't! Sensors are not initiated!
   m_ContBaro = read_baro();
   m_ContGPS  = read_gps();
   m_ContBat  = read_bat();
+  */
 }
   
 uint_fast32_t Device::time_elapsed_ms() {
@@ -63,29 +65,55 @@ float Device::time_elapsed_s() {
 
 void Device::update_inertial() {
   m_pInert->update();
-  // Update sensor data
-  read_gyro();
-  read_accel();
+  
   // Calculate time (in s) passed
   float time_s = time_elapsed_s();
   // Calculate attitude from relative gyrometer changes
-  m_vAttitude += m_vGyro * time_s;
-  m_vAttitude  = wrap180_V3f(m_vAttitude);
-  // For yaw changes, the compass could be used as reference, 
-  // otherwise take the gyrometer or GPS
-  if(COMPASS_FOR_YAW) {
-    m_fComp = -read_comp(0, 0);
-    m_vAccel.z = m_fComp;
-  } else {
-    m_vAccel.z = m_vAttitude.z;
+  m_vAttitude += read_gyro() * time_s;
+  m_vAttitude = wrap180_V3f(m_vAttitude);
+  // Use a temporary instead of the member variable for acceleration data
+  Vector3f vAnneal = read_accel();
+
+  // Use accelerometer on in +/-45° range
+  // Pitch
+  if(vAnneal.x > 45.f || vAnneal.x < -45.f) {
+    return;
   }
-  // Don't anneal to accelerometer if pitch is near 90° (near pitch == 90°: roll becomes strange)
-  // On the other hand, the annealing rate is very small with such high angles
-  // Only do if: 80° > pitch > -80°
-  // TODO: Implement a check whether gyrometer and accelerometer values are similar (?and use the mean instead to anneal?)
-  if(m_vAccel.x < 80.f && m_vAccel.x > -80.f) {
-     m_vAttitude = anneal_V3f(m_vAttitude, m_vAccel, time_s, 20.f, 5.f);
+  // Roll
+  if(vAnneal.y > 45.f || vAnneal.y < -45.f) {
+    return;
   }
+/*
+  // .. alternatively the compass or GPS could be used ..
+  // First read the sensors
+  if(CMP_FOR_YAW) {
+    m_fCmpH = -read_comp(0, 0);
+  }
+  if(GPS_FOR_YAW) { // TODO TEST this code
+    GPSData gps = read_gps();
+    float fHyp = sqrt(pow2_f(gps.heading_x) + pow2_f(gps.heading_y) );  // Calculate hypotenuse
+    m_fGpsH = atan2(gps.heading_y, fHyp);                               // Calculate the heading in degrees (from X and Y heading)
+  }
+  // Then calculate the heading, dependent on the devices used
+  // NO compass or GPS is used:
+  if(!CMP_FOR_YAW && !GPS_FOR_YAW) {
+    vAnneal.z = m_vAttitude.z; // Take the gyrometer
+  }
+  // Only compass used:
+  if(CMP_FOR_YAW && !GPS_FOR_YAW) {
+    vAnneal.z = m_fCmpH;
+  }
+  // Only GPS used:
+  if(!CMP_FOR_YAW && GPS_FOR_YAW) {
+    vAnneal.z = m_fGpsH;
+  }
+  // Compass and GPS used:
+  if(CMP_FOR_YAW && GPS_FOR_YAW) {
+    vAnneal.z = (m_fGpsH + m_fCmpH) / 2.f;
+  }
+*/
+  // Anneal both sensors
+  m_vAttitude = anneal_V3f(m_vAttitude, vAnneal, time_s, 20.f, 5.f);
 }
 
 float Device::getInertPitCor() {
@@ -222,7 +250,7 @@ Vector3f Device::read_gyro() {
 
 /*
  * Reads the current attitude from the accelerometer in degrees and returns it as a 3D vector
- * From: "Aided Navigation: GPS with High Rate Sensors"
+ * From: "Tilt Sensing Using a Three-Axis Accelerometer"
  */
 Vector3f Device::read_accel() { 
   // Low Pass Filter
@@ -230,10 +258,12 @@ Vector3f Device::read_accel() {
   m_vAccel = m_vAccelLast_mss = vAccelTmp_mss * LOWPATH_FILT + (m_vAccelLast_mss * (1.0 - LOWPATH_FILT));
   
   // Calculate roll and pitch in degrees from the filtered acceleration readouts
-  float fR = sqrt(pow2_f(m_vAccel.y) + pow2_f(m_vAccel.z) );
-  m_vAccel.x = ToDeg(atan2(m_vAccel.x, fR) )         - m_fInertPitOffs;   // PITCH
-  m_vAccel.y = ToDeg(atan2(-m_vAccel.y, -m_vAccel.z) ) - m_fInertRolOffs; // ROLL
-  m_vAccel.z = 0.f;                                                       // YAW
+  float fpYZ = sqrt(pow2_f(m_vAccel.y) + pow2_f(m_vAccel.z) );
+  //float fuXZ = sign_f(m_vAccel.z) * sqrt(0.1f * pow2_f(m_vAccel.x) + pow2_f(m_vAccel.z) );
+  m_vAccel.x = ToDeg(atan2(m_vAccel.x, fpYZ) )   - m_fInertPitOffs; // PITCH
+  //m_vAccel.y = ToDeg(atan2(-m_vAccel.y, -fuXZ) ) - m_fInertRolOffs; // ROLL
+  m_vAccel.y = ToDeg(atan2(-m_vAccel.y, -m_vAccel.z) ) - m_fInertRolOffs;
+  m_vAccel.z = 0.f;                                                 // YAW:   Cannot be calculated because accelerometer is aligned with the gravitational field vector
   return m_vAccel;
 }
 
@@ -243,19 +273,19 @@ Vector3f Device::read_accel() {
  * All units in degrees
  */
 float Device::read_comp(const float roll, const float pitch) {
-  m_fComp = 999;
+  m_fCmpH = 999;
 
   m_pComp->read();
   if (!m_pComp->healthy() ) {
     m_pHAL->console->println("Compass not healthy\n");
-    return m_fComp;
+    return m_fCmpH;
   }
   Matrix3f dcm_matrix;
   dcm_matrix.from_euler(roll, pitch, 0);
-  m_fComp = m_pComp->calculate_heading(dcm_matrix);
-  m_fComp = ToDeg(m_fComp);
+  m_fCmpH = m_pComp->calculate_heading(dcm_matrix);
+  m_fCmpH = ToDeg(m_fCmpH);
   m_pComp->null_offsets();
-  return m_fComp;
+  return m_fCmpH;
 }
 
 GPSData Device::read_gps() {
@@ -271,8 +301,8 @@ GPSData Device::read_gps() {
       m_ContGPS.nspeed_ms   = m_pGPS->velocity_north();
       m_ContGPS.dspeed_ms   = m_pGPS->velocity_down();
 
-      // The fucking avr_g++ does NOT support dynamic C++ with class like obects in structs declared as static :(
-      // Hate this primitivity
+      // The fucking avr_g++ does NOT support dynamic C++ with class like objects in structs declared as static :(
+      // Hate this permittivity
       m_ContGPS.heading_x   = m_pGPS->velocity_vector().x;
       m_ContGPS.heading_y   = m_pGPS->velocity_vector().y;
       m_ContGPS.heading_z   = m_pGPS->velocity_vector().z;
@@ -342,9 +372,6 @@ Vector3f Device::calibrate_inertial() {
   // initially switch on LEDs
   //leds_on(); bool led = true;
 
-  // RC_CHANNELS[2] == thrust
-  // run calibration only if motors _don't_ spin
-  // otherwise model would probably not calibrate properly or crash while flying
   while(true) {
     samples_avg = 0;
     samples_dev = 0;

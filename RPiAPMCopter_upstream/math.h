@@ -2,8 +2,20 @@
 #define COMMON_h
 
 
+// Returns the sign of a float
+inline float sign_f(float fVal) {
+  return fVal >= 0.f ? 1.f : -1.f;
+}
+
 inline float pow2_f(float fVal) {
   return fVal * fVal;
+}
+
+/*
+ * Return: Length of a vector "vec"
+ */
+inline float vecl3f_f(const Vector3f &vec) {
+  return sqrt(pow2_f(vec.x) + pow2_f(vec.y) + pow2_f(vec.z) );
 }
 
 inline float wrap180_f(float x) {

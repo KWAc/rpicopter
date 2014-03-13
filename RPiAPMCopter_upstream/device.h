@@ -36,7 +36,8 @@ private:
   float m_fInertYawOffs;
   
 protected:
-  float     m_fComp;
+  float     m_fCmpH; // Compass heading
+  float     m_fGpsH; // GPS heading
   // x = pitch, y = roll, z = yaw
   Vector3f  m_vGyro;
   Vector3f  m_vAccel;

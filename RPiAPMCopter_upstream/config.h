@@ -35,7 +35,8 @@
 #define UART_A_TIMEOUT    100   // in ms
 
 // Number of samples for gyrometer calibration
-#define COMPASS_FOR_YAW   0
+#define CMP_FOR_YAW    0 // Compass
+#define GPS_FOR_YAW    0 // GPS
 
 // Number of channels
 #define APM_IOCHANNEL_COUNT 	8
