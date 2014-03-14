@@ -39,8 +39,7 @@ enum BATT_SENSOR_TYPE {
 /*
  * AP_Param independent version of the battery monitor
  */
-class BattMonitor :
-public AP_BattMonitor {
+class BattMonitor : public AP_BattMonitor {
 public:
   /*
    * Changes source of battery monitor

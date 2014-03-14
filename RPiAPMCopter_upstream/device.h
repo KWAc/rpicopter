@@ -23,6 +23,23 @@ class PID;
 
 
 ///////////////////////////////////////////////////////////
+// Definition of important device errors
+///////////////////////////////////////////////////////////
+enum DEVICE_ERROR_FLAGS {
+  GYROMETER_F       = 1 << 0,
+  ACCELEROMETR_F    = 1 << 1,
+  BAROMETER_F       = 1 << 2,
+  COMPASS_F         = 1 << 3,
+  GPS_F             = 1 << 4,
+  VOLTAGE_HIGH_F    = 1 << 5,
+  VOLTAGE_LOW_F     = 1 << 6,
+  CURRENT_HIGH_F    = 1 << 7,
+  CURRENT_LOW_F     = 1 << 8,
+  EVERYTHING_OK_F   = 1 << 9
+  // TODO: Extend maybe
+};
+
+///////////////////////////////////////////////////////////
 // Container for sensor data and sensor configuration
 ///////////////////////////////////////////////////////////
 class Device {
@@ -34,6 +51,9 @@ private:
   float m_fInertRolOffs;
   float m_fInertPitOffs;
   float m_fInertYawOffs;
+  
+  // Flag holding device errors
+  DEVICE_ERROR_FLAGS m_eErrors;
   
 protected:
   float     m_fCmpH; // Compass heading

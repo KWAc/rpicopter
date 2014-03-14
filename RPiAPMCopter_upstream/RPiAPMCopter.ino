@@ -64,7 +64,7 @@ void main_loop() {
   static float targ_yaw = 0.f; // yaw target from rc
 
   // Wait until new orientation data (normally 5 ms max)
-  while(_INERT.wait_for_sample(INERTIAL_TIMEOUT) == 0);
+  while(_INERT.wait_for_sample(INERT_TIMEOUT) == 0);
 
   // Variables to store remote control commands
   int_fast16_t rcthr, rcyaw, rcpit, rcrol;

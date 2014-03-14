@@ -12,6 +12,8 @@ struct BaroData {
   float   temperature;
   float   climb_rate;
   uint_fast8_t pressure_samples;
+  
+  BaroData();
 };
 
 // gps data container
@@ -34,6 +36,8 @@ struct GPSData {
   int_fast16_t status_fix;
   int_fast16_t time_week;
   int_fast16_t time_week_s;
+  
+  GPSData();
 };
 
 // battery monitor
@@ -41,6 +45,8 @@ struct BattData {
   float   voltage_V;
   float   current_A;
   float   consumpt_mAh;
+  
+  BattData();
 };
 
 #endif

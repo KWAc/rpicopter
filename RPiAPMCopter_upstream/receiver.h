@@ -39,7 +39,7 @@ protected:
 public:
   Receiver(Device *pHalBoard);
 
-  int_fast16_t m_pChannelsRC[APM_IOCHANNEL_COUNT];
+  int_fast16_t m_pChannelsRC[APM_IOCHAN_CNT];
   // Read from serial bus
   bool read_uartA(uint_fast16_t bytesAvail); // console in APM 2
   bool read_uartC(uint_fast16_t bytesAvail); // radio in APM 2

@@ -10,6 +10,16 @@
 #include "math.h"
 
 
+inline int add_flag(int flag, int mask) {
+  flag |= mask;
+  return flag;
+}
+  
+inline int rem_flag(int flag, int mask) {
+  flag &= ~mask;
+  return flag;
+}
+
 Device::Device( const AP_HAL::HAL *pHAL,
                 AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, GPS *pGPS, BattMonitor *pBat )
 {
@@ -26,6 +36,8 @@ Device::Device( const AP_HAL::HAL *pHAL,
 
   m_fCmpH         = 0.f;
   m_fGpsH         = 0.f;
+  
+  m_eErrors       = EVERYTHING_OK_F;
   
   if(CMP_FOR_YAW) {
     m_fCmpH = -read_comp(0, 0);
@@ -47,12 +59,6 @@ Device::Device( const AP_HAL::HAL *pHAL,
   m_iTimer   = m_pHAL->scheduler->millis();
   // PIDs
   memset(m_pPIDS, 0, sizeof(m_pPIDS) );
-  /*
-  // Don't! Sensors are not initiated!
-  m_ContBaro = read_baro();
-  m_ContGPS  = read_gps();
-  m_ContBat  = read_bat();
-  */
 }
   
 uint_fast32_t Device::time_elapsed_ms() {
@@ -116,7 +122,7 @@ void Device::update_inertial() {
   }
 */
   // Anneal both sensors
-  m_vAttitude = anneal_V3f(m_vAttitude, vAnneal, time_s, 20.f, 5.f);
+  m_vAttitude = anneal_V3f(m_vAttitude, vAnneal, time_s, INERT_ANNEAL_SLOPE, INERT_FUSION_RATE);
 }
 
 float Device::getInertPitCor() {
@@ -240,6 +246,8 @@ void Device::init_batterymon() {
 Vector3f Device::read_gyro() {
   if(!m_pInert->healthy() ) {
     m_pHAL->console->println("read_gyro(): Inertial not healthy\n");
+    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(rem_flag(m_eErrors, EVERYTHING_OK_F) );
+    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, GYROMETER_F) );
     return m_vGyro;
   }
   
@@ -263,12 +271,14 @@ Vector3f Device::read_gyro() {
 Vector3f Device::read_accel() { 
   if(!m_pInert->healthy() ) {
     m_pHAL->console->println("read_accel(): Inertial not healthy\n");
+    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(rem_flag(m_eErrors, EVERYTHING_OK_F) );
+    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, ACCELEROMETR_F) );
     return m_vAccel;
   }
 
   // Low Pass Filter
   Vector3f vAccelTmp_mss = m_pInert->get_accel();
-  m_vAccel = m_vAccelLast_mss = vAccelTmp_mss * LOWPATH_FILT + (m_vAccelLast_mss * (1.0 - LOWPATH_FILT));
+  m_vAccel = m_vAccelLast_mss = vAccelTmp_mss * INERT_LOWPATH_FILT + (m_vAccelLast_mss * (1.0 - INERT_LOWPATH_FILT));
   
   // Calculate roll and pitch in degrees from the filtered acceleration readouts
   float fpYZ = sqrt(pow2_f(m_vAccel.y) + pow2_f(m_vAccel.z) );
@@ -289,6 +299,8 @@ Vector3f Device::read_accel() {
 float Device::read_comp(const float roll, const float pitch) {
   if (!m_pComp->healthy() ) {
     m_pHAL->console->println("read_comp(): Compass not healthy\n");
+    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(rem_flag(m_eErrors, EVERYTHING_OK_F) );
+    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, COMPASS_F) );
     return m_fCmpH;
   }
   
@@ -306,6 +318,8 @@ float Device::read_comp(const float roll, const float pitch) {
 GPSData Device::read_gps() {
   if(m_pGPS->status() == GPS::NO_GPS) {
     m_pHAL->console->println("read_gps(): GPS not healthy\n");
+    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(rem_flag(m_eErrors, EVERYTHING_OK_F) );
+    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, GPS_F) );
     return m_ContGPS;
   }
 
@@ -344,6 +358,8 @@ GPSData Device::read_gps() {
 BaroData Device::read_baro() {
   if (!m_pBaro->healthy) {
     m_pHAL->console->println("read_baro(): Barometer not healthy\n");
+    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(rem_flag(m_eErrors, EVERYTHING_OK_F) );
+    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, BAROMETER_F) );
     return m_ContBaro;
   }
 
@@ -364,6 +380,15 @@ BattData Device::read_bat() {
   m_ContBat.voltage_V    = m_pBat->voltage();
   m_ContBat.current_A    = m_pBat->current_amps();
   m_ContBat.consumpt_mAh = m_pBat->current_total_mah();
+  
+  if(m_ContBat.voltage_V < 6.0f) {
+    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(rem_flag(m_eErrors, EVERYTHING_OK_F) );
+    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, VOLTAGE_LOW_F) );
+  }
+  if(m_ContBat.voltage_V > 25.2f) {
+    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(rem_flag(m_eErrors, EVERYTHING_OK_F) );
+    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, VOLTAGE_HIGH_F) );
+  }
 
   return m_ContBat;
 }
