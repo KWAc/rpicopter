@@ -66,23 +66,12 @@ void main_loop() {
   // Wait until new orientation data (normally 5 ms max)
   while(_INERT.wait_for_sample(INERT_TIMEOUT) == 0);
 
+  // Handle all defined problems (time-outs, broken gyrometer, GPS signal ..)
+  _EXCP.handle();
+  
   // Variables to store remote control commands
   int_fast16_t rcthr, rcyaw, rcpit, rcrol;
   set_channels(rcpit, rcrol, rcyaw, rcthr);
-
-  // Reduce throttle if no update for more than 500 ms
-  uint_fast32_t packet_t = _RECVR.timeLastSuccessfulParse(); // Measure time elapsed since last successful package from WiFi or radio
-  if(packet_t > COM_PKT_TIMEOUT && rcthr > RC_THR_OFF) {
-    // how much to reduce?
-    float fDecr = 1.25 * ((float)packet_t / 25.f);
-    int_fast16_t fDelta = rcthr - (int_fast16_t)fDecr;
-    // reduce thrust..
-    rcthr = (int_fast16_t)fDecr < 0 ? RC_THR_OFF : fDelta > RC_THR_MIN ? fDelta : RC_THR_OFF;
-    // reset yaw, pitch and roll
-    rcyaw = 0; // yaw
-    rcpit = 0; // pitch
-    rcrol = 0; // roll
-  }
 
   // Update sensor information
   _HAL_BOARD.update_inertial();
@@ -186,11 +175,7 @@ void setup() {
 
 void loop() { 
   // Commands via serial port (in this case WiFi -> RPi -> APM2.5)
-  bool bOK = _RECVR.read_uartA(hal.console->available() ); 	// Try WiFi (serial) first
-  if(!bOK && _RECVR.timeLastSuccessfulParse_uartA() > UART_A_TIMEOUT) {
-    _RECVR.read_uartC(hal.uartC->available() ); 	        // If not working: Try radio next
-  }
-
+  _RECVR.try_uartAC();
   // send some json formatted information about the model over serial port
   _SCHED.run(); // Wrote my own small and absolutely fair scheduler
 }

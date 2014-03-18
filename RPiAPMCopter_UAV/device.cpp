@@ -10,16 +10,6 @@
 #include "math.h"
 
 
-inline int add_flag(int flag, int mask) {
-  flag |= mask;
-  return flag;
-}
-  
-inline int rem_flag(int flag, int mask) {
-  flag &= ~mask;
-  return flag;
-}
-
 Device::Device( const AP_HAL::HAL *pHAL,
                 AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, GPS *pGPS, BattMonitor *pBat )
 {
@@ -37,7 +27,7 @@ Device::Device( const AP_HAL::HAL *pHAL,
   m_fCmpH         = 0.f;
   m_fGpsH         = 0.f;
   
-  m_eErrors       = EVERYTHING_OK_F;
+  m_eErrors       = NOTHING_F;
   
   if(CMP_FOR_YAW) {
     m_fCmpH = -read_comp(0, 0);
@@ -246,7 +236,6 @@ void Device::init_batterymon() {
 Vector3f Device::read_gyro() {
   if(!m_pInert->healthy() ) {
     m_pHAL->console->println("read_gyro(): Inertial not healthy\n");
-    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(rem_flag(m_eErrors, EVERYTHING_OK_F) );
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, GYROMETER_F) );
     return m_vGyro;
   }
@@ -271,7 +260,6 @@ Vector3f Device::read_gyro() {
 Vector3f Device::read_accel() { 
   if(!m_pInert->healthy() ) {
     m_pHAL->console->println("read_accel(): Inertial not healthy\n");
-    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(rem_flag(m_eErrors, EVERYTHING_OK_F) );
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, ACCELEROMETR_F) );
     return m_vAccel;
   }
@@ -299,7 +287,6 @@ Vector3f Device::read_accel() {
 float Device::read_comp(const float roll, const float pitch) {
   if (!m_pComp->healthy() ) {
     m_pHAL->console->println("read_comp(): Compass not healthy\n");
-    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(rem_flag(m_eErrors, EVERYTHING_OK_F) );
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, COMPASS_F) );
     return m_fCmpH;
   }
@@ -318,7 +305,6 @@ float Device::read_comp(const float roll, const float pitch) {
 GPSData Device::read_gps() {
   if(m_pGPS->status() == GPS::NO_GPS) {
     m_pHAL->console->println("read_gps(): GPS not healthy\n");
-    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(rem_flag(m_eErrors, EVERYTHING_OK_F) );
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, GPS_F) );
     return m_ContGPS;
   }
@@ -358,17 +344,16 @@ GPSData Device::read_gps() {
 BaroData Device::read_baro() {
   if (!m_pBaro->healthy) {
     m_pHAL->console->println("read_baro(): Barometer not healthy\n");
-    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(rem_flag(m_eErrors, EVERYTHING_OK_F) );
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, BAROMETER_F) );
     return m_ContBaro;
   }
 
   m_pBaro->read();
   
-  m_ContBaro.pressure = m_pBaro->get_pressure();
-  m_ContBaro.altitude = m_pBaro->get_altitude();
-  m_ContBaro.temperature = m_pBaro->get_temperature();
-  m_ContBaro.climb_rate = m_pBaro->get_climb_rate();
+  m_ContBaro.pressure_pa = m_pBaro->get_pressure();
+  m_ContBaro.altitude_m = m_pBaro->get_altitude();
+  m_ContBaro.temperature_deg = m_pBaro->get_temperature();
+  m_ContBaro.climb_rate_ms = m_pBaro->get_climb_rate();
   m_ContBaro.pressure_samples = m_pBaro->get_pressure_samples();
 
   return m_ContBaro;
@@ -382,11 +367,9 @@ BattData Device::read_bat() {
   m_ContBat.consumpt_mAh = m_pBat->current_total_mah();
   
   if(m_ContBat.voltage_V < 6.0f) {
-    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(rem_flag(m_eErrors, EVERYTHING_OK_F) );
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, VOLTAGE_LOW_F) );
   }
   if(m_ContBat.voltage_V > 25.2f) {
-    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(rem_flag(m_eErrors, EVERYTHING_OK_F) );
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, VOLTAGE_HIGH_F) );
   }
 

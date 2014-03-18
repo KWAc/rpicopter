@@ -31,7 +31,7 @@ GPSData::GPSData() {
 }
 
 BattData::BattData() {
-  voltage_V = 0;
-  current_A = 0;
+  voltage_V   = 0;
+  current_A   = 0;
   consumpt_mAh = 0;
 }

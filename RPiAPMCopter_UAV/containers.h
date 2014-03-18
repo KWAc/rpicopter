@@ -7,10 +7,10 @@
 
 // barometer data container
 struct BaroData {
-  float   pressure;
-  float   altitude;
-  float   temperature;
-  float   climb_rate;
+  float   pressure_pa;
+  float   altitude_m;
+  float   temperature_deg;
+  float   climb_rate_ms;
   uint_fast8_t pressure_samples;
   
   BaroData();
@@ -20,12 +20,12 @@ struct BaroData {
 struct GPSData {
   int_fast16_t latitude;     // in degrees * 10,000,000
   int_fast16_t longitude;    // in degrees * 10,000,000
-  float   altitude_m;   // altitude in m
+  float   altitude_m;        // altitude in m
 
-  float   gspeed_ms;    // ground speed in m/sec
-  float   espeed_ms;    // velocity east
-  float   nspeed_ms;    // velocity north
-  float   dspeed_ms;    // velocity down
+  float   gspeed_ms;         // ground speed in m/sec
+  float   espeed_ms;         // velocity east
+  float   nspeed_ms;         // velocity north
+  float   dspeed_ms;         // velocity down
 
   float   heading_x;
   float   heading_y;
@@ -38,6 +38,14 @@ struct GPSData {
   int_fast16_t time_week_s;
   
   GPSData();
+};
+
+struct GPSPosition {
+  int_fast16_t latitude;     // in degrees * 10,000,000
+  int_fast16_t longitude;    // in degrees * 10,000,000
+  int_fast16_t altitude_m;   // altitude in m
+  
+  GPSPosition();
 };
 
 // battery monitor

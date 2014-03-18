@@ -3,7 +3,7 @@
 
 #include "global.h"
 #include "containers.h"
-#include "emitter.h"
+#include "scheduler.h"
 
 
 void send_comp();
@@ -14,13 +14,14 @@ void send_bat();
 void send_rc();
 void send_pids();
 
-Emitter emitComp(&send_comp, 44);
-Emitter emitAtti(&send_atti, 3);
-Emitter emitBaro(&send_baro, 66);
-Emitter emitGPS(&send_gps, 66);
-Emitter emitBat(&send_bat, 75);
-Emitter emitRC(&send_rc, 37);
-Emitter emitPID(&send_pids, 75);
+// function, delay, multiplier of the delay 
+Task taskAtti(&send_atti, 3,  1);
+Task taskRC  (&send_rc,   37, 1);
+Task taskComp(&send_comp, 44, 1);
+Task taskBaro(&send_baro, 66, 1);
+Task taskGPS (&send_gps,  66, 2);
+Task taskBat (&send_bat,  75, 1);
+Task taskPID (&send_pids, 75, 2);
 
 ///////////////////////////////////////////////////////////
 // LED OUT
@@ -44,14 +45,14 @@ void leds_on() {
 ///////////////////////////////////////////////////////////
 void send_comp() {
   hal.console->printf("{\"type\":\"s_cmp\",\"h\":%.1f}\n",
-  _HAL_BOARD.read_comp() );
+  (double)_HAL_BOARD.read_comp() );
 }
 ///////////////////////////////////////////////////////////
 // attitude in degrees
 ///////////////////////////////////////////////////////////
 void send_atti() {
   hal.console->printf("{\"type\":\"s_att\",\"r\":%.1f,\"p\":%.1f,\"y\":%.1f}\n",
-  _HAL_BOARD.m_vAttitude.y, _HAL_BOARD.m_vAttitude.x, _HAL_BOARD.m_vAttitude.z);
+  (double)_HAL_BOARD.get_atti_raw().y, (double)_HAL_BOARD.get_atti_raw().x, (double)_HAL_BOARD.get_atti_raw().z);
 }
 ///////////////////////////////////////////////////////////
 // barometer
@@ -59,7 +60,7 @@ void send_atti() {
 void send_baro() {
   BaroData baro = _HAL_BOARD.read_baro();
   hal.console->printf("{\"type\":\"s_bar\",\"p\":%.1f,\"a\":%.1f,\"t\":%.1f,\"c\":%.1f,\"s\":%d}\n",
-  baro.pressure, baro.altitude, baro.temperature, baro.climb_rate, (unsigned int)baro.pressure_samples);
+  (double)baro.pressure, (double)baro.altitude, (double)baro.temperature, (double)baro.climb_rate, (uint_fast16_t)baro.pressure_samples);
 }
 ///////////////////////////////////////////////////////////
 // gps
@@ -69,16 +70,16 @@ void send_gps() {
   hal.console->printf("{\"type\":\"s_gps\",\"lat\":%d,\"lon\":%d,\"a_m\":%.1f,\"g_ms\":%.1f,\"e_ms\":%.1f,\"n_ms\":%.1f,\"d_ms\":%.1f,\"h_x\":%.1f,\"h_y\":%.1f,\"h_z\":%.1f,\"g_cd\":%d,\"sat\":%d,\"tw\":%d,\"tw_s\":%d}\n",
   gps.latitude,
   gps.longitude,
-  gps.altitude_m,
+  (double)gps.altitude_m,
 
-  gps.gspeed_ms,
-  gps.espeed_ms,
-  gps.nspeed_ms,
-  gps.dspeed_ms,
+  (double)gps.gspeed_ms,
+  (double)gps.espeed_ms,
+  (double)gps.nspeed_ms,
+  (double)gps.dspeed_ms,
 
-  gps.heading_x,
-  gps.heading_y,
-  gps.heading_z,
+  (double)gps.heading_x,
+  (double)gps.heading_y,
+  (double)gps.heading_z,
 
   gps.gcourse_cd,
   gps.satelites,
@@ -88,19 +89,46 @@ void send_gps() {
 ///////////////////////////////////////////////////////////
 // battery monitor
 ///////////////////////////////////////////////////////////
+/*
+ * Function from a LiPo charging chart:
+ * 4,20 V  100%
+ * 4,13 V       90%
+ * 4,06 V       80%
+ * 3,99 V       70%
+ * 3,92 V       60%
+ * 3,85 V       50%
+ * 3,78 V       40%
+ * 3,71 V       30%
+ * 3,64 V       20%
+ * 3,57 V       10%
+ * 3,50 V  0%
+ * Return: 0 - 1 (0%-100%) if in voltage range of this table :D
+ */
+/*
+inline float remain_lipocap(const float voltage_V, const uint_fast8_t num_cells) {
+  float fCap =  1.4286 * (voltage_V / (float)num_cells) - 5.f;
+  return fCap < 0.f ? 0.f : fCap > 1.f ? 1.f : fCap;
+}
+*/
 void send_bat() {
   BattData bat = _HAL_BOARD.read_bat();
+  // TODO Add support for other battery types (NiMH, ..)
+  //float fCapPerc = remain_lipocap(bat.voltage_V+AP_BATT_VOLT_OFFSET, AP_BATT_CELL_COUNT);
+  /*
   hal.console->printf("{\"type\":\"s_bat\",\"V\":%.1f,\"A\":%.1f,\"c_mAh\":%.1f,\"r_cap\":%.1f}\n",
-  bat.voltage_V+AP_BATT_VOLT_OFFSET, bat.current_A, bat.consumpt_mAh, Device::get_resbatcap(bat.voltage_V+AP_BATT_VOLT_OFFSET, AP_BATT_CELL_COUNT) );
+  (double)(bat.voltage_V+AP_BATT_VOLT_OFFSET), (double)bat.current_A, (double)bat.consumpt_mAh, (double)fCapPerc);
+  */
+  hal.console->printf("{\"type\":\"s_bat\",\"V\":%.1f,\"A\":%.1f,\"c_mAh\":%.1f}\n",
+  (double)bat.voltage_V, (double)bat.current_A, (double)bat.consumpt_mAh);
 }
 ///////////////////////////////////////////////////////////
 // remote control
 ///////////////////////////////////////////////////////////
 void send_rc() {
-  int16_t rcthr = _RECVR.m_pChannelsRC[2];
-  int16_t rcyaw = _RECVR.m_pChannelsRC[3];
-  int16_t rcpit = _RECVR.m_pChannelsRC[1];
-  int16_t rcrol = _RECVR.m_pChannelsRC[0];
+  int_fast16_t rcthr = _RECVR.m_pChannelsRC[2];
+  int_fast16_t rcyaw = _RECVR.m_pChannelsRC[3];
+  int_fast16_t rcpit = _RECVR.m_pChannelsRC[1];
+  int_fast16_t rcrol = _RECVR.m_pChannelsRC[0];
 
   hal.console->printf("{\"type\":\"rc_in\",\"r\":%d,\"p\":%d,\"t\":%d,\"y\":%d}\n",
   rcrol, rcpit, rcthr, rcyaw);
@@ -127,10 +155,10 @@ void send_pids() {
   float yaw_skp   = _HAL_BOARD.m_pPIDS[PID_YAW_STAB].kP();
 
   hal.console->printf("{\"type\":\"pid_cnf\",\"pit_rkp\":%.2f,\"pit_rki\":%.2f,\"pit_rimax\":%.2f,\"rol_rkp\":%.2f,\"rol_rki\":%.2f,\"rol_rimax\":%.2f,\"yaw_rkp\":%.2f,\"yaw_rki\":%.2f,\"yaw_rimax\":%.2f,\"pit_skp\":%.2f,\"rol_skp\":%.2f,\"yaw_skp\":%.2f}\n",
-  pit_rkp, pit_rki, pit_rimax,
-  rol_rkp, rol_rki, rol_rimax,
-  yaw_rkp, yaw_rki, yaw_rimax,
-  pit_skp, rol_skp, yaw_skp);
+  (double)pit_rkp, (double)pit_rki, (double)pit_rimax,
+  (double)rol_rkp, (double)rol_rki, (double)rol_rimax,
+  (double)yaw_rkp, (double)yaw_rki, (double)yaw_rimax,
+  (double)pit_skp, (double)rol_skp, (double)yaw_skp);
 }
 
 #endif

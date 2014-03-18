@@ -31,6 +31,7 @@ private:
   uint_fast8_t  m_iDelayMultplr;            // multiplier for m_iDelay (helpful if many emitters share the same tick rate). If m_iDelayMultplr zero: m_iDelay is zero too
   void (*pfTask)();                         // function pointer
 };
+
 ///////////////////////////////////////////////////////////
 // Simple task managemant
 ///////////////////////////////////////////////////////////

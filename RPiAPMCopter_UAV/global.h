@@ -1,11 +1,12 @@
 #ifndef GLOB_h
 #define GLOB_h
 
+#include "config.h"
 #include "BattMonitor.h"
 #include "scheduler.h"
 #include "device.h"
 #include "receiver.h"
-#include "config.h"
+#include "exceptions.h"
 
 
 ///////////////////////////////////////////////////////////
@@ -29,9 +30,10 @@ BattMonitor                _BAT;                        // battery monitor
 // Only exception is the battery monitor
 // to circumvent the usage of AP_Param for changing settings
 ///////////////////////////////////////////////////////////
-Scheduler                  _SCHED     (&hal);           // Scheduler for serial output
-Device                     _HAL_BOARD (&hal, &_INERT, &_COMP, &_BARO, &_GPS, &_BAT); // Comprehensive sensor recording class
-Receiver                   _RECVR     (&_HAL_BOARD);    // Receiver class for remote control and configuration of settings
+Scheduler                  _SCHED     (&hal);                                         // Scheduler for serial output
+Device                     _HAL_BOARD (&hal, &_INERT, &_COMP, &_BARO, &_GPS, &_BAT);  // Comprehensive sensor recording class
+Receiver                   _RECVR     (&_HAL_BOARD);                                  // Receiver class for remote control and configuration of settings
+Exception                  _EXCP      (&_HAL_BOARD, &_RECVR);                         // Exception handler
 
 #endif
 

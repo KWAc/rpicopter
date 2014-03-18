@@ -2,6 +2,20 @@
 #define COMMON_h
 
 
+inline int add_flag(int flag, int mask) {
+  flag |= mask;
+  return flag;
+}
+  
+inline int rem_flag(int flag, int mask) {
+  flag &= ~mask;
+  return flag;
+}
+
+inline bool chk_fset(int flag, int mask) {
+  return flag & mask;
+}
+
 // Returns the sign of a float
 inline float sign_f(float fVal) {
   return fVal >= 0.f ? 1.f : -1.f;

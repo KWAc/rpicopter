@@ -1,13 +1,13 @@
 #include "BattMonitor.h"
 
 
-void BattMonitor::setup_source(int8_t volt_pin,
-                        int8_t curr_pin,
+void BattMonitor::setup_source(int_fast8_t volt_pin,
+                        int_fast8_t curr_pin,
                         float volt_multiplier,
                         float curr_amp_per_volt,
-                        int32_t pack_capacity,
+                        int_fast32_t pack_capacity,
                         float curr_amp_offset,
-                        int8_t monitoring )
+                        int_fast8_t monitoring )
 {
   _monitoring         = monitoring;
   _volt_pin           = volt_pin;
@@ -20,7 +20,7 @@ void BattMonitor::setup_source(int8_t volt_pin,
   init();
 }
 
-void BattMonitor::setup_source(const unsigned int &t) {
+void BattMonitor::setup_source(const int &t) {
   switch (t) {
     case ATTO45:
       setup_source(AP_ATTO_VOLT_PIN, AP_ATTO_CURR_PIN, AP_BATT_VOLTDIVIDER_ATTO45, AP_BATT_CURR_AMP_PERVOLT_ATTO45, AP_BATT_CAPACITY_DEFAULT, 0, AP_BATT_MONITOR_VOLTAGE_AND_CURRENT);

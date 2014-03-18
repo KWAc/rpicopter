@@ -1,13 +1,19 @@
 #include "receiver.h"
 #include "device.h"
 #include "BattMonitor.h"
+#include "math.h"
 
 
 Receiver::Receiver(Device *pHalBoard) {
-  memset(m_cBuffer, 0, sizeof(m_cBuffer) );
   m_pHalBoard = pHalBoard;
+  
+  memset(m_cBuffer, 0, sizeof(m_cBuffer) );
   memset(m_pChannelsRC, 0, sizeof(m_pChannelsRC) );
+  
   m_iSParseTimer_A = m_iSParseTimer_C = m_iSParseTimer = m_pHalBoard->m_pHAL->scheduler->millis();
+  m_iSParseTime_A = m_iSParseTime_C = m_iSParseTime = 0;
+  
+  m_eErrors = NOTHING_F;
 }
 
 uint_fast8_t Receiver::calc_chksum(char *str) {
@@ -233,6 +239,7 @@ bool Receiver::read_uartA(uint_fast16_t bytesAvail) {
       m_cBuffer[offset++] = c;                          // store in buffer and continue until newline
     }
   }
+  timeLastSuccessfulParse_uartA();
   return bRet;
 }
 /* 
@@ -305,6 +312,7 @@ bool Receiver::read_uartC(uint_fast16_t bytesAvail) {
       m_cBuffer[offset++] = c;                                // store in buffer and continue until newline
     }
   }
+  timeLastSuccessfulParse_uartC();
   return bRet;
 }
 
@@ -339,14 +347,32 @@ bool Receiver::parse(char *buffer) {
   return false;
 }
 
+bool Receiver::try_uartAC() {
+  // Commands via serial port (in this case WiFi -> RPi -> APM2.5)
+  bool bOK = read_uartA(m_pHalBoard->m_pHAL->uartA->available() ); 	// Try WiFi (serial) first
+  if(!bOK && timeLastSuccessfulParse_uartA() > UART_A_TIMEOUT) {
+    bOK = read_uartC(m_pHalBoard->m_pHAL->uartC->available() ); 	        // If not working: Try radio next
+  }
+  timeLastSuccessfulParse();
+  return bOK;
+}
+
 uint_fast32_t Receiver::timeLastSuccessfulParse() {
-  return m_pHalBoard->m_pHAL->scheduler->millis() - m_iSParseTimer;
+  m_iSParseTime = m_pHalBoard->m_pHAL->scheduler->millis() - m_iSParseTimer;
+  
+  if(m_iSParseTime > COM_PKT_TIMEOUT) {
+    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, UART_TIMEOUT_F) );
+  }
+  
+  return m_iSParseTime;
 }
 
 uint_fast32_t Receiver::timeLastSuccessfulParse_uartA() {
-  return m_pHalBoard->m_pHAL->scheduler->millis() - m_iSParseTimer_A;
+  m_iSParseTime_A = m_pHalBoard->m_pHAL->scheduler->millis() - m_iSParseTimer_A;
+  return m_iSParseTime_A;
 }
 
 uint_fast32_t Receiver::timeLastSuccessfulParse_uartC() {
-  return m_pHalBoard->m_pHAL->scheduler->millis() - m_iSParseTimer_C;
+  m_iSParseTime_C = m_pHalBoard->m_pHAL->scheduler->millis() - m_iSParseTimer_C;
+  return m_iSParseTime_C;
 }
