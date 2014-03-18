@@ -47,10 +47,10 @@ Task taskMain(&main_loop, MAIN_LOOP_T_MS, 1);
  * Sets references to values in the eight channel rc input
  */
 void set_channels(int_fast16_t &pit, int_fast16_t &rol, int_fast16_t &yaw, int_fast16_t &thr) {
-  rol = _RECVR.m_pChannelsRC[0];
-  pit = _RECVR.m_pChannelsRC[1];
-  thr = _RECVR.m_pChannelsRC[2] > RC_THR_80P ? RC_THR_80P : _RECVR.m_pChannelsRC[2];
-  yaw = _RECVR.m_pChannelsRC[3];
+  rol = _RECVR.m_rgChannelsRC[0];
+  pit = _RECVR.m_rgChannelsRC[1];
+  thr = _RECVR.m_rgChannelsRC[2] > RC_THR_80P ? RC_THR_80P : _RECVR.m_rgChannelsRC[2];
+  yaw = _RECVR.m_rgChannelsRC[3];
 }
 
 /*

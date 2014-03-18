@@ -8,7 +8,7 @@ Receiver::Receiver(Device *pHalBoard) {
   m_pHalBoard = pHalBoard;
   
   memset(m_cBuffer, 0, sizeof(m_cBuffer) );
-  memset(m_pChannelsRC, 0, sizeof(m_pChannelsRC) );
+  memset(m_rgChannelsRC, 0, sizeof(m_rgChannelsRC) );
   
   m_iSParseTimer_A = m_iSParseTimer_C = m_iSParseTimer = m_pHalBoard->m_pHAL->scheduler->millis();
   m_iSParseTime_A = m_iSParseTime_C = m_iSParseTime = 0;
@@ -36,7 +36,7 @@ bool Receiver::verf_chksum(char *str, char *chk) {
 
 // remote control stuff
 bool Receiver::parse_ctrl_com(char* buffer) {
-  if(m_pChannelsRC == NULL) {
+  if(m_rgChannelsRC == NULL) {
     return false;
   }
   // process cmd
@@ -45,10 +45,10 @@ bool Receiver::parse_ctrl_com(char* buffer) {
 
   if(verf_chksum(str, chk) ) {                      // if chksum OK
     char *ch = strtok(str, ",");                    // first channel
-    m_pChannelsRC[0] = (uint_fast16_t)strtol(ch, NULL, 10);  // parse
+    m_rgChannelsRC[0] = (uint_fast16_t)strtol(ch, NULL, 10);  // parse
     for(uint_fast8_t i = 1; i < APM_IOCHAN_CNT; i++) {  // loop through final 3 RC_CHANNELS
       char *ch = strtok(NULL, ",");
-      m_pChannelsRC[i] = (uint_fast16_t)strtol(ch, NULL, 10);
+      m_rgChannelsRC[i] = (uint_fast16_t)strtol(ch, NULL, 10);
     }
     m_iSParseTimer = m_pHalBoard->m_pHAL->scheduler->millis();           // update last valid packet
   }
@@ -90,9 +90,9 @@ bool Receiver::parse_gyr_cor(char* buffer) {
 
 bool Receiver::parse_gyr_cal(char* buffer) {
   // If motors run: Do nothing!
-  if(m_pChannelsRC == NULL || m_pHalBoard == NULL) {
+  if(m_rgChannelsRC == NULL || m_pHalBoard == NULL) {
     return false;
-  } else if (m_pChannelsRC[2] > RC_THR_MIN) {
+  } else if (m_rgChannelsRC[2] > RC_THR_MIN) {
     return false;
   }
 
@@ -177,7 +177,7 @@ float *Receiver::parse_pid_substr(char* buffer) {
 bool Receiver::parse_pid_conf(char* buffer) {
   if(m_pHalBoard == NULL) {
     return false;
-  } else if(m_pChannelsRC[2] > RC_THR_MIN) {        // If motors run: Do nothing!
+  } else if(m_rgChannelsRC[2] > RC_THR_MIN) {        // If motors run: Do nothing!
     return false;
   }
 
@@ -274,10 +274,10 @@ bool Receiver::parse_radio(char *buffer) {
     return false;
     
   // Set values
-  m_pChannelsRC[0] = rol;
-  m_pChannelsRC[1] = pit;
-  m_pChannelsRC[2] = thr;
-  m_pChannelsRC[3] = yaw;
+  m_rgChannelsRC[0] = rol;
+  m_rgChannelsRC[1] = pit;
+  m_rgChannelsRC[2] = thr;
+  m_rgChannelsRC[3] = yaw;
   
   m_iSParseTimer = m_pHalBoard->m_pHAL->scheduler->millis();           // update last valid packet
   return true;

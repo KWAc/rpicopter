@@ -7,6 +7,10 @@
 #include "absdevice.h"
 
 
+/*
+ * Calculate time necessary to reduce the throttle until the value "THR_TAKE_OFF"
+ * The higher the quadcopter is the longer it will take, because the take-down speed should be constant (MAX_FALL_SPEED_MS: ~0.833 m/s)
+ */
 inline float go_down_t(float altitude_m, float fThr) {
   // altitude_m should be always positive
   altitude_m = altitude_m <= 0.f ? 1.f : altitude_m;
@@ -27,13 +31,13 @@ Exception::Exception(Device *pDevice, Receiver *pReceiver) {
   m_fLastAltitude_m = 0.f;
   
   m_iAltitudeTimer = m_iInertTimer = m_pHalBoard->m_pHAL->scheduler->millis();
-  memcpy(m_RcvrCom, m_pReceiver->m_pChannelsRC, sizeof(m_pReceiver->m_pChannelsRC) );
+  memcpy(m_rgChannelsRC, m_pReceiver->m_rgChannelsRC, sizeof(m_pReceiver->m_rgChannelsRC) );
 }
 
 void Exception::dev_take_down() {
   static bool bInertTimer = false;
   // If motors do not spin: reset & return
-  if(m_pReceiver->m_pChannelsRC[2] == RC_THR_OFF) {
+  if(m_pReceiver->m_rgChannelsRC[2] == RC_THR_OFF) {
     bInertTimer = false;
     m_pHalBoard->set_errors(AbsErrorDevice::NOTHING_F);
     rls_recvr();
@@ -53,7 +57,7 @@ void Exception::rcvr_take_down() {
   // Get time to calculate how much the motors should be reduced
   uint_fast32_t packet_t = m_pReceiver->timeLastSuccessfulParse();  // Measure time elapsed since last successful package from WiFi or radio
   // If motors do not spin or a new packet arrived: reset & return
-  if( m_pReceiver->m_pChannelsRC[2] == RC_THR_OFF || packet_t <= COM_PKT_TIMEOUT ) {
+  if( m_pReceiver->m_rgChannelsRC[2] == RC_THR_OFF || packet_t <= COM_PKT_TIMEOUT ) {
     m_pReceiver->set_errors(AbsErrorDevice::NOTHING_F);
     rls_recvr();
     return;
@@ -68,7 +72,7 @@ void Exception::lck_recvr() {
   if(m_bRcvrOvride == true) {
     return;
   }
-  memcpy(m_RcvrCom, m_pReceiver->m_pChannelsRC, sizeof(m_pReceiver->m_pChannelsRC) );
+  memcpy(m_rgChannelsRC, m_pReceiver->m_rgChannelsRC, sizeof(m_pReceiver->m_rgChannelsRC) );
   m_bRcvrOvride = true;
 }
   
@@ -78,7 +82,7 @@ void Exception::rls_recvr() {
   }
   m_bRcvrOvride = false;
   m_pReceiver->set_errors(AbsErrorDevice::NOTHING_F);
-  memset(m_RcvrCom, 0, sizeof(m_RcvrCom) );
+  memset(m_rgChannelsRC, 0, sizeof(m_rgChannelsRC) );
 }
 
 bool Exception::handle() {
@@ -163,7 +167,7 @@ void Exception::reduce_thr(float fTime) {
     bool bSensorOK = false;
     float fAlti = estim_altit(bSensorOK);
     if(bSensorOK == true) {
-      fStepC = go_down_t(fAlti, m_RcvrCom[2]);
+      fStepC = go_down_t(fAlti, m_rgChannelsRC[2]);
     }
     // Is model falling too fast?
     if(m_fLastAltitude_m > fAlti) {
@@ -179,11 +183,11 @@ void Exception::reduce_thr(float fTime) {
   }
   // Calculate how much to reduce throttle
   float fTConst = (THR_STEP_S * (fTime / fStepC) ) - fRho;
-  int_fast16_t fThr = m_RcvrCom[2] - (int_fast16_t)fTConst;
+  int_fast16_t fThr = m_rgChannelsRC[2] - (int_fast16_t)fTConst;
   // reduce throttle..
-  m_pReceiver->m_pChannelsRC[2] = fThr >= RC_THR_MIN ? fThr : RC_THR_OFF; // throttle
+  m_pReceiver->m_rgChannelsRC[2] = fThr >= RC_THR_MIN ? fThr : RC_THR_OFF; // throttle
   // reset yaw, pitch and roll
-  m_pReceiver->m_pChannelsRC[3] = 0;                                      // yaw
-  m_pReceiver->m_pChannelsRC[1] = 0;                                      // pitch
-  m_pReceiver->m_pChannelsRC[0] = 0;                                      // roll
+  m_pReceiver->m_rgChannelsRC[3] = 0;                                      // yaw
+  m_pReceiver->m_rgChannelsRC[1] = 0;                                      // pitch
+  m_pReceiver->m_rgChannelsRC[0] = 0;                                      // roll
 }
