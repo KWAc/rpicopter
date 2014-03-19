@@ -39,18 +39,60 @@
 #include "math.h"
 
 
+inline double progress_f(uint_fast8_t iStep, uint_fast8_t iMax);
+inline void hold_altitude(int_fast16_t &iFL, int_fast16_t &iBL, int_fast16_t &iFR, int_fast16_t &iBR);
 inline void set_channels(int_fast16_t &pit, int_fast16_t &rol, int_fast16_t &yaw, int_fast16_t &thr);
 inline void main_loop();
+inline void measure_alti();
+
 Task taskMain(&main_loop, MAIN_LOOP_T_MS, 1);
+Task taskAlti(&measure_alti, ALTI_ESTIM_T_MS, 1);
 
 /*
  * Sets references to values in the eight channel rc input
  */
-void set_channels(int_fast16_t &pit, int_fast16_t &rol, int_fast16_t &yaw, int_fast16_t &thr) {
+void set_channels(int_fast32_t &pit, int_fast32_t &rol, int_fast32_t &yaw, int_fast32_t &thr, int_fast32_t &alt) {
   rol = _RECVR.m_rgChannelsRC[0];
   pit = _RECVR.m_rgChannelsRC[1];
   thr = _RECVR.m_rgChannelsRC[2] > RC_THR_80P ? RC_THR_80P : _RECVR.m_rgChannelsRC[2];
   yaw = _RECVR.m_rgChannelsRC[3];
+  alt = _RECVR.m_rgChannelsRC[8];   // Desired altitude 
+}
+
+void measure_alti() {
+  if(!ALTITUDE_HOLD) {
+    return;
+  }
+  
+  bool bOK;
+  _HAL_BOARD.estim_alti_m(bOK);
+  if(bOK == false) {
+    // Disable altitude hold
+    #ifdef ALTITUDE_HOLD
+      #undef ALTITUDE_HOLD
+      #define ALTITUDE_HOLD 0
+    #endif
+  }
+}
+
+void hold_altitude(int_fast16_t &iFL, int_fast16_t &iBL, int_fast16_t &iFR, int_fast16_t &iBR, const int_fast32_t iDesiredAltitude_cm) {
+  if(!ALTITUDE_HOLD) {
+    return;
+  }
+
+  float fCurAlti_cm       = _HAL_BOARD.get_alti_m() * 100.f;
+  float fCurClimbr_cms    = _HAL_BOARD.get_baro().climb_rate_ms * 100.f;
+  float alt_stab_output   = _HAL_BOARD.m_pPIDS[PID_THR_STAB].get_pid(fCurAlti_cm - (float)iDesiredAltitude_cm, 1);
+  int_fast16_t alt_output = _HAL_BOARD.m_pPIDS[PID_THR_RATE].get_pid(alt_stab_output - fCurClimbr_cms, 1);
+
+  iFL += alt_output;
+  iBL += alt_output;
+  iFR += alt_output;
+  iBR += alt_output;
+}
+
+double progress_f(uint_fast8_t iStep, uint_fast8_t iMax) {
+  return (double)iStep*100.f/(double)iMax;
 }
 
 /*
@@ -69,14 +111,15 @@ void main_loop() {
   // Handle all defined problems (time-outs, broken gyrometer, GPS signal ..)
   _EXCP.handle();
 
-  // Variables to store remote control commands
-  int_fast16_t rcthr, rcyaw, rcpit, rcrol;
-  set_channels(rcpit, rcrol, rcyaw, rcthr);
+  // Variables to store remote control commands plus "rcalt" for the desired altitude in cm
+  int_fast32_t rcthr, rcyaw, rcpit, rcrol, rcalt;
+  set_channels(rcpit, rcrol, rcyaw, rcthr, rcalt);
 
   // Update sensor information
   _HAL_BOARD.update_inertial();
-  Vector3f vAtti = _HAL_BOARD.get_atti_cor(); // returns the fused sensor value (gyrometer and accelerometer)
-  Vector3f vGyro = _HAL_BOARD.get_gyro_cor();     // returns the sensor value from the gyrometer
+  Vector3f vAtti       = _HAL_BOARD.get_atti_cor(); // returns the fused sensor value (gyrometer and accelerometer)
+  Vector3f vGyro       = _HAL_BOARD.get_gyro_cor(); // returns the sensor value from the gyrometer
+  
   // Throttle raised, turn on stabilisation.
   if(rcthr > RC_THR_ACRO) {
     // Stabilise PIDS
@@ -94,16 +137,17 @@ void main_loop() {
     int_fast16_t pit_output = (int_fast16_t)constrain_float(_HAL_BOARD.m_pPIDS[PID_PIT_RATE].get_pid(pit_stab_output - vGyro.x, 1), -500, 500);
     int_fast16_t rol_output = (int_fast16_t)constrain_float(_HAL_BOARD.m_pPIDS[PID_ROL_RATE].get_pid(rol_stab_output - vGyro.y, 1), -500, 500);
     int_fast16_t yaw_output = (int_fast16_t)constrain_float(_HAL_BOARD.m_pPIDS[PID_YAW_RATE].get_pid(yaw_stab_output - vGyro.z, 1), -500, 500);
-
-    int_fast16_t fFL = rcthr + rol_output + pit_output - yaw_output;
-    int_fast16_t fBL = rcthr + rol_output - pit_output + yaw_output;
-    int_fast16_t fFR = rcthr - rol_output + pit_output + yaw_output;
-    int_fast16_t fBR = rcthr - rol_output - pit_output - yaw_output;
-
-    hal.rcout->write(MOTOR_FL, fFL);
-    hal.rcout->write(MOTOR_BL, fBL);
-    hal.rcout->write(MOTOR_FR, fFR);
-    hal.rcout->write(MOTOR_BR, fBR);
+    
+    int_fast16_t iFL = rcthr + rol_output + pit_output - yaw_output;
+    int_fast16_t iBL = rcthr + rol_output - pit_output + yaw_output;
+    int_fast16_t iFR = rcthr - rol_output + pit_output + yaw_output;
+    int_fast16_t iBR = rcthr - rol_output - pit_output - yaw_output;
+    hold_altitude(iFL, iBL, iFR, iBR, rcalt);
+    
+    hal.rcout->write(MOTOR_FL, iFL);
+    hal.rcout->write(MOTOR_BL, iBL);
+    hal.rcout->write(MOTOR_FR, iFR);
+    hal.rcout->write(MOTOR_BR, iBR);
   }
   else {
     // motors off
@@ -122,13 +166,10 @@ void main_loop() {
   }
 }
 
-double progress_f(uint_fast8_t iStep, uint_fast8_t iMax) {
-  return (double)iStep*100.f/(double)iMax;
-}
-
 void setup() {
   // Prepare scheduler for the main loop ..
-  _SCHED.add_task(&taskMain,  0);
+  _SCHED.add_task(&taskMain,  0);  // no explanations ..
+  _SCHED.add_task(&taskAlti,  0);  // for altitude hold
   // .. and the sensor output functions
   _SCHED.add_task(&taskAtti,  75);
   _SCHED.add_task(&taskBaro,  1000);

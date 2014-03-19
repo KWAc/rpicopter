@@ -45,10 +45,10 @@ bool Receiver::parse_ctrl_com(char* buffer) {
 
   if(verf_chksum(str, chk) ) {                      // if chksum OK
     char *ch = strtok(str, ",");                    // first channel
-    m_rgChannelsRC[0] = (uint_fast16_t)strtol(ch, NULL, 10);  // parse
+    m_rgChannelsRC[0] = strtol(ch, NULL, 10);  // parse
     for(uint_fast8_t i = 1; i < APM_IOCHAN_CNT; i++) {  // loop through final 3 RC_CHANNELS
       char *ch = strtok(NULL, ",");
-      m_rgChannelsRC[i] = (uint_fast16_t)strtol(ch, NULL, 10);
+      m_rgChannelsRC[i] = strtol(ch, NULL, 10);
     }
     m_iSParseTimer = m_pHalBoard->m_pHAL->scheduler->millis();           // update last valid packet
   }

@@ -43,6 +43,7 @@ protected:
   Vector3f  m_vGyro;
   Vector3f  m_vAccel;
   Vector3f  m_vAttitude;
+  float     m_fAltitude;
   // misc
   BaroData  m_ContBaro;
   GPSData   m_ContGPS;
@@ -60,7 +61,7 @@ protected:
   
 public:
   // PID configuration and remote contro
-  PID m_pPIDS[6];
+  PID m_pPIDS[8];
   // Hardware abstraction library interface
   const AP_HAL::HAL  *m_pHAL;
   // MPU6050 accel/gyro chip
@@ -97,6 +98,7 @@ public:
   float     read_comp(const float roll = 0.f, const float pitch = 0.f);
   GPSData   read_gps();
   BattData  read_bat();
+  float     estim_alti_m(bool &); // Estimates the altitude based on GPS and barometer
 
   /* Return the Vector3f Inertial readouts */
   Vector3f get_atti_cor();  // fused sensor values from accelerometer/gyrometer with m_fInertPitCor/m_fInertRolCor
@@ -107,6 +109,12 @@ public:
   
   Vector3f get_accel_cor(); // accelerometer sensor readout with m_fInertPitCor/m_fInertRolCor
   Vector3f get_accel_raw(); // accelerometer sensor readout without m_fInertPitCor/m_fInertRolCor
+  
+  float    get_alti_m();    // Just return the last estimated altitude
+  float    get_comp();      // Just return the last estimated compass
+  BaroData get_baro();      // Just return the last estimated barometer data
+  GPSData  get_gps();       // Just return the last estimated gps data
+  BattData get_bat();       // Just return the last estimated battery data
   
   // Setter and getter for inertial adjustments
   float get_pit_cor();

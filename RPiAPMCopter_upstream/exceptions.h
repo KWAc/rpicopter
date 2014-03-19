@@ -12,16 +12,10 @@ private:
   Device*       m_pHalBoard;
   Receiver*     m_pReceiver;
   
-  int_fast16_t  m_rgChannelsRC[APM_IOCHAN_CNT];                // Array:  Override remote control if certain exceptions happen
+  int_fast32_t  m_rgChannelsRC[APM_IOCHAN_CNT];                // Array:  Override remote control if certain exceptions happen
   uint_fast32_t m_t32Device;                                   // Timer for calculating the reduction of the throttle
   uint_fast32_t m_t32Altitude;                                 // Timer for reading the current altitude
   
-  /*
-   * This functions measures the height from GPS and barometer data.
-   * If no sensor is working the parameter is set to false.
-   * Otherwise the parameter is true.
-   */
-  float estim_altit(bool &);
   /*
    * Saves the current remote control command one time.
    * rls_recvr() must be called before, this function is usable again.
@@ -35,6 +29,7 @@ private:
    * If the parameter is already false, the function will do nothing.
    */
   void rls_recvr(bool &);
+  
   /*
    * This reduces the throttle. 
    * The amount of reduction dependent on the speed and the height.
@@ -53,6 +48,11 @@ private:
    * So this function has less severe consequences if the remote control works again
    */
   void rcvr_take_down();  // Calls reduce_thr()
+  
+  /*
+   * Disables the altitude hold function
+   */
+  void disable_alti_hold();
   
 public:
   Exception(Device *, Receiver *);

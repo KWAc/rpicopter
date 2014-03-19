@@ -89,6 +89,14 @@ void Exception::rls_recvr(bool &bSwitch) {
   memset(m_rgChannelsRC, 0, sizeof(m_rgChannelsRC) );
 }
 
+void Exception::disable_alti_hold() {
+  // Disable altitude hold
+  #ifdef ALTITUDE_HOLD
+    #undef ALTITUDE_HOLD
+    #define ALTITUDE_HOLD 0
+  #endif
+}
+
 bool Exception::handle() {
   //////////////////////////////////////////////////////////////////////////////////////////
   // Device handler
@@ -102,6 +110,7 @@ bool Exception::handle() {
     return true;
   }
   if(m_pHalBoard->get_errors() & AbsErrorDevice::BAROMETER_F) {
+    disable_alti_hold();
     return true;
   }
   if(m_pHalBoard->get_errors() & AbsErrorDevice::COMPASS_F) {
@@ -135,29 +144,6 @@ bool Exception::handle() {
   return false;
 }
 
-float Exception::estim_altit(bool &bOK) {
-  float fAlti = 0.f;
-  bOK = false;
-  // Barometer and GPS usable
-  if(m_pHalBoard->m_pBaro->healthy && m_pHalBoard->m_pGPS->status() == GPS::GPS_OK_FIX_3D) {
-    fAlti = m_pHalBoard->read_baro().altitude_m;
-    fAlti += m_pHalBoard->read_gps().altitude_m;
-    fAlti /= 2.f;
-    bOK = true;
-  }
-  // Only barometer usable
-  else if(m_pHalBoard->m_pBaro->healthy && m_pHalBoard->m_pGPS->status() != GPS::GPS_OK_FIX_3D) {
-    fAlti = m_pHalBoard->read_baro().altitude_m;
-    bOK = true;
-  }
-  // Only GPS usable
-  else if(!m_pHalBoard->m_pBaro->healthy && m_pHalBoard->m_pGPS->status() == GPS::GPS_OK_FIX_3D) {
-    fAlti = m_pHalBoard->read_gps().altitude_m;
-    bOK = true;
-  }
-  return fAlti;
-}
-
 void Exception::reduce_thr(float fTime) {
   static float fLastAltitude_m  = 0.f;
   static float fRho             = 0.f;    // if model is falling too fast, this variable is used as a stopper
@@ -167,7 +153,7 @@ void Exception::reduce_thr(float fTime) {
   uint_fast32_t iAltitudeTime = m_pHalBoard->m_pHAL->scheduler->millis() - m_t32Altitude;
   if(iAltitudeTime > ALTI_MEASURE_TIME) {
     bool bSensorOK = false;
-    float fAlti = estim_altit(bSensorOK);
+    float fAlti = m_pHalBoard->estim_alti_m(bSensorOK);
     if(bSensorOK == true) {
       fStepC = go_down_t(fAlti, m_rgChannelsRC[2]);
     }
@@ -181,7 +167,7 @@ void Exception::reduce_thr(float fTime) {
     }
     // Save some variables and set timer
     fLastAltitude_m = fAlti;
-    m_t32Altitude  = m_pHalBoard->m_pHAL->scheduler->millis();
+    m_t32Altitude   = m_pHalBoard->m_pHAL->scheduler->millis();
   }
   // Calculate how much to reduce throttle
   float fTConst = (THR_STEP_S * (fTime / fStepC) ) - fRho;

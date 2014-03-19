@@ -13,6 +13,8 @@
 Device::Device( const AP_HAL::HAL *pHAL,
                 AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, GPS *pGPS, BattMonitor *pBat )
 {
+  m_fAltitude     = 0.f;
+
   m_fInertRolOffs = 0.f;
   m_fInertPitOffs = 0.f;
   m_fInertYawOffs = 0.f;
@@ -179,9 +181,14 @@ void Device::init_pids() {
   m_pPIDS[PID_YAW_RATE].kI(0.25);
   m_pPIDS[PID_YAW_RATE].imax(50);
 
+  m_pPIDS[PID_THR_RATE].kP(0.35);  // For altitude hold
+  m_pPIDS[PID_THR_RATE].kI(0.00);  // For altitude hold
+  m_pPIDS[PID_THR_RATE].imax(25);  // For altitude hold
+  
   m_pPIDS[PID_PIT_STAB].kP(5.5);
   m_pPIDS[PID_ROL_STAB].kP(5.5);
   m_pPIDS[PID_YAW_STAB].kP(5.5);
+  m_pPIDS[PID_THR_STAB].kP(2.5);   // For altitude hold
 }
 
 void Device::init_compass() {
@@ -373,6 +380,48 @@ BattData Device::read_bat() {
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, VOLTAGE_HIGH_F) );
   }
 
+  return m_ContBat;
+}
+
+float Device::estim_alti_m(bool &bOK) {
+  bOK = false;
+  // Barometer and GPS usable
+  if(m_pBaro->healthy && m_pGPS->status() == GPS::GPS_OK_FIX_3D) {
+    m_fAltitude = read_baro().altitude_m;
+    m_fAltitude += read_gps().altitude_m;
+    m_fAltitude /= 2.f;
+    bOK = true;
+  }
+  // Only barometer usable
+  else if(m_pBaro->healthy && m_pGPS->status() != GPS::GPS_OK_FIX_3D) {
+    m_fAltitude = read_baro().altitude_m;
+    bOK = true;
+  }
+  // Only GPS usable
+  else if(!m_pBaro->healthy && m_pGPS->status() == GPS::GPS_OK_FIX_3D) {
+    m_fAltitude = read_gps().altitude_m;
+    bOK = true;
+  }
+  return m_fAltitude;
+}
+
+float Device::get_alti_m() {
+  return m_fAltitude;
+}
+
+float Device::get_comp() {
+  return m_fCmpH;
+}
+
+BaroData Device::get_baro() {
+  return m_ContBaro;
+}
+
+GPSData Device::get_gps() {
+  return m_ContGPS;
+}
+
+BattData Device::get_bat() {
   return m_ContBat;
 }
 

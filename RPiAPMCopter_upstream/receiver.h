@@ -44,7 +44,9 @@ protected:
 public:
   Receiver(Device *pHalBoard);
 
-  int_fast16_t m_rgChannelsRC[APM_IOCHAN_CNT];
+  // Eight channel remote control plus one for altitude hold (height in cm)
+  int_fast32_t m_rgChannelsRC[APM_IOCHAN_CNT];
+  
   // Read from serial bus
   bool read_uartA(uint_fast16_t bytesAvail); // console in APM 2
   bool read_uartC(uint_fast16_t bytesAvail); // radio in APM 2
