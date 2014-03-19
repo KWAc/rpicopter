@@ -68,7 +68,7 @@ void main_loop() {
 
   // Handle all defined problems (time-outs, broken gyrometer, GPS signal ..)
   _EXCP.handle();
-  
+
   // Variables to store remote control commands
   int_fast16_t rcthr, rcyaw, rcpit, rcrol;
   set_channels(rcpit, rcrol, rcyaw, rcthr);
@@ -128,14 +128,14 @@ double progress_f(uint_fast8_t iStep, uint_fast8_t iMax) {
 
 void setup() {
   // Prepare scheduler for the main loop ..
-  _SCHED.addTask(&taskMain,  0);
+  _SCHED.add_task(&taskMain,  0);
   // .. and the sensor output functions
-  _SCHED.addTask(&taskAtti,  75);
-  _SCHED.addTask(&taskBaro,  1000);
-  _SCHED.addTask(&taskGPS,   1000);
-  _SCHED.addTask(&taskComp,  2000);
-  _SCHED.addTask(&taskBat,   5000);
-  _SCHED.addTask(&taskPID,   5000);
+  _SCHED.add_task(&taskAtti,  75);
+  _SCHED.add_task(&taskBaro,  1000);
+  _SCHED.add_task(&taskGPS,   1000);
+  _SCHED.add_task(&taskComp,  2000);
+  _SCHED.add_task(&taskBat,   5000);
+  _SCHED.add_task(&taskPID,   5000);
 
   // Set baud rate when connected to RPi
   hal.uartA->begin(BAUD_RATE_A); // USB
@@ -181,6 +181,7 @@ void loop() {
 }
 
 AP_HAL_MAIN();
+
 
 
 

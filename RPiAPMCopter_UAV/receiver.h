@@ -51,9 +51,9 @@ public:
   bool try_uartAC();
   
   // time since last command string was parsed successfully from:
-  uint_fast32_t timeLastSuccessfulParse();   // general
-  uint_fast32_t timeLastSuccessfulParse_uartA(); // UART A
-  uint_fast32_t timeLastSuccessfulParse_uartC(); // UART C
+  uint_fast32_t last_parse_t32();       // general
+  uint_fast32_t last_parse_uartA_t32(); // UART A
+  uint_fast32_t last_parse_uartC_t32(); // UART C
 };
 
 #endif

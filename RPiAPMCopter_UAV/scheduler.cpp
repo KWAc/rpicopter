@@ -22,15 +22,20 @@ void Task::reset() {
   m_bSend = false;
 }
 
-uint_fast32_t Task::getTimer() {
+uint_fast32_t Task::get_timer() {
   return m_iTimer;
 }
 
-void Task::setTimer(const uint_fast32_t iTimer) {
+void Task::set_delay(const uint_fast32_t iDelay, const uint_fast32_t iMult) {
+  m_iDelay = iDelay;
+  m_iDelayMultplr = iMult;
+}
+
+void Task::set_timer(const uint_fast32_t iTimer) {
   m_iTimer = iTimer;
 }
 
-uint_fast16_t Task::getDelay() {
+uint_fast16_t Task::get_delay() {
   return m_iDelay * m_iDelayMultplr;
 }
 ///////////////////////////////////////////////////////////
@@ -44,7 +49,7 @@ Scheduler::Scheduler(const AP_HAL::HAL *p) {
   m_iItems = 0;
 }
 
-void Scheduler::addTask(Task *p, uint_fast16_t iTickRate) {
+void Scheduler::add_task(Task *p, uint_fast16_t iTickRate) {
   if(m_iItems < NO_PRC_SCHED && p != NULL) {
     m_functionList[m_iItems] = p;
     m_tickrateList[m_iItems] = iTickRate;
@@ -52,12 +57,12 @@ void Scheduler::addTask(Task *p, uint_fast16_t iTickRate) {
   }
 }
 
-bool Scheduler::isStarted(const uint_fast8_t i) {
+bool Scheduler::is_started(const uint_fast8_t i) {
   Task *pCurTask = m_functionList[i];
-  uint_fast32_t time = m_pHAL->scheduler->millis() - pCurTask->getTimer();
+  uint_fast32_t time = m_pHAL->scheduler->millis() - pCurTask->get_timer();
   
   // Time yet to start the current emitter?
-  if(time <= m_tickrateList[i] + pCurTask->getDelay() ) {
+  if(time <= m_tickrateList[i] + pCurTask->get_delay() ) {
     return false;
   } else {
     // Release the block for the transmitter
@@ -66,7 +71,7 @@ bool Scheduler::isStarted(const uint_fast8_t i) {
   
   if(pCurTask->start() ) {
     // Set timer to the current time
-    pCurTask->setTimer(m_pHAL->scheduler->millis() );
+    pCurTask->set_timer(m_pHAL->scheduler->millis() );
   } else {
     return false;
   }
@@ -74,7 +79,7 @@ bool Scheduler::isStarted(const uint_fast8_t i) {
   return true;
 }
 
-void Scheduler::resetAll() {
+void Scheduler::reset_all() {
   // Reset everything if last emitter successfully emitted
   for(uint_fast16_t i = 0; i < m_iItems; i++) {
     m_functionList[i]->reset();
@@ -87,7 +92,7 @@ void Scheduler::run() {
 
   for(uint_fast8_t i = 0; i < m_iItems; i++) {
     // Run all tasks
-    if(!isStarted(i) ) {
+    if(!is_started(i) ) {
       continue;
     }
   }

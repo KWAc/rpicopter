@@ -47,7 +47,7 @@ protected:
   BaroData  m_ContBaro;
   GPSData   m_ContGPS;
   BattData  m_ContBat;
-
+  // User set correction variables
   float m_fInertPitCor; // +/-: left to right or right to left
   float m_fInertRolCor; // +/-: front to back or back to front
   
@@ -109,11 +109,11 @@ public:
   Vector3f get_accel_raw(); // accelerometer sensor readout without m_fInertPitCor/m_fInertRolCor
   
   // Setter and getter for inertial adjustments
-  float getInertPitCor();
-  float getInertRolCor();
+  float get_pit_cor();
+  float get_rol_cor();
   
-  void setInertPitCor(float fValDeg);
-  void setInertRolCor(float fValDeg);
+  void set_pit_cor(float fValDeg);
+  void set_rol_cor(float fValDeg);
 };
 
 #endif

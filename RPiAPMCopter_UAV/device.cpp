@@ -115,19 +115,19 @@ void Device::update_inertial() {
   m_vAttitude = anneal_V3f(m_vAttitude, vAnneal, time_s, INERT_ANNEAL_SLOPE, INERT_FUSION_RATE);
 }
 
-float Device::getInertPitCor() {
+float Device::get_pit_cor() {
   return m_fInertPitCor;
 }
 
-float Device::getInertRolCor() {
+float Device::get_rol_cor() {
   return m_fInertRolCor;
 }
 
-void Device::setInertPitCor(float fValDeg) {
+void Device::set_pit_cor(float fValDeg) {
   m_fInertPitCor = fValDeg;
 }
 
-void Device::setInertRolCor(float fValDeg) {
+void Device::set_rol_cor(float fValDeg) {
   m_fInertRolCor = fValDeg;
 }
 

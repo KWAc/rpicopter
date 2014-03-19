@@ -73,13 +73,13 @@ bool Receiver::parse_gyr_cor(char* buffer) {
 
       switch(i) {
         case 0:
-          m_pHalBoard->setInertRolCor(atof(cstr) );
-          m_pHalBoard->setInertRolCor(m_pHalBoard->getInertRolCor()  > 10.f ? 10.f : m_pHalBoard->getInertRolCor() < -10.f ? -10.f : m_pHalBoard->getInertRolCor() );
+          m_pHalBoard->set_rol_cor(atof(cstr) );
+          m_pHalBoard->set_rol_cor(m_pHalBoard->get_rol_cor()  > 10.f ? 10.f : m_pHalBoard->get_rol_cor() < -10.f ? -10.f : m_pHalBoard->get_rol_cor() );
           bRes = true;
         break;
         case 1:
-          m_pHalBoard->setInertPitCor(atof(cstr) );
-          m_pHalBoard->setInertPitCor(m_pHalBoard->getInertPitCor()  > 10.f ? 10.f : m_pHalBoard->getInertPitCor() < -10.f ? -10.f : m_pHalBoard->getInertPitCor() );
+          m_pHalBoard->set_pit_cor(atof(cstr) );
+          m_pHalBoard->set_pit_cor(m_pHalBoard->get_pit_cor()  > 10.f ? 10.f : m_pHalBoard->get_pit_cor() < -10.f ? -10.f : m_pHalBoard->get_pit_cor() );
           bRes = true;
         break;
       }
@@ -239,7 +239,7 @@ bool Receiver::read_uartA(uint_fast16_t bytesAvail) {
       m_cBuffer[offset++] = c;                          // store in buffer and continue until newline
     }
   }
-  timeLastSuccessfulParse_uartA();
+  last_parse_uartA_t32();
   return bRet;
 }
 /* 
@@ -312,7 +312,7 @@ bool Receiver::read_uartC(uint_fast16_t bytesAvail) {
       m_cBuffer[offset++] = c;                                // store in buffer and continue until newline
     }
   }
-  timeLastSuccessfulParse_uartC();
+  last_parse_uartC_t32();
   return bRet;
 }
 
@@ -350,14 +350,14 @@ bool Receiver::parse(char *buffer) {
 bool Receiver::try_uartAC() {
   // Commands via serial port (in this case WiFi -> RPi -> APM2.5)
   bool bOK = read_uartA(m_pHalBoard->m_pHAL->uartA->available() ); 	// Try WiFi (serial) first
-  if(!bOK && timeLastSuccessfulParse_uartA() > UART_A_TIMEOUT) {
+  if(!bOK && last_parse_uartA_t32() > UART_A_TIMEOUT) {
     bOK = read_uartC(m_pHalBoard->m_pHAL->uartC->available() ); 	        // If not working: Try radio next
   }
-  timeLastSuccessfulParse();
+  last_parse_t32();
   return bOK;
 }
 
-uint_fast32_t Receiver::timeLastSuccessfulParse() {
+uint_fast32_t Receiver::last_parse_t32() {
   m_iSParseTime = m_pHalBoard->m_pHAL->scheduler->millis() - m_iSParseTimer;
   
   if(m_iSParseTime > COM_PKT_TIMEOUT) {
@@ -367,12 +367,12 @@ uint_fast32_t Receiver::timeLastSuccessfulParse() {
   return m_iSParseTime;
 }
 
-uint_fast32_t Receiver::timeLastSuccessfulParse_uartA() {
+uint_fast32_t Receiver::last_parse_uartA_t32() {
   m_iSParseTime_A = m_pHalBoard->m_pHAL->scheduler->millis() - m_iSParseTimer_A;
   return m_iSParseTime_A;
 }
 
-uint_fast32_t Receiver::timeLastSuccessfulParse_uartC() {
+uint_fast32_t Receiver::last_parse_uartC_t32() {
   m_iSParseTime_C = m_pHalBoard->m_pHAL->scheduler->millis() - m_iSParseTimer_C;
   return m_iSParseTime_C;
 }
