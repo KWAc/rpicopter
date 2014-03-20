@@ -39,7 +39,7 @@ bool Receiver::parse_ctrl_com(char* buffer) {
   if(m_rgChannelsRC == NULL) {
     return false;
   }
-  // process cmd
+
   char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
   char *chk = strtok(NULL, "*");                    // chk = chksum
 
@@ -58,10 +58,9 @@ bool Receiver::parse_ctrl_com(char* buffer) {
 // drift compensation
 // maximum value is between -10 and 10 degrees
 bool Receiver::parse_gyr_cor(char* buffer) {
-  // process cmd
   char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
   char *chk = strtok(NULL, "*");                    // chk = chksum
-  bool bRes = false;
+  bool bRet = false;
   
   if(verf_chksum(str, chk) ) {                      // if chksum OK
     char *cstr;
@@ -75,17 +74,56 @@ bool Receiver::parse_gyr_cor(char* buffer) {
         case 0:
           m_pHalBoard->set_rol_cor(atof(cstr) );
           m_pHalBoard->set_rol_cor(m_pHalBoard->get_rol_cor()  > 10.f ? 10.f : m_pHalBoard->get_rol_cor() < -10.f ? -10.f : m_pHalBoard->get_rol_cor() );
-          bRes = true;
-        break;
+          break;
         case 1:
           m_pHalBoard->set_pit_cor(atof(cstr) );
           m_pHalBoard->set_pit_cor(m_pHalBoard->get_pit_cor()  > 10.f ? 10.f : m_pHalBoard->get_pit_cor() < -10.f ? -10.f : m_pHalBoard->get_pit_cor() );
-          bRes = true;
-        break;
+          bRet = true;
+          break;
       }
     }
   }
-  return bRes;
+  return bRet;
+}
+
+bool Receiver::parse_waypoint(char *buffer) {
+  char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
+  char *chk = strtok(NULL, "*");                    // chk = chksum
+  bool bRet = false;
+  
+  int_fast16_t lat           = 0;
+  int_fast16_t lon           = 0;
+  int_fast16_t alt_m         = 0;
+  GPSPosition::UAV_TYPE flag = GPSPosition::NOTHING_F;
+  
+  if(verf_chksum(str, chk) ) {                      // if chksum OK
+    char *cstr;
+    
+    for(uint_fast8_t i = 0; i < GPSP_ARGS; i++) {   // loop through final 3 RC_CHANNELS
+      if(i == 0)
+        cstr = strtok (buffer, ",");
+      else cstr = strtok (NULL, ",");
+
+      switch(i) {
+        case 0:
+          lat   = atoi(cstr);
+          break;
+        case 1:
+          lon   = atoi(cstr);
+          break;
+        case 2:
+          alt_m = atoi(cstr);
+        break;
+        case 3:
+          flag  = static_cast<GPSPosition::UAV_TYPE>(atoi(cstr) );
+          bRet  = true;
+          break;
+      }
+    }
+    m_Waypoint = GPSPosition(lat, lon, alt_m, flag);
+  }
+  
+  return bRet;
 }
 
 bool Receiver::parse_gyr_cal(char* buffer) {
@@ -134,91 +172,95 @@ bool Receiver::parse_bat_type(char* buffer) {
 }
 
 float *Receiver::parse_pid_substr(char* buffer) {
-  static float pids[PID_SIZE];
-  memset(pids, 0, 3*sizeof(float) );
-
-  char ckP[32], ckI[32], cimax[32];
-  size_t i = 0, c = 0, p = 0;
+  const uint_fast8_t iSize    = 4;
+  static float rgfPIDS[iSize] = { 0.f, 0.f, 0.f, 0.f };
+  memset(rgfPIDS, 0, sizeof(rgfPIDS) );
+  
+  char rgcPIDS[iSize][32];
+  memset(rgcPIDS, 0, sizeof(rgcPIDS) );
+  
+  size_t i = 0, iPIDcstr = 0, iPID = 0;
   for(; i < strlen(buffer); i++) {
+    // String ended here
     if(buffer[i] == '\0') {
       break;
     }
-    else if(buffer[i] != ',') {
-      switch(p) {
-      case 0:
-        ckP[c] = buffer[i];
-        ckP[c+1] = '\0';
-        break;
-      case 1:
-        ckI[c] = buffer[i];
-        ckI[c+1] = '\0';
-        break;
-      case 2:
-        cimax[c] = buffer[i];
-        cimax[c+1] = '\0';
-        break;
-      }
-      c++;
+    // Avoid buffer overflow
+    else if(iPID >= iSize) {
+      break;
     }
-    else {
-      p++;
-      c = 0;
+    // Reached new variable; Go over to next char
+    else if(buffer[i] == ',') {
+      iPID++;
+      iPIDcstr = 0;
       continue;
     }
+    // Read the current variable
+    else {
+      rgcPIDS[iPID][iPIDcstr]   = buffer[i];
+      rgcPIDS[iPID][++iPIDcstr] = '\0';
+    }
   }
-
-  pids[0] = atof(ckP);
-  pids[1] = atof(ckI);
-  pids[2] = atof(cimax);
-
-  return pids;
+  for (int i = 0; i < iSize; i++) {
+    rgfPIDS[i] = atof(rgcPIDS[i]);
+  }
+  return rgfPIDS;
 }
 
 bool Receiver::parse_pid_conf(char* buffer) {
   if(m_pHalBoard == NULL) {
     return false;
-  } else if(m_rgChannelsRC[2] > RC_THR_MIN) {        // If motors run: Do nothing!
+  } 
+  else if(m_rgChannelsRC[2] > RC_THR_MIN) {        // If motors run: Do nothing!
     return false;
   }
 
   // process cmd
+  bool bRet = false;
   char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
   char *chk = strtok(NULL, "*");                    // chk = chksum
 
-  if(verf_chksum(str, chk) ) {                    // if chksum OK
+  if(verf_chksum(str, chk) ) {                      // if chksum OK
     char *cstr;
 
     for(uint_fast8_t i = 0; i < PID_ARGS; i++) {
       if(i == 0)
         cstr = strtok (buffer, ";");
       else cstr = strtok (NULL, ";");
-
+      
       float *pids = parse_pid_substr(cstr);
       switch(i) {
       case 0:
-        m_pHalBoard->m_pPIDS[PID_PIT_RATE].kP(pids[0]);
-        m_pHalBoard->m_pPIDS[PID_PIT_RATE].kI(pids[1]);
-        m_pHalBoard->m_pPIDS[PID_PIT_RATE].imax(pids[2]);
+        m_pHalBoard->m_rgPIDS[PID_PIT_RATE].kP(pids[0]);
+        m_pHalBoard->m_rgPIDS[PID_PIT_RATE].kI(pids[1]);
+        m_pHalBoard->m_rgPIDS[PID_PIT_RATE].imax(pids[2]);
         break;
       case 1:
-        m_pHalBoard->m_pPIDS[PID_ROL_RATE].kP(pids[0]);
-        m_pHalBoard->m_pPIDS[PID_ROL_RATE].kI(pids[1]);
-        m_pHalBoard->m_pPIDS[PID_ROL_RATE].imax(pids[2]);
+        m_pHalBoard->m_rgPIDS[PID_ROL_RATE].kP(pids[0]);
+        m_pHalBoard->m_rgPIDS[PID_ROL_RATE].kI(pids[1]);
+        m_pHalBoard->m_rgPIDS[PID_ROL_RATE].imax(pids[2]);
         break;
       case 2:
-        m_pHalBoard->m_pPIDS[PID_YAW_RATE].kP(pids[0]);
-        m_pHalBoard->m_pPIDS[PID_YAW_RATE].kI(pids[1]);
-        m_pHalBoard->m_pPIDS[PID_YAW_RATE].imax(pids[2]);
+        m_pHalBoard->m_rgPIDS[PID_YAW_RATE].kP(pids[0]);
+        m_pHalBoard->m_rgPIDS[PID_YAW_RATE].kI(pids[1]);
+        m_pHalBoard->m_rgPIDS[PID_YAW_RATE].imax(pids[2]);
         break;
       case 3:
-        m_pHalBoard->m_pPIDS[PID_PIT_STAB].kP(pids[0]);
-        m_pHalBoard->m_pPIDS[PID_ROL_STAB].kP(pids[1]);
-        m_pHalBoard->m_pPIDS[PID_YAW_STAB].kP(pids[2]);
+        m_pHalBoard->m_rgPIDS[PID_THR_ACCL].kP(pids[0]);
+        m_pHalBoard->m_rgPIDS[PID_THR_ACCL].kI(pids[1]);
+        m_pHalBoard->m_rgPIDS[PID_THR_ACCL].imax(pids[2]);
+        break;
+      case 4:
+        m_pHalBoard->m_rgPIDS[PID_PIT_STAB].kP(pids[0]);
+        m_pHalBoard->m_rgPIDS[PID_ROL_STAB].kP(pids[1]);
+        m_pHalBoard->m_rgPIDS[PID_YAW_STAB].kP(pids[2]);
+        m_pHalBoard->m_rgPIDS[PID_THR_STAB].kP(pids[3]);
+        bRet = true;
         break;
       }
     }
   }
-  return true;
+  return bRet;
 }
 
 bool Receiver::read_uartA(uint_fast16_t bytesAvail) {
@@ -342,6 +384,9 @@ bool Receiver::parse(char *buffer) {
   }
   if(strcmp(ctype, "BAT") == 0) {
     return parse_bat_type(command);
+  }
+  if(strcmp(ctype, "UAV") == 0) {
+    return parse_waypoint(command);
   }
   
   return false;

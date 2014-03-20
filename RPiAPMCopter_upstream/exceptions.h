@@ -53,6 +53,7 @@ private:
    * Disables the altitude hold function
    */
   void disable_alti_hold();
+  void disable_gps_navigation();
   
 public:
   Exception(Device *, Receiver *);

@@ -41,11 +41,20 @@ struct GPSData {
 };
 
 struct GPSPosition {
+  enum UAV_TYPE {
+    NOTHING_F = 1 << 0,
+    HLD_ALTITUDE_F = 1 << 1,
+    GPS_NAVIGATN_F = 1 << 2
+  };
+
   int_fast16_t latitude;     // in degrees * 10,000,000
   int_fast16_t longitude;    // in degrees * 10,000,000
   int_fast16_t altitude_m;   // altitude in m
   
+  UAV_TYPE m_eMode;
+  
   GPSPosition();
+  GPSPosition(int_fast16_t, int_fast16_t, int_fast16_t, GPSPosition::UAV_TYPE);
 };
 
 // battery monitor

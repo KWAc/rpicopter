@@ -45,14 +45,14 @@ void leds_on() {
 ///////////////////////////////////////////////////////////
 void send_comp() {
   hal.console->printf("{\"type\":\"s_cmp\",\"h\":%.1f}\n",
-  (double)_HAL_BOARD.read_comp() );
+  (double)_HAL_BOARD.read_comp_deg() );
 }
 ///////////////////////////////////////////////////////////
 // attitude in degrees
 ///////////////////////////////////////////////////////////
 void send_atti() {
   hal.console->printf("{\"type\":\"s_att\",\"r\":%.1f,\"p\":%.1f,\"y\":%.1f}\n",
-  (double)_HAL_BOARD.get_atti_raw().y, (double)_HAL_BOARD.get_atti_raw().x, (double)_HAL_BOARD.get_atti_raw().z);
+  (double)_HAL_BOARD.get_atti_raw_deg().y, (double)_HAL_BOARD.get_atti_raw_deg().x, (double)_HAL_BOARD.get_atti_raw_deg().z);
 }
 ///////////////////////////////////////////////////////////
 // barometer
@@ -138,21 +138,21 @@ void send_rc() {
 ///////////////////////////////////////////////////////////
 void send_pids() {
   // Capture values
-  float pit_rkp   = _HAL_BOARD.m_pPIDS[PID_PIT_RATE].kP();
-  float pit_rki   = _HAL_BOARD.m_pPIDS[PID_PIT_RATE].kI();
-  float pit_rimax = _HAL_BOARD.m_pPIDS[PID_PIT_RATE].imax();
+  float pit_rkp   = _HAL_BOARD.m_rgPIDS[PID_PIT_RATE].kP();
+  float pit_rki   = _HAL_BOARD.m_rgPIDS[PID_PIT_RATE].kI();
+  float pit_rimax = _HAL_BOARD.m_rgPIDS[PID_PIT_RATE].imax();
 
-  float rol_rkp   = _HAL_BOARD.m_pPIDS[PID_ROL_RATE].kP();
-  float rol_rki   = _HAL_BOARD.m_pPIDS[PID_ROL_RATE].kI();
-  float rol_rimax = _HAL_BOARD.m_pPIDS[PID_ROL_RATE].imax();
+  float rol_rkp   = _HAL_BOARD.m_rgPIDS[PID_ROL_RATE].kP();
+  float rol_rki   = _HAL_BOARD.m_rgPIDS[PID_ROL_RATE].kI();
+  float rol_rimax = _HAL_BOARD.m_rgPIDS[PID_ROL_RATE].imax();
 
-  float yaw_rkp   = _HAL_BOARD.m_pPIDS[PID_YAW_RATE].kP();
-  float yaw_rki   = _HAL_BOARD.m_pPIDS[PID_YAW_RATE].kI();
-  float yaw_rimax = _HAL_BOARD.m_pPIDS[PID_YAW_RATE].imax();
+  float yaw_rkp   = _HAL_BOARD.m_rgPIDS[PID_YAW_RATE].kP();
+  float yaw_rki   = _HAL_BOARD.m_rgPIDS[PID_YAW_RATE].kI();
+  float yaw_rimax = _HAL_BOARD.m_rgPIDS[PID_YAW_RATE].imax();
 
-  float pit_skp   = _HAL_BOARD.m_pPIDS[PID_PIT_STAB].kP();
-  float rol_skp   = _HAL_BOARD.m_pPIDS[PID_ROL_STAB].kP();
-  float yaw_skp   = _HAL_BOARD.m_pPIDS[PID_YAW_STAB].kP();
+  float pit_skp   = _HAL_BOARD.m_rgPIDS[PID_PIT_STAB].kP();
+  float rol_skp   = _HAL_BOARD.m_rgPIDS[PID_ROL_STAB].kP();
+  float yaw_skp   = _HAL_BOARD.m_rgPIDS[PID_YAW_STAB].kP();
 
   hal.console->printf("{\"type\":\"pid_cnf\",\"pit_rkp\":%.2f,\"pit_rki\":%.2f,\"pit_rimax\":%.2f,\"rol_rkp\":%.2f,\"rol_rki\":%.2f,\"rol_rimax\":%.2f,\"yaw_rkp\":%.2f,\"yaw_rki\":%.2f,\"yaw_rimax\":%.2f,\"pit_skp\":%.2f,\"rol_skp\":%.2f,\"yaw_skp\":%.2f}\n",
   (double)pit_rkp, (double)pit_rki, (double)pit_rimax,

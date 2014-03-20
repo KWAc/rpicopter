@@ -34,6 +34,16 @@ GPSPosition::GPSPosition() {
   latitude    = 0;
   longitude   = 0;
   altitude_m  = 0;
+  
+  m_eMode     = GPSPosition::NOTHING_F;
+}
+
+GPSPosition::GPSPosition(int_fast16_t lat, int_fast16_t lon, int_fast16_t alt, GPSPosition::UAV_TYPE flag) {
+  latitude    = lat;
+  longitude   = lon;
+  altitude_m  = alt;
+  
+  m_eMode     = flag;
 }
 
 BattData::BattData() {

@@ -90,33 +90,39 @@ void Exception::rls_recvr(bool &bSwitch) {
 }
 
 void Exception::disable_alti_hold() {
-  // Disable altitude hold
-  #ifdef ALTITUDE_HOLD
-    #undef ALTITUDE_HOLD
-    #define ALTITUDE_HOLD 0
-  #endif
+  if(m_pReceiver->m_Waypoint.m_eMode == GPSPosition::HLD_ALTITUDE_F) {
+    m_pReceiver->m_Waypoint.m_eMode = GPSPosition::NOTHING_F;
+  }
+}
+
+void Exception::disable_gps_navigation() {
+  if(m_pReceiver->m_Waypoint.m_eMode == GPSPosition::GPS_NAVIGATN_F) {
+    m_pReceiver->m_Waypoint.m_eMode = GPSPosition::NOTHING_F;
+  }
 }
 
 bool Exception::handle() {
   //////////////////////////////////////////////////////////////////////////////////////////
   // Device handler
   //////////////////////////////////////////////////////////////////////////////////////////
-  if(m_pHalBoard->get_errors() & AbsErrorDevice::GYROMETER_F) {   // Gyrometer was not healthy: Go down straight
+  if(m_pHalBoard->get_errors() & AbsErrorDevice::GYROMETER_F) {     // Gyrometer was not healthy: Go down straight
     dev_take_down();
     return true;
   }
-  if(m_pHalBoard->get_errors() & AbsErrorDevice::ACCELEROMETR_F) { // Accelerometer was not healthy: Go down straight
+  if(m_pHalBoard->get_errors() & AbsErrorDevice::ACCELEROMETR_F) {  // Accelerometer was not healthy: Go down straight
     dev_take_down();
     return true;
   }
-  if(m_pHalBoard->get_errors() & AbsErrorDevice::BAROMETER_F) {
+  if(m_pHalBoard->get_errors() & AbsErrorDevice::BAROMETER_F) {     // If barometer is not working, the height calculation would be likely unreliable (GPS probably not stable)
     disable_alti_hold();
     return true;
   }
-  if(m_pHalBoard->get_errors() & AbsErrorDevice::COMPASS_F) {
+  if(m_pHalBoard->get_errors() & AbsErrorDevice::COMPASS_F) {       // If Compass not working, the GPS navigation shouldn't be used
+    disable_gps_navigation();
     return true;
   }
-  if(m_pHalBoard->get_errors() & AbsErrorDevice::GPS_F) {
+  if(m_pHalBoard->get_errors() & AbsErrorDevice::GPS_F) {           // And if GPS not working, the GPS navigation shouldn't be used at all :D
+    disable_gps_navigation();
     return true;
   }
   if(m_pHalBoard->get_errors() & AbsErrorDevice::VOLTAGE_HIGH_F) {
@@ -128,7 +134,7 @@ bool Exception::handle() {
   if(m_pHalBoard->get_errors() & AbsErrorDevice::CURRENT_HIGH_F) {
     return true;
   }
-  if(m_pHalBoard->get_errors() & AbsErrorDevice::CURRENT_LOW_F) { // Battery is at the end: Go down straight
+  if(m_pHalBoard->get_errors() & AbsErrorDevice::CURRENT_LOW_F) {   // Battery is at the end: Go down straight
     dev_take_down();
     return true;
   }
@@ -153,7 +159,7 @@ void Exception::reduce_thr(float fTime) {
   uint_fast32_t iAltitudeTime = m_pHalBoard->m_pHAL->scheduler->millis() - m_t32Altitude;
   if(iAltitudeTime > ALTI_MEASURE_TIME) {
     bool bSensorOK = false;
-    float fAlti = m_pHalBoard->estim_alti_m(bSensorOK);
+    float fAlti = m_pHalBoard->read_alti_m(bSensorOK);
     if(bSensorOK == true) {
       fStepC = go_down_t(fAlti, m_rgChannelsRC[2]);
     }

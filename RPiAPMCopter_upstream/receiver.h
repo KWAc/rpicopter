@@ -9,6 +9,7 @@
 
 #include "config.h"
 #include "absdevice.h"
+#include "containers.h"
 
 class Device;
 
@@ -38,7 +39,9 @@ protected:
   bool    parse_gyr_cal   (char *);
   bool    parse_bat_type  (char *);
   bool    parse_pid_conf  (char *);
-
+  // Autonomous flight
+  bool    parse_waypoint  (char *);
+  // Switch for all the different kind of commands to parse
   bool    parse           (char *);
 
 public:
@@ -46,6 +49,8 @@ public:
 
   // Eight channel remote control plus one for altitude hold (height in cm)
   int_fast32_t m_rgChannelsRC[APM_IOCHAN_CNT];
+  // Current position for autonomous flight
+  GPSPosition m_Waypoint;
   
   // Read from serial bus
   bool read_uartA(uint_fast16_t bytesAvail); // console in APM 2

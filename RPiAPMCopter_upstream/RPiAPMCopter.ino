@@ -39,9 +39,9 @@
 #include "math.h"
 
 
-inline double progress_f(uint_fast8_t iStep, uint_fast8_t iMax);
-inline void hold_altitude(int_fast16_t &iFL, int_fast16_t &iBL, int_fast16_t &iFR, int_fast16_t &iBR);
-inline void set_channels(int_fast16_t &pit, int_fast16_t &rol, int_fast16_t &yaw, int_fast16_t &thr);
+inline double progress_f(uint_fast8_t, uint_fast8_t);
+inline void hold_altitude(int_fast16_t &, int_fast16_t &, int_fast16_t &, int_fast16_t &, const int_fast32_t);
+inline void set_channels(int_fast32_t &, int_fast32_t &, int_fast32_t &, int_fast32_t &, int_fast32_t &);
 inline void main_loop();
 inline void measure_alti();
 
@@ -51,44 +51,55 @@ Task taskAlti(&measure_alti, ALTI_ESTIM_T_MS, 1);
 /*
  * Sets references to values in the eight channel rc input
  */
-void set_channels(int_fast32_t &pit, int_fast32_t &rol, int_fast32_t &yaw, int_fast32_t &thr, int_fast32_t &alt) {
+void set_channels(int_fast32_t &pit, int_fast32_t &rol, int_fast32_t &yaw, int_fast32_t &thr, 
+                  int_fast32_t &alt_m) 
+{
   rol = _RECVR.m_rgChannelsRC[0];
   pit = _RECVR.m_rgChannelsRC[1];
   thr = _RECVR.m_rgChannelsRC[2] > RC_THR_80P ? RC_THR_80P : _RECVR.m_rgChannelsRC[2];
   yaw = _RECVR.m_rgChannelsRC[3];
-  alt = _RECVR.m_rgChannelsRC[8];   // Desired altitude 
+  alt_m = _RECVR.m_Waypoint.altitude_m;
 }
 
 void measure_alti() {
-  if(!ALTITUDE_HOLD) {
+  // Enhance the performance:
+  // This function is only needed for (semi-)autonomous flight mode like:
+  // * Hold altitude
+  // * GPS auto-navigation
+  if(_RECVR.m_Waypoint.m_eMode == GPSPosition::NOTHING_F) {
     return;
   }
-  
+
   bool bOK;
-  _HAL_BOARD.estim_alti_m(bOK);
-  if(bOK == false) {
-    // Disable altitude hold
-    #ifdef ALTITUDE_HOLD
-      #undef ALTITUDE_HOLD
-      #define ALTITUDE_HOLD 0
-    #endif
-  }
+  _HAL_BOARD.read_alti_m(bOK);
 }
 
-void hold_altitude(int_fast16_t &iFL, int_fast16_t &iBL, int_fast16_t &iFR, int_fast16_t &iBR, const int_fast32_t iDesiredAltitude_cm) {
-  if(!ALTITUDE_HOLD) {
+void hold_altitude(int_fast16_t &iFL, int_fast16_t &iBL, int_fast16_t &iFR, int_fast16_t &iBR, 
+                   const int_fast32_t rcalt_m) 
+{
+  // Enhance the performance:
+  // This function is only needed for (semi-)autonomous flight mode like:
+  // * Hold altitude
+  // * GPS auto-navigation
+  if(_RECVR.m_Waypoint.m_eMode == GPSPosition::NOTHING_F) {
     return;
   }
 
+  // Return estimated altitude by GPS and barometer 
   float fCurAlti_cm       = _HAL_BOARD.get_alti_m() * 100.f;
-  float fCurClimbr_cms    = _HAL_BOARD.get_baro().climb_rate_ms * 100.f;
-  float alt_stab_output   = _HAL_BOARD.m_pPIDS[PID_THR_STAB].get_pid(fCurAlti_cm - (float)iDesiredAltitude_cm, 1);
-  int_fast16_t alt_output = _HAL_BOARD.m_pPIDS[PID_THR_RATE].get_pid(alt_stab_output - fCurClimbr_cms, 1);
-
-  iFL += alt_output;
-  iBL += alt_output;
-  iFR += alt_output;
-  iBR += alt_output;
+  // Estimate current climb rate
+  float fBaroClimb_cms    = _HAL_BOARD.get_baro().climb_rate_ms * 100;
+  float fAcclClimb_cms    = _HAL_BOARD.get_accel_ms().z * 100;
+  // calculate the 
+  float fAltStabOut      = _HAL_BOARD.m_rgPIDS[PID_THR_STAB].get_pid(fCurAlti_cm - (float)(rcalt_m*100), 1);
+  float fBarAcclOut      = _HAL_BOARD.m_rgPIDS[PID_THR_ACCL].get_pid(fAltStabOut - fBaroClimb_cms, 1);
+  float fAccAcclOut      = _HAL_BOARD.m_rgPIDS[PID_THR_ACCL].get_pid(fAltStabOut - fAcclClimb_cms, 1);
+  int_fast16_t iAltOutput = _HAL_BOARD.m_rgPIDS[PID_THR_RATE].get_pid(fAltStabOut - (fBarAcclOut + fAccAcclOut), 1);
+  // Modify the speed of the motors
+  iFL += iAltOutput;
+  iBL += iAltOutput;
+  iFR += iAltOutput;
+  iBR += iAltOutput;
 }
 
 double progress_f(uint_fast8_t iStep, uint_fast8_t iMax) {
@@ -117,15 +128,15 @@ void main_loop() {
 
   // Update sensor information
   _HAL_BOARD.update_inertial();
-  Vector3f vAtti       = _HAL_BOARD.get_atti_cor(); // returns the fused sensor value (gyrometer and accelerometer)
-  Vector3f vGyro       = _HAL_BOARD.get_gyro_cor(); // returns the sensor value from the gyrometer
+  Vector3f vAtti       = _HAL_BOARD.get_atti_cor_deg(); // returns the fused sensor value (gyrometer and accelerometer)
+  Vector3f vGyro       = _HAL_BOARD.get_gyro_cor_deg(); // returns the sensor value from the gyrometer
   
   // Throttle raised, turn on stabilisation.
   if(rcthr > RC_THR_ACRO) {
     // Stabilise PIDS
-    float pit_stab_output = constrain_float(_HAL_BOARD.m_pPIDS[PID_PIT_STAB].get_pid((float)rcpit - vAtti.x, 1), -250, 250);
-    float rol_stab_output = constrain_float(_HAL_BOARD.m_pPIDS[PID_ROL_STAB].get_pid((float)rcrol - vAtti.y, 1), -250, 250);
-    float yaw_stab_output = constrain_float(_HAL_BOARD.m_pPIDS[PID_YAW_STAB].get_pid(wrap180_f(targ_yaw - vAtti.z), 1), -360, 360);
+    float pit_stab_output = constrain_float(_HAL_BOARD.m_rgPIDS[PID_PIT_STAB].get_pid((float)rcpit - vAtti.x, 1), -250, 250);
+    float rol_stab_output = constrain_float(_HAL_BOARD.m_rgPIDS[PID_ROL_STAB].get_pid((float)rcrol - vAtti.y, 1), -250, 250);
+    float yaw_stab_output = constrain_float(_HAL_BOARD.m_rgPIDS[PID_YAW_STAB].get_pid(wrap180_f(targ_yaw - vAtti.z), 1), -360, 360);
 
     // is pilot asking for yaw change - if so feed directly to rate pid (overwriting yaw stab output)
     if(abs(rcyaw ) > 5.f) {
@@ -134,14 +145,15 @@ void main_loop() {
     }
 
     // rate PIDS
-    int_fast16_t pit_output = (int_fast16_t)constrain_float(_HAL_BOARD.m_pPIDS[PID_PIT_RATE].get_pid(pit_stab_output - vGyro.x, 1), -500, 500);
-    int_fast16_t rol_output = (int_fast16_t)constrain_float(_HAL_BOARD.m_pPIDS[PID_ROL_RATE].get_pid(rol_stab_output - vGyro.y, 1), -500, 500);
-    int_fast16_t yaw_output = (int_fast16_t)constrain_float(_HAL_BOARD.m_pPIDS[PID_YAW_RATE].get_pid(yaw_stab_output - vGyro.z, 1), -500, 500);
+    int_fast16_t pit_output = (int_fast16_t)constrain_float(_HAL_BOARD.m_rgPIDS[PID_PIT_RATE].get_pid(pit_stab_output - vGyro.x, 1), -500, 500);
+    int_fast16_t rol_output = (int_fast16_t)constrain_float(_HAL_BOARD.m_rgPIDS[PID_ROL_RATE].get_pid(rol_stab_output - vGyro.y, 1), -500, 500);
+    int_fast16_t yaw_output = (int_fast16_t)constrain_float(_HAL_BOARD.m_rgPIDS[PID_YAW_RATE].get_pid(yaw_stab_output - vGyro.z, 1), -500, 500);
     
     int_fast16_t iFL = rcthr + rol_output + pit_output - yaw_output;
     int_fast16_t iBL = rcthr + rol_output - pit_output + yaw_output;
     int_fast16_t iFR = rcthr - rol_output + pit_output + yaw_output;
     int_fast16_t iBR = rcthr - rol_output - pit_output - yaw_output;
+    // Hold the altitude
     hold_altitude(iFL, iBL, iFR, iBR, rcalt);
     
     hal.rcout->write(MOTOR_FL, iFL);
@@ -161,7 +173,7 @@ void main_loop() {
 
     // reset PID integrals whilst on the ground
     for(uint_fast8_t i = 0; i < 6; i++) {
-      _HAL_BOARD.m_pPIDS[i].reset_I();
+      _HAL_BOARD.m_rgPIDS[i].reset_I();
     }
   }
 }
