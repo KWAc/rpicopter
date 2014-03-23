@@ -2,6 +2,7 @@
 #include "device.h"
 #include "BattMonitor.h"
 #include "math.h"
+#include "extended_readouts.h"
 
 
 Receiver::Receiver(Device *pHalBoard) {
@@ -113,16 +114,30 @@ bool Receiver::parse_waypoint(char *buffer) {
           break;
         case 2:
           alt_m = atoi(cstr);
-        break;
+	  break;
         case 3:
-          flag  = static_cast<GPSPosition::UAV_TYPE>(atoi(cstr) );
-          bRet  = true;
+	  // Parse the type flag
+          flag = static_cast<GPSPosition::UAV_TYPE>(atoi(cstr) );
+          // Override the height if the flag is HLD_ALTITUDE_F
+          if(flag == GPSPosition::HLD_ALTITUDE_F) {
+            bool bOK = false;
+            // Measure the current height
+            alt_m = altitude_m(m_pHalBoard, bOK);
+            // If height measurement failed, then break it
+            if(!bOK) {
+              flag = GPSPosition::NOTHING_F;
+            }
+          }
+          // Indicate everything went well
+          bRet = true;
           break;
       }
     }
+  }
+  // Set new waypoint only if the everything worked out like expected
+  if(bRet == true) {
     m_Waypoint = GPSPosition(lat, lon, alt_m, flag);
   }
-  
   return bRet;
 }
 
@@ -172,11 +187,9 @@ bool Receiver::parse_bat_type(char* buffer) {
 }
 
 float *Receiver::parse_pid_substr(char* buffer) {
-  const uint_fast8_t iSize    = 4;
-  static float rgfPIDS[iSize] = { 0.f, 0.f, 0.f, 0.f };
+  static float rgfPIDS[PID_BUFFER_S] = { 0 };
+  char rgcPIDS[PID_BUFFER_S][32];
   memset(rgfPIDS, 0, sizeof(rgfPIDS) );
-  
-  char rgcPIDS[iSize][32];
   memset(rgcPIDS, 0, sizeof(rgcPIDS) );
   
   size_t i = 0, iPIDcstr = 0, iPID = 0;
@@ -186,7 +199,7 @@ float *Receiver::parse_pid_substr(char* buffer) {
       break;
     }
     // Avoid buffer overflow
-    else if(iPID >= iSize) {
+    else if(iPID >= PID_BUFFER_S) {
       break;
     }
     // Reached new variable; Go over to next char
@@ -201,7 +214,7 @@ float *Receiver::parse_pid_substr(char* buffer) {
       rgcPIDS[iPID][++iPIDcstr] = '\0';
     }
   }
-  for (int i = 0; i < iSize; i++) {
+  for (int i = 0; i < PID_BUFFER_S; i++) {
     rgfPIDS[i] = atof(rgcPIDS[i]);
   }
   return rgfPIDS;
@@ -246,11 +259,16 @@ bool Receiver::parse_pid_conf(char* buffer) {
         m_pHalBoard->m_rgPIDS[PID_YAW_RATE].imax(pids[2]);
         break;
       case 3:
+        m_pHalBoard->m_rgPIDS[PID_THR_RATE].kP(pids[0]);
+        m_pHalBoard->m_rgPIDS[PID_THR_RATE].kI(pids[1]);
+        m_pHalBoard->m_rgPIDS[PID_THR_RATE].imax(pids[2]);
+        break;
+      case 4:
         m_pHalBoard->m_rgPIDS[PID_THR_ACCL].kP(pids[0]);
         m_pHalBoard->m_rgPIDS[PID_THR_ACCL].kI(pids[1]);
         m_pHalBoard->m_rgPIDS[PID_THR_ACCL].imax(pids[2]);
         break;
-      case 4:
+      case 5:
         m_pHalBoard->m_rgPIDS[PID_PIT_STAB].kP(pids[0]);
         m_pHalBoard->m_rgPIDS[PID_ROL_STAB].kP(pids[1]);
         m_pHalBoard->m_rgPIDS[PID_YAW_STAB].kP(pids[2]);

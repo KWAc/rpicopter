@@ -157,6 +157,7 @@ QRCWidget::QRCWidget(QUdpSocket *pSock, QSerialPort *pSerialPort, QWidget *paren
     setFocusPolicy(Qt::StrongFocus);
 
     m_bRadioEnabled = true;
+    m_bAltitudeHold = false;
 
     m_iUpdateTime = 13;
     m_fTimeConstRed = (float)m_iUpdateTime/150.f;
@@ -201,17 +202,48 @@ void QRCWidget::initGyro2UDP() {
     com.append(QString::number(true) ); 
     com.append("}");
 
-    memset(m_cWiFiCommand, 0, sizeof(m_cWiFiCommand) );
-    for(unsigned int i = 0; i < static_cast<unsigned int>(com.size() ) && i < sizeof(m_cWiFiCommand); i++) {
-        m_cWiFiCommand[i] = com.at(i).toLatin1();
-    }
-
     this->stop();
     qDebug() << "Try to start gyrometer calibration";
     for(int i = 0; i < 16; i++) {
-        sendJSON2UDP(QPair<int, char*> (com.size(), m_cWiFiCommand) );
+        sendJSON2UDP(com);
     }
     this->start();
+}
+
+void QRCWidget::activAltihold2UDP() {
+    QString com = "";
+    com.append("{\"type\":\"uav\",\"lat_d\":");
+    com.append(QString::number(0) );
+    com.append(",\"lon_d\":");
+    com.append(QString::number(0) );
+    com.append(",\"alt_m\":");
+    com.append(QString::number(0) );
+    com.append(",\"flag_t\":");
+    com.append(QString::number(1 << 1) ); // HLD_ALTITUDE_F
+    com.append("}");
+
+    qDebug() << "Try to init altitude hold";
+    for(int i = 0; i < 16; i++) {
+        sendJSON2UDP(com);
+    }
+}
+
+void QRCWidget::deactAltihold2UDP() {
+    QString com = "";
+    com.append("{\"type\":\"uav\",\"lat_d\":");
+    com.append(QString::number(0) );
+    com.append(",\"lon_d\":");
+    com.append(QString::number(0) );
+    com.append(",\"alt_m\":");
+    com.append(QString::number(0) );
+    com.append(",\"flag_t\":");
+    com.append(QString::number(1 << 0) ); // NOTHING_F
+    com.append("}");
+
+    qDebug() << "Try to init normal mode";
+    for(int i = 0; i < 16; i++) {
+        sendJSON2UDP(com);
+    }
 }
 
 void QRCWidget::sl_customKeyPressHandler() {
@@ -227,10 +259,19 @@ void QRCWidget::sl_customKeyPressHandler() {
         sendJSON2UDP(m_DRIFT.cstr_makeWiFiCommand() );
     }
 
+    // Inertial calibration
     if(m_customKeyStatus[Qt::Key_C] == true) {
         //qDebug() << "C";
         initGyro2UDP();
         m_customKeyStatus[Qt::Key_C] = false;
+    }
+
+    if(m_customKeyStatus[Qt::Key_H] == true) {
+        //qDebug() << "H";
+        if(!m_bAltitudeHold) {
+            activAltihold2UDP();
+            m_bAltitudeHold = true;
+        }
     }
 
     if(m_customKeyStatus[Qt::Key_W] == true) {
@@ -344,6 +385,13 @@ void QRCWidget::sl_customKeyReleaseHandler() {
         m_COM.YAW > 0 ? m_COM.YAW -= 1 * m_fTimeConstRed : m_COM.YAW += 1 * m_fTimeConstRed;
     }
 
+    if(m_bAltitudeHold) {
+        if(!m_customKeyStatus[Qt::Key_H]) {
+            deactAltihold2UDP();
+            m_bAltitudeHold = false;
+        }
+    }
+
     update();
 }
 
@@ -354,6 +402,16 @@ void QRCWidget::sendJSON2UDP(QPair<int, char*> pair) {
     if (pair.first > 0) {
         //qDebug() << "WiFi: " << pair.first << pair.second;
         m_pUdpSock->write(pair.second, pair.first);
+    }
+}
+
+void QRCWidget::sendJSON2UDP(QString sCom) {
+    if(!m_pUdpSock)
+        return;
+
+    if (sCom.size() > 0) {
+        //qDebug() << "WiFi: " << pair.first << pair.second;
+        m_pUdpSock->write(sCom.toLatin1(), sCom.size() );
     }
 }
 
@@ -668,6 +726,11 @@ void QRCWidget::keyPressEvent ( QKeyEvent * event ) {
         //qDebug() << "C";
         break;
 
+        case Qt::Key_H:
+        m_customKeyStatus[i] = true;
+        //qDebug() << "H";
+        break;
+
         case Qt::Key_Up:
         m_customKeyStatus[i] = true;
         //qDebug() << "Up";
@@ -745,6 +808,10 @@ void QRCWidget::keyReleaseEvent ( QKeyEvent * event ) {
         break;
 
         case Qt::Key_C:
+        m_customKeyStatus[i] = false;
+        break;
+
+        case Qt::Key_H:
         m_customKeyStatus[i] = false;
         break;
 

@@ -41,6 +41,14 @@ def makecommand(roll, pitch, throttle, yaw):
   sCom = '{"type":"rc","r":%d,"p":%d,"t":%d,"y":%d}' % (roll, pitch, throttle, yaw) 
   return sCom
   
+def altihold():
+  sCom = '{"type":"uav","lat_d":%d,"lon_d":%d,"alt_m":%d,"flag_t":%d}' % (0, 0, 0, 1 << 1) 
+  return sCom
+  
+def normalmode():
+  sCom = '{"type":"uav","lat_d":%d,"lon_d":%d,"alt_m":%d,"flag_t":%d}' % (0, 0, 0, 1 << 0) 
+  return sCom
+  
 def sendcommand(sCom):
   sock.send(sCom);
   return sCom;
@@ -140,6 +148,13 @@ def main():
         sCom = gyro_calibration()
         sendcommand(sCom)
         time.sleep(2.0)
+      # Start alti hold
+      if key == ord("h"):
+        sCom = altihold()
+        sendcommand(sCom)
+      if key == ord("g"):
+        sCom = normalmode()
+        sendcommand(sCom)
       else:
         keyevent(key)
         sCom = makecommand(ROL, PIT, THR, YAW)

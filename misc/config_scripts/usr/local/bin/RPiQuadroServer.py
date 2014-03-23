@@ -127,13 +127,22 @@ def trnm_thr():
             send_data(com)
             THR_LOCK.release()
             
+          # Add a waypoint
+          if p['type'] == 'uav':
+            com = "UAV#%d,%d,%d,%d" % (p['lat_d'], p['lon_d'], p['alt_m'], p['flag_t'] )
+            THR_LOCK.acquire()
+            send_data(com)
+            THR_LOCK.release()
+            
           # PID config is about to change the sensitivity of the model to changes in attitude
           if p['type'] == 'pid':
-            com = "PID#%.2f,%.2f,%.2f;%.2f,%.2f,%.2f;%.2f,%.2f,%.2f;%.2f,%.2f,%.2f" % (
+            com = "PID#%.2f,%.2f,%.2f;%.2f,%.2f,%.2f;%.2f,%.2f,%.2f;%.2f,%.2f,%.2f;%.2f,%.2f,%.2f;%.2f,%.2f,%.2f,%.2f" % (
               p['pit_rkp'], p['pit_rki'], p['pit_rimax'], 
               p['rol_rkp'], p['rol_rki'], p['rol_rimax'], 
               p['yaw_rkp'], p['yaw_rki'], p['yaw_rimax'], 
-              p['pit_skp'], p['rol_skp'], p['yaw_skp'] )
+              p['thr_rkp'], p['thr_rki'], p['thr_rimax'], 
+              p['thr_akp'], p['thr_aki'], p['thr_aimax'], 
+              p['pit_skp'], p['rol_skp'], p['yaw_skp'], p['thr_skp'] )
             THR_LOCK.acquire()
             send_data(com)
             THR_LOCK.release()

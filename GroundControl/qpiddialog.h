@@ -18,19 +18,25 @@ private:
     QLabel *m_pit_rkp, *m_pit_rki, *m_pit_rimax;
     QLabel *m_rol_rkp, *m_rol_rki, *m_rol_rimax;
     QLabel *m_yaw_rkp, *m_yaw_rki, *m_yaw_rimax;
-    QLabel *m_pit_skp, *m_rol_skp, *m_yaw_skp;
+    QLabel *m_thr_rkp, *m_thr_rki, *m_thr_rimax;
+    QLabel *m_thr_akp, *m_thr_aki, *m_thr_aimax;
+    QLabel *m_pit_skp, *m_rol_skp, *m_yaw_skp, *m_thr_skp;
 
     QDoubleSpinBox *m_pit_rkp_V, *m_pit_rki_V, *m_pit_rimax_V;
     QDoubleSpinBox *m_rol_rkp_V, *m_rol_rki_V, *m_rol_rimax_V;
     QDoubleSpinBox *m_yaw_rkp_V, *m_yaw_rki_V, *m_yaw_rimax_V;
-    QDoubleSpinBox *m_pit_skp_V, *m_rol_skp_V, *m_yaw_skp_V;
+    QDoubleSpinBox *m_thr_rkp_V, *m_thr_rki_V, *m_thr_rimax_V;
+    QDoubleSpinBox *m_thr_akp_V, *m_thr_aki_V, *m_thr_aimax_V;
+    QDoubleSpinBox *m_pit_skp_V, *m_rol_skp_V, *m_yaw_skp_V, *m_thr_skp_V;
 
     void Setup();
 
     QString s_pit_rkp, s_pit_rki, s_pit_rimax;
     QString s_rol_rkp, s_rol_rki, s_rol_rimax;
     QString s_yaw_rkp, s_yaw_rki, s_yaw_rimax;
-    QString s_pit_skp, s_rol_skp, s_yaw_skp;
+    QString s_thr_rkp, s_thr_rki, s_thr_rimax;
+    QString s_thr_akp, s_thr_aki, s_thr_aimax;
+    QString s_pit_skp, s_rol_skp, s_yaw_skp, s_thr_skp;
 
 public:
     QPIDConfig(QUdpSocket *pSock, QWidget *parent = NULL);

@@ -28,13 +28,22 @@
   #define BATTERY_CURR_PIN   2      // Battery current on A2
 #endif
 
+//////////////////////////////////////////////////////////////////////////////////////////
+// General settings
+//////////////////////////////////////////////////////////////////////////////////////////
+
+#define NR_OF_PIDS           9
 // PID indices
-#define PID_PIT_RATE 	       0
+#define PID_PIT_RATE 	       0      // From Dr. Owen..
 #define PID_ROL_RATE 	       1
 #define PID_PIT_STAB 	       2
 #define PID_ROL_STAB 	       3
 #define PID_YAW_RATE 	       4
 #define PID_YAW_STAB 	       5
+// Optional altitude hold
+#define PID_THR_RATE 	       6      // For my altitude hold implementation
+#define PID_THR_STAB 	       7      // For my altitude hold implementation
+#define PID_THR_ACCL 	       8      // For my altitude hold implementation
 
 // Motor numbers definitions for X configuration
 #define MOTOR_FR             0      // Front right  (CW)
@@ -50,6 +59,7 @@
 #define RC_THR_MAX           1900   // Maximum throttle bias
 // Maximum allowed throttle value, settable by user
 #define RC_THR_80P           0.8 * (RC_THR_MAX - RC_THR_MIN) + RC_THR_MIN
+
 // Degree range for remote control
 #define RC_YAW_MIN           -180
 #define RC_YAW_MAX           +180
@@ -69,6 +79,7 @@
 // Main loop
 //////////////////////////////////////////////////////////////////////////////////////////
 #define MAIN_LOOP_T_MS       6      // Update frequency of the main loop: 166.6 Hz
+#define ALTI_ESTIM_T_MS      113    // Update frequency of the main loop: 166.6 Hz
 #define INERT_TIMEOUT        5      // in ms
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -85,10 +96,11 @@
 #define COM_PKT_TIMEOUT      500    // in ms
 #define UART_A_TIMEOUT       100    // in ms
 
-#define PID_SIZE             3      // Size of PID array
-#define PID_ARGS             4      // Nr of arguments for PID configuration
+#define PID_ARGS             5      // Nr of arguments for PID configuration
+#define PID_SIZE             3      // Nr of arguments for PID configuration
 
 #define COMP_ARGS            4      // Nr of arguments for on-flight drift compensation
+#define GPSP_ARGS            4      // Nr of arguments for GPSPosition structure
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Device module
@@ -102,5 +114,16 @@
 
 #define CMP_FOR_YAW          0      // Compass
 #define GPS_FOR_YAW          0      // GPS
+
+//////////////////////////////////////////////////////////////////////////////////////////
+// Error handling
+//////////////////////////////////////////////////////////////////////////////////////////
+#define VOLTAGE_ALARM_LOW    10.f   // 2.5V per LiPo cell is already close to death of the cell
+#define VOLTAGE_ALARM_HIGH   21.f   // 5 * 4.2 V (my setup)
+#define THR_MOD_STEP_S       1.25f
+#define THR_TAKE_OFF         1300
+#define THR_MIN_STEP_S       25.f
+#define MAX_FALL_SPEED_MS    0.833f
+#define ALTI_MEASURE_TIME    100    // Time in ms to measure the hight if the model takes down
 
 #endif /*DEFS_h*/

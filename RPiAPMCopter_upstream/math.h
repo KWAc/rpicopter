@@ -1,6 +1,12 @@
 #ifndef COMMON_h
 #define COMMON_h
 
+#include "config.h"
+
+
+inline double progress_f(uint_fast8_t iStep, uint_fast8_t iMax) {
+  return (double)iStep*100.f/(double)iMax;
+}
 
 inline int add_flag(int flag, int mask) {
   flag |= mask;
@@ -79,8 +85,13 @@ inline float delta_f(float fCurVal_Deg, float fOldVal_Deg) {
  * mod: Determines the slope (how fast the function decays when the angular values increase)
  * mod: Higher means faster decay
  */
- inline float sigm_f(float x, float mod){
+ inline float sigm_atti_f(float x, float mod){
   float val = (180.f - smaller_f(abs(mod * x), 179.9f) ) / 180.f;
+  return val / sqrt(1 + pow2_f(val) );
+}
+
+ inline float sigm_climb_f(float x, float mod){
+  float val = smaller_f(abs(mod * x), 125.f) / 250.f;
   return val / sqrt(1 + pow2_f(val) );
 }
 
@@ -89,13 +100,28 @@ inline float delta_f(float fCurVal_Deg, float fOldVal_Deg) {
  * mod: Determines the slope (decay) of the sigmoid activation function
  * rate: Determines how fast the annealing takes place
  */
-inline Vector3f anneal_V3f( Vector3f &angle_fuse, 
-                            const Vector3f &angle_ref, float time, float mod = 20.f, float rate = 5.f) {
+ inline float anneal_f( float &angle_fuse, 
+                        const float &angle_ref, float time, float mod, float rate, float (*functor)(float, float) ) {
   float fR = rate * time;
-  angle_fuse.x += (angle_ref.x-angle_fuse.x) * fR * sigm_f(angle_ref.x, mod);
-  angle_fuse.y += (angle_ref.y-angle_fuse.y) * fR * sigm_f(angle_ref.y, mod);
-  angle_fuse.z += (angle_ref.z-angle_fuse.z) * fR * sigm_f(angle_ref.z, mod);
+  angle_fuse += (angle_ref-angle_fuse) * fR * functor(angle_ref, mod);
   return angle_fuse;
+}    
+ 
+inline Vector3f anneal_V3f( Vector3f &angle_fuse, 
+                            const Vector3f &angle_ref, float time, float mod, float rate, float (*functor)(float, float) ) {
+  angle_fuse.x += anneal_f(angle_fuse.x, angle_ref.x, time, mod, rate, functor);
+  angle_fuse.y += anneal_f(angle_fuse.y, angle_ref.y, time, mod, rate, functor);
+  angle_fuse.z += anneal_f(angle_fuse.z, angle_ref.z, time, mod, rate, functor);
+
+  return angle_fuse;
+}
+
+inline float low_pass_filter_f(const float &fCurSmple, const float &fOldSmple) {
+  return fCurSmple * INERT_LOWPATH_FILT + (fOldSmple * (1.f - INERT_LOWPATH_FILT) );
+}
+
+inline Vector3f low_pass_filter_V3f(const Vector3f &fCurSmple, const Vector3f &fOldSmple) {
+  return fCurSmple * INERT_LOWPATH_FILT + (fOldSmple * (1.f - INERT_LOWPATH_FILT) );
 }
 
 #endif

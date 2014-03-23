@@ -1,3 +1,5 @@
+#include <float.h>
+
 #include <AP_GPS.h>
 #include <AP_Baro.h>
 
@@ -5,20 +7,17 @@
 #include "receiver.h"
 #include "device.h"
 #include "absdevice.h"
-
+#include "extended_readouts.h"
 
 /*
  * Calculate time necessary to reduce the throttle until the value "THR_TAKE_OFF"
  * The higher the quadcopter is the longer it will take, because the take-down speed should be constant (MAX_FALL_SPEED_MS: ~0.833 m/s)
  */
-inline float go_down_t(float altitude_m, float fThr) {
-  // altitude_m should be always positive
-  altitude_m = altitude_m <= 0.f ? 1.f : altitude_m;
-  
+inline float go_down_t(float altitude_m, float fThr) {  
   // Calc save time (in ms) to touch the ground
   float fTime2Ground_ms = altitude_m / MAX_FALL_SPEED_MS * 1000.f;
   // Delta of the current throttle and the throttle needed to take-off
-  float fdThr = fThr > THR_TAKE_OFF ? (fThr - THR_TAKE_OFF) / THR_STEP_S : fThr / THR_STEP_S;
+  float fdThr = fThr > THR_TAKE_OFF ? (fThr - THR_TAKE_OFF) / THR_MOD_STEP_S : fThr / THR_MOD_STEP_S;
 
   // Time constant (in ms) which determines the velocity to reduce the throttle
   return fTime2Ground_ms / fdThr;
@@ -151,32 +150,46 @@ bool Exception::handle() {
 }
 
 void Exception::reduce_thr(float fTime) {
-  static float fLastAltitude_m  = 0.f;
+  //static float fLastAltitude_m  = -FLT_MAX;
   static float fRho             = 0.f;    // if model is falling too fast, this variable is used as a stopper
-  float fStepC                  = 15.f;   // Default step size
+  static float fStepC           = 15.f;   // Default step size
+  static uint_fast32_t iTimer   = 0;
 
   // The speed of decreasing the throttle is dependent on the height
   uint_fast32_t iAltitudeTime = m_pHalBoard->m_pHAL->scheduler->millis() - m_t32Altitude;
   if(iAltitudeTime > ALTI_MEASURE_TIME) {
-    bool bSensorOK = false;
-    float fAlti = m_pHalBoard->read_alti_m(bSensorOK);
-    if(bSensorOK == true) {
+    bool bOK = false;
+    float fAlti = altitude_m(m_pHalBoard, bOK);
+    if(bOK == true) {
       fStepC = go_down_t(fAlti, m_rgChannelsRC[2]);
+      fStepC = fStepC < THR_MIN_STEP_S ? THR_MIN_STEP_S : fStepC;
     }
+    /*
     // Is model falling too fast?
     if(fLastAltitude_m > fAlti) {
       float fFSpeed = (fLastAltitude_m - fAlti) / (float)iAltitudeTime;
       // If yes: increase fRho
       if(fFSpeed > MAX_FALL_SPEED_MS + 0.25f) {
-        fRho += 5.f;
+        fRho += 10.f;
       }
     }
+    */
     // Save some variables and set timer
-    fLastAltitude_m = fAlti;
+    //fLastAltitude_m = fAlti;
     m_t32Altitude   = m_pHalBoard->m_pHAL->scheduler->millis();
   }
+  
+  // Use the accelerometer in case model is falling too fast
+  uint_fast32_t iTime = m_pHalBoard->m_pHAL->scheduler->millis() - iTimer;
+  float fAcc = m_pHalBoard->get_accel_mg_mss().z;
+  fAcc = fAcc > 0.f ? 0 : fAcc < -INERT_G_CONST ? -INERT_G_CONST : fAcc;
+  if(-fAcc > 2.0f && iTime >= 10) {
+    fRho += 1.f;
+    iTimer = m_pHalBoard->m_pHAL->scheduler->millis();
+  }
+  
   // Calculate how much to reduce throttle
-  float fTConst = (THR_STEP_S * (fTime / fStepC) ) - fRho;
+  float fTConst = (THR_MOD_STEP_S * (fTime / fStepC) ) - fRho;
   int_fast16_t fThr = m_rgChannelsRC[2] - (int_fast16_t)fTConst;
   // reduce throttle..
   m_pReceiver->m_rgChannelsRC[2] = fThr >= RC_THR_MIN ? fThr : RC_THR_OFF; // throttle
@@ -184,4 +197,9 @@ void Exception::reduce_thr(float fTime) {
   m_pReceiver->m_rgChannelsRC[3] = 0;                                      // yaw
   m_pReceiver->m_rgChannelsRC[1] = 0;                                      // pitch
   m_pReceiver->m_rgChannelsRC[0] = 0;                                      // roll
+  
+  // Reset the term
+  if(fThr <= RC_THR_MIN) {
+    fRho = 0.f;
+  }
 }

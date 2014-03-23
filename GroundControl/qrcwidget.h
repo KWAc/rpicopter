@@ -106,9 +106,14 @@ private:
     float m_fWidth;
     float m_fHeight;
 
+    void sendJSON2UDP(QString);
     void sendJSON2UDP(QPair<int, char*> );
     void sendJSON2COM(QPair<int, char*> );
     void initGyro2UDP();
+
+    bool m_bAltitudeHold;
+    void activAltihold2UDP();
+    void deactAltihold2UDP();
 
     bool m_bRadioEnabled;
     

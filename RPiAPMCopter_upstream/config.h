@@ -79,8 +79,8 @@
 // Main loop
 //////////////////////////////////////////////////////////////////////////////////////////
 #define MAIN_LOOP_T_MS       6      // Update frequency of the main loop: 166.6 Hz
-#define ALTI_ESTIM_T_MS      113    // Update frequency of the main loop: 166.6 Hz
-#define INERT_TIMEOUT        5      // in ms
+#define ALTI_ESTIM_T_MS      20     // Update frequency of the main loop: 50 Hz
+#define INERT_TIMEOUT        10     // in ms
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Scheduler module
@@ -97,6 +97,7 @@
 #define UART_A_TIMEOUT       100    // in ms
 
 #define PID_ARGS             5      // Nr of arguments for PID configuration
+#define PID_BUFFER_S         4
 
 #define COMP_ARGS            4      // Nr of arguments for on-flight drift compensation
 #define GPSP_ARGS            4      // Nr of arguments for GPSPosition structure
@@ -104,12 +105,29 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 // Device module
 //////////////////////////////////////////////////////////////////////////////////////////
+#define AP_RANGEFINDER_PULSEDLIGHT 5
+#define AP_RANGEFINDER_SHARPEGP2Y  6
+
+//#define SONAR_TYPE AP_RANGEFINDER_MAXSONARXL      // 0 - XL (default)
+//#define SONAR_TYPE AP_RANGEFINDER_MAXSONARLV      // 1 - LV (cheaper)
+//#define SONAR_TYPE AP_RANGEFINDER_MAXSONARXLL     // 2 - XLL (XL with 10m range)
+//#define SONAR_TYPE AP_RANGEFINDER_MAXSONARHRLV    // 3 - HRLV-MaxSonar-EZ0 (5m range)
+//#define SONAR_TYPE AP_RANGEFINDER_MAXSONARI2CXL   // 4 - XLI2C (XL with I2C interface and 7m range)
+//#define SONAR_TYPE AP_RANGEFINDER_PULSEDLIGHT     // 5
+
+#define SONAR_SCALING        5
+
 #define ATTITUDE_SAMPLE_CNT  10     // Inertial calibration sample count
 
 #define INERT_ANNEAL_SLOPE   20.f   // Slope modifier of the annealing function
 #define INERT_FUSION_RATE    5.f    // Sensor fusion rate: higher => faster annealing
 
-#define INERT_LOWPATH_FILT   0.5f   // Filter for the accelerometer
+#define CLIMB_ANNEAL_SLOPE   1.f    // Slope modifier of the annealing function
+#define CLIMB_FUSION_RATE    5.f    // Sensor fusion rate: higher => faster annealing
+
+#define INERT_LOWPATH_FILT   0.33f  // Filter for the accelerometer
+
+#define INERT_G_CONST        9.81f
 
 #define CMP_FOR_YAW          0      // Compass
 #define GPS_FOR_YAW          0      // GPS
@@ -119,8 +137,9 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 #define VOLTAGE_ALARM_LOW    10.f   // 2.5V per LiPo cell is already close to death of the cell
 #define VOLTAGE_ALARM_HIGH   21.f   // 5 * 4.2 V (my setup)
-#define THR_STEP_S           1.25f
+#define THR_MOD_STEP_S       1.25f
 #define THR_TAKE_OFF         1300
+#define THR_MIN_STEP_S       25.f
 #define MAX_FALL_SPEED_MS    0.833f
 #define ALTI_MEASURE_TIME    100    // Time in ms to measure the hight if the model takes down
 
