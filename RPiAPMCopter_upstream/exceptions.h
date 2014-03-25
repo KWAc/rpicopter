@@ -9,6 +9,10 @@ class Receiver;
 
 class Exception {
 private:
+  bool m_bPauseTD;
+  uint_fast32_t m_t32Pause;
+  uint_fast32_t m_iPauseTDTime;
+
   Device*       m_pHalBoard;
   Receiver*     m_pReceiver;
   
@@ -58,6 +62,9 @@ private:
 public:
   Exception(Device *, Receiver *);
   bool handle();                                              // Check all defines exceptions and call error handlers
+  
+  void pause_take_down();
+  void continue_take_down();
 };
 
 #endif /*UAV_h*/

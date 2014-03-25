@@ -3,21 +3,21 @@
 
 BaroData::BaroData() {
   pressure_pa      = 0;
-  altitude_m       = 0;
+  altitude_cm      = 0;
   temperature_deg  = 0;
-  climb_rate_ms    = 0;
+  climb_rate_cms   = 0;
   pressure_samples = 0;
 }
 
 GPSData::GPSData() {
   latitude    = 0;
   longitude   = 0;
-  altitude_m  = 0;
+  altitude_cm = 0;
 
-  gspeed_ms   = 0;
-  espeed_ms   = 0;
-  nspeed_ms   = 0;
-  dspeed_ms   = 0;
+  gspeed_cms  = 0;
+  espeed_cms  = 0;
+  nspeed_cms  = 0;
+  dspeed_cms  = 0;
 
   heading_x   = 0;
   heading_y   = 0;
@@ -33,17 +33,17 @@ GPSData::GPSData() {
 GPSPosition::GPSPosition() {
   latitude    = 0;
   longitude   = 0;
-  altitude_m  = 0;
+  altitude_cm = 0;
   
-  m_eMode     = GPSPosition::NOTHING_F;
+  mode     = GPSPosition::NOTHING_F;
 }
 
-GPSPosition::GPSPosition(int_fast16_t lat, int_fast16_t lon, int_fast16_t alt, GPSPosition::UAV_TYPE flag) {
+GPSPosition::GPSPosition(int_fast32_t lat, int_fast32_t lon, int_fast32_t alt, GPSPosition::UAV_TYPE flag) {
   latitude    = lat;
   longitude   = lon;
-  altitude_m  = alt;
+  altitude_cm = alt;
   
-  m_eMode     = flag;
+  mode        = flag;
 }
 
 BattData::BattData() {

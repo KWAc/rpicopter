@@ -6,6 +6,7 @@
 // Ardu pilot library includes
 ////////////////////////////////////////////////////////////////////////////////
 #include <AP_Notify.h>
+#include <AP_Buffer.h>
 #include <AP_Common.h>
 #include <AP_Math.h>
 #include <AP_Param.h>
@@ -29,7 +30,11 @@
 #include <AP_RangeFinder.h>
 #include <AP_Baro.h>
 #include <AP_InertialSensor_MPU6000.h>
+#include <AP_InertialNav.h>
+#include <AP_InertialNav_NavEKF.h>
 #include <AP_GPS.h>
+#include <AP_GPS_Glitch.h>
+#include <AP_AHRS.h>
 #include <AP_ADC_AnalogSource.h>
 #include <AP_BattMonitor.h>
 ////////////////////////////////////////////////////////////////////////////////
@@ -47,11 +52,12 @@
 ////////////////////////////////////////////////////////////////////////
 inline void set_channels(int_fast32_t &, int_fast32_t &, int_fast32_t &, int_fast32_t &, int_fast32_t &);
 inline void main_loop();
-inline void alti_sensor_refr();
+inline void navi_sensor_refr();
 Task taskMain(&main_loop, MAIN_LOOP_T_MS, 1);
-Task taskAlti(&alti_sensor_refr, ALTI_ESTIM_T_MS, 1);
+Task taskAlti(&navi_sensor_refr, ALTI_ESTIM_T_MS, 23);
 
-inline void hold_altitude(int_fast16_t &, int_fast16_t &, int_fast16_t &, int_fast16_t &, const int_fast32_t);
+//inline void hold_pos_xy(int_fast16_t &, int_fast16_t &, int_fast16_t &, int_fast16_t &, const int_fast32_t);
+inline void hold_pos_z(int_fast16_t &, int_fast16_t &, int_fast16_t &, int_fast16_t &, const int_fast32_t);
 //TODO: inline void hold_attitude();
 //TODO: inline void follow_waypoint();
 
@@ -60,13 +66,12 @@ inline void hold_altitude(int_fast16_t &, int_fast16_t &, int_fast16_t &, int_fa
 // * Hold altitude
 // * GPS auto-navigation
 ////////////////////////////////////////////////////////////////////////
-void alti_sensor_refr() {
-  if(_RECVR.m_Waypoint.m_eMode == GPSPosition::NOTHING_F) {
+void navi_sensor_refr() {
+  if(_RECVR.m_Waypoint.mode == GPSPosition::NOTHING_F) {
     return;
   }
-  
-  _HAL_BOARD.read_gps();
-  _HAL_BOARD.read_baro();
+
+  _HAL_BOARD.update_intertial_nav();
 #ifdef SONAR_TYPE
   _HAL_BOARD.read_rf_m();
 #endif
@@ -76,13 +81,13 @@ void alti_sensor_refr() {
 // Saving the current controls from the remote control into references
 ////////////////////////////////////////////////////////////////////////
 void set_channels(int_fast32_t &pit, int_fast32_t &rol, int_fast32_t &yaw, int_fast32_t &thr, 
-int_fast32_t &alt_m) 
+int_fast32_t &alt_cm) 
 {
   rol = _RECVR.m_rgChannelsRC[0];
   pit = _RECVR.m_rgChannelsRC[1];
   thr = _RECVR.m_rgChannelsRC[2] > RC_THR_80P ? RC_THR_80P : _RECVR.m_rgChannelsRC[2];
   yaw = _RECVR.m_rgChannelsRC[3];
-  alt_m = _RECVR.m_Waypoint.altitude_m;
+  alt_cm = _RECVR.m_Waypoint.altitude_cm;
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -91,30 +96,57 @@ int_fast32_t &alt_m)
 // * Hold altitude
 // * GPS auto-navigation
 ////////////////////////////////////////////////////////////////////////
-void hold_altitude(int_fast16_t &iFL, int_fast16_t &iBL, int_fast16_t &iFR, int_fast16_t &iBR, const int_fast32_t rcalt_m) {
-  if(_RECVR.m_Waypoint.m_eMode == GPSPosition::NOTHING_F) {
+void hold_pos_z(int_fast16_t &iFL, int_fast16_t &iBL, int_fast16_t &iFR, int_fast16_t &iBR, const int_fast32_t rcalt_cm) {
+  const float fBias_g   = 0.25f;
+  const float fScaleF_g = 100.0f;
+
+  int_fast16_t iAltZOutput = 0; // Barometer & Sonar
+  int_fast16_t iAccZOutput = 0; // Accelerometer
+    
+  if(_RECVR.m_Waypoint.mode == GPSPosition::NOTHING_F) {
     return;
   }
 
   // Return estimated altitude by GPS and barometer 
-  bool bOK_H, bOK_R;
-  float fCurAlti_cm       = altitude_m(&_HAL_BOARD, bOK_H) * 100.f;
-  // Estimate current acceleration data
-  float fClimbRate_cms    = climbrate_ms(&_HAL_BOARD, bOK_R) * 100.f;
+  bool bOK_H, bOK_R, bOK_G;
+  int_fast32_t fCurAlti_cm = altitude_cm(&_HAL_BOARD, bOK_H);
+  float fClimbRate_cms = climbrate_cms(&_HAL_BOARD, bOK_R);
+  // Get the acceleration in g
+  Vector3f vAccel_g = accel_g(&_HAL_BOARD, bOK_G) * fScaleF_g;
   
-  if(!bOK_H || !bOK_R) {
+  if(!bOK_H || !bOK_R || !bOK_G) {
     return;
   }
-
+  
   // Calculate the motor speed changes by the error from the height estimate and the current climb rates
-  float fAltStabOut       = _HAL_BOARD.m_rgPIDS[PID_THR_STAB].get_pid(fCurAlti_cm - (float)(rcalt_m*100), 1);
-  int_fast16_t iAltOutput = _HAL_BOARD.m_rgPIDS[PID_THR_RATE].get_pid(fAltStabOut - fClimbRate_cms, 1);
+  // If the quadro is going down, because of an device error, then this code is not used
+  if(_RECVR.m_Waypoint.mode != GPSPosition::CONTRLD_DOWN_F) {
+    float fAltZStabOut = _HAL_BOARD.m_rgPIDS[PID_THR_STAB].get_pid((float)(rcalt_cm - fCurAlti_cm), 1);
+    iAltZOutput        = _HAL_BOARD.m_rgPIDS[PID_THR_RATE].get_pid(fAltZStabOut - fClimbRate_cms, 1);
+  }
+  
+  // If the quad-copter is going down too fast, fAcceleration_g becomes greater
+  if(_RECVR.m_Waypoint.mode == GPSPosition::CONTRLD_DOWN_F && vAccel_g.z > fBias_g) {
+    _EXCP.pause_take_down();
+  }
+  
+  // else: the fAcceleration_g becomes smaller
+  if(_RECVR.m_Waypoint.mode == GPSPosition::CONTRLD_DOWN_F && vAccel_g.z <= fBias_g) {
+    _EXCP.continue_take_down();
+  }
+  
+  // Don't change the throttle if acceleration is below a certain bias
+  if(abs(vAccel_g.z) >= fBias_g) {
+    //vAccel_g.z         = sign_f(vAccel_g.z) * (abs(vAccel_g.z) - fBias_g) * fScaleF_g;
+    float fAccZStabOut = _HAL_BOARD.m_rgPIDS[PID_ACC_STAB].get_pid(vAccel_g.z, 1);
+    iAccZOutput        = _HAL_BOARD.m_rgPIDS[PID_ACC_RATE].get_pid(fAccZStabOut, 1);
+  }
 
-  // Modify the speed of the motors
-  iFL += iAltOutput;
-  iBL += iAltOutput;
-  iFR += iAltOutput;
-  iBR += iAltOutput;
+  // Modify the speed of the motors to hold the altitude
+  iFL += iAltZOutput + iAccZOutput;
+  iBL += iAltZOutput + iAccZOutput;
+  iFR += iAltZOutput + iAccZOutput;
+  iBR += iAltZOutput + iAccZOutput;
 }
 
 /*
@@ -166,7 +198,7 @@ void main_loop() {
     int_fast16_t iBR = rcthr - rol_output - pit_output - yaw_output;
 
     // Hold the altitude
-    hold_altitude(iFL, iBL, iFR, iBR, rcalt);
+    hold_pos_z(iFL, iBL, iFR, iBR, rcalt);
 
     hal.rcout->write(MOTOR_FL, iFL);
     hal.rcout->write(MOTOR_BL, iBL);
@@ -209,37 +241,40 @@ void setup() {
   hal.console->printf("Setup device ..\n");
 
   // Enable the motors and set at 490Hz update
-  hal.console->printf("%.1f%%: Set ESC refresh rate to 490 Hz\n", progress_f(1, 8) );
+  hal.console->printf("%.1f%%: Set ESC refresh rate to 490 Hz\n", progress_f(1, 9) );
   for(uint_fast16_t i = 0; i < 8; i++) {
     hal.rcout->enable_ch(i);
   }
   hal.rcout->set_freq(0xFF, 490);
 
   // PID Configuration
-  hal.console->printf("%.1f%%: Set PID configuration\n", progress_f(2, 8) );
+  hal.console->printf("%.1f%%: Set PID configuration\n", progress_f(2, 9) );
   _HAL_BOARD.init_pids();
 
-  hal.console->printf("%.1f%%: Init barometer\n", progress_f(3, 8) );
+  hal.console->printf("%.1f%%: Init barometer\n", progress_f(3, 9) );
   _HAL_BOARD.init_barometer();
 
-  hal.console->printf("%.1f%%: Init inertial sensor\n", progress_f(4, 8) );
+  hal.console->printf("%.1f%%: Init inertial sensor\n", progress_f(4, 9) );
   _HAL_BOARD.init_inertial();
 
   // Compass initializing
-  hal.console->printf("%.1f%%: Init compass: ", progress_f(5, 8) );
+  hal.console->printf("%.1f%%: Init compass: ", progress_f(5, 9) );
   _HAL_BOARD.init_compass();
 
   // GPS initializing
-  hal.console->printf("%.1f%%: Init GPS", progress_f(6, 8) );
+  hal.console->printf("%.1f%%: Init GPS", progress_f(6, 9) );
   _HAL_BOARD.init_gps();
 
   // battery monitor initializing
-  hal.console->printf("\n%.1f%%: Init battery monitor\n", progress_f(7, 8) );
+  hal.console->printf("\n%.1f%%: Init battery monitor\n", progress_f(7, 9) );
   _HAL_BOARD.init_batterymon();
   
   // battery monitor initializing
-  hal.console->printf("\n%.1f%%: Init range finder\n", progress_f(8, 8) );
+  hal.console->printf("\n%.1f%%: Init range finder\n", progress_f(8, 9) );
   _HAL_BOARD.init_rf();
+  
+  hal.console->printf("\n%.1f%%: Init inertial navigation\n", progress_f(9, 9) );
+  _HAL_BOARD.init_inertial_nav();
 }
 
 void loop() { 

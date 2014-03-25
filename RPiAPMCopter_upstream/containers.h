@@ -7,35 +7,35 @@
 
 // barometer data container
 struct BaroData {
-  float   pressure_pa;
-  float   altitude_m;
-  float   temperature_deg;
-  float   climb_rate_ms;
-  uint_fast8_t pressure_samples;
+  float         pressure_pa;
+  int_fast32_t  altitude_cm;
+  float         temperature_deg;
+  int_fast16_t  climb_rate_cms;
+  uint_fast8_t  pressure_samples;
   
   BaroData();
 };
 
 // gps data container
 struct GPSData {
-  int_fast16_t latitude;     // in degrees * 10,000,000
-  int_fast16_t longitude;    // in degrees * 10,000,000
-  float   altitude_m;        // altitude in m
+  int_fast32_t  latitude;     // in degrees * 10,000,000
+  int_fast32_t  longitude;    // in degrees * 10,000,000
+  int_fast32_t  altitude_cm;  // altitude in cm
 
-  float   gspeed_ms;         // ground speed in m/sec
-  float   espeed_ms;         // velocity east
-  float   nspeed_ms;         // velocity north
-  float   dspeed_ms;         // velocity down
+  int_fast16_t  gspeed_cms;   // ground speed in cm/sec
+  int_fast16_t  espeed_cms;   // velocity east
+  int_fast16_t  nspeed_cms;   // velocity north
+  int_fast16_t  dspeed_cms;   // velocity down
 
-  float   heading_x;
-  float   heading_y;
-  float   heading_z;
+  float         heading_x;
+  float         heading_y;
+  float         heading_z;
 
-  int_fast16_t gcourse_cd;   // ground course in degree
-  int_fast16_t satelites;
-  int_fast16_t status_fix;
-  int_fast16_t time_week;
-  int_fast16_t time_week_s;
+  int_fast32_t  gcourse_cd;   // ground course in degree
+  uint_fast8_t  satelites;
+  int_fast16_t  status_fix;
+  uint_fast16_t time_week;
+  uint_fast32_t time_week_s;
   
   GPSData();
 };
@@ -44,24 +44,24 @@ struct GPSPosition {
   enum UAV_TYPE {
     NOTHING_F = 1 << 0,
     HLD_ALTITUDE_F = 1 << 1,
-    GPS_NAVIGATN_F = 1 << 2
+    GPS_NAVIGATN_F = 1 << 2,
+    CONTRLD_DOWN_F = 1 << 3
   };
 
-  int_fast16_t latitude;     // in degrees * 10,000,000
-  int_fast16_t longitude;    // in degrees * 10,000,000
-  int_fast16_t altitude_m;   // altitude in m
-  
-  UAV_TYPE m_eMode;
+  int_fast32_t latitude;     // in degrees * 10,000,000
+  int_fast32_t longitude;    // in degrees * 10,000,000
+  int_fast32_t altitude_cm;  // altitude in cm
+  UAV_TYPE     mode;
   
   GPSPosition();
-  GPSPosition(int_fast16_t, int_fast16_t, int_fast16_t, GPSPosition::UAV_TYPE);
+  GPSPosition(int_fast32_t, int_fast32_t, int_fast32_t, GPSPosition::UAV_TYPE);
 };
 
 // battery monitor
 struct BattData {
-  float   voltage_V;
-  float   current_A;
-  float   consumpt_mAh;
+  float       voltage_V;
+  float       current_A;
+  float       consumpt_mAh;
   
   BattData();
 };

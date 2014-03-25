@@ -32,7 +32,7 @@
 // General settings
 //////////////////////////////////////////////////////////////////////////////////////////
 
-#define NR_OF_PIDS           9
+#define NR_OF_PIDS           10
 // PID indices
 #define PID_PIT_RATE 	       0      // From Dr. Owen..
 #define PID_ROL_RATE 	       1
@@ -43,7 +43,8 @@
 // Optional altitude hold
 #define PID_THR_RATE 	       6      // For my altitude hold implementation
 #define PID_THR_STAB 	       7      // For my altitude hold implementation
-#define PID_THR_ACCL 	       8      // For my altitude hold implementation
+#define PID_ACC_RATE 	       8      // For my altitude hold implementation
+#define PID_ACC_STAB 	       9      // For my altitude hold implementation
 
 // Motor numbers definitions for X configuration
 #define MOTOR_FR             0      // Front right  (CW)
@@ -97,7 +98,7 @@
 #define UART_A_TIMEOUT       100    // in ms
 
 #define PID_ARGS             5      // Nr of arguments for PID configuration
-#define PID_BUFFER_S         4
+#define PID_BUFFER_S         5
 
 #define COMP_ARGS            4      // Nr of arguments for on-flight drift compensation
 #define GPSP_ARGS            4      // Nr of arguments for GPSPosition structure
@@ -125,7 +126,10 @@
 #define CLIMB_ANNEAL_SLOPE   1.f    // Slope modifier of the annealing function
 #define CLIMB_FUSION_RATE    5.f    // Sensor fusion rate: higher => faster annealing
 
-#define INERT_LOWPATH_FILT   0.33f  // Filter for the accelerometer
+#define INERT_LOWPATH_FILT_f   0.33f  // Filter for the accelerometer
+#define INERT_LOWPATH_FILT_l   33     // Filter for the accelerometer
+#define BAROM_LOWPATH_FILT_f   0.33f  // Filter for the accelerometer
+#define BAROM_LOWPATH_FILT_i   33     // Filter for the accelerometer
 
 #define INERT_G_CONST        9.81f
 

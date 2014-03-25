@@ -24,10 +24,14 @@ inline float go_down_t(float altitude_m, float fThr) {
 }
 
 Exception::Exception(Device *pDevice, Receiver *pReceiver) {
-  m_pHalBoard   = pDevice;
-  m_pReceiver   = pReceiver;
+  m_pHalBoard    = pDevice;
+  m_pReceiver    = pReceiver;
+ 
+  m_bPauseTD     = false;
+  m_iPauseTDTime = 0;
   
-  m_t32Altitude = m_t32Device = m_pHalBoard->m_pHAL->scheduler->millis();
+  m_t32Pause = m_t32Altitude = m_t32Device = m_pHalBoard->m_pHAL->scheduler->millis();
+  
   memcpy(m_rgChannelsRC, m_pReceiver->m_rgChannelsRC, sizeof(m_pReceiver->m_rgChannelsRC) );
 }
 
@@ -39,9 +43,15 @@ void Exception::dev_take_down() {
   if(m_pReceiver->m_rgChannelsRC[2] == RC_THR_OFF) {
     bInertTimer = false;
     m_pHalBoard->set_errors(AbsErrorDevice::NOTHING_F);
+    m_pReceiver->m_Waypoint.mode = GPSPosition::NOTHING_F;
     rls_recvr(bIgnRcvr);
     return;
   }
+  // Don't reduce speed of the motors if pause set
+  if(m_bPauseTD == true) {
+    return;
+  }
+  
   // Set timer one time, to calculate how much the motors should be reduced
   if(bInertTimer == false) {
     m_t32Device = m_pHalBoard->m_pHAL->scheduler->millis();
@@ -50,7 +60,7 @@ void Exception::dev_take_down() {
   // Override the receiver, no matter what happens
   lck_recvr(bIgnRcvr);
   if(bIgnRcvr == true) {
-    reduce_thr(m_pHalBoard->m_pHAL->scheduler->millis() - m_t32Device);
+    reduce_thr(m_pHalBoard->m_pHAL->scheduler->millis() - m_t32Device - m_iPauseTDTime);
   }
 }
 
@@ -61,13 +71,19 @@ void Exception::rcvr_take_down() {
   // If motors do not spin or a new packet arrived: reset & return
   if( m_pReceiver->m_rgChannelsRC[2] == RC_THR_OFF || packet_t <= COM_PKT_TIMEOUT ) {
     m_pReceiver->set_errors(AbsErrorDevice::NOTHING_F);
+    m_pReceiver->m_Waypoint.mode = GPSPosition::NOTHING_F;
     rls_recvr(bIgnRcvr);
     return;
   }
+  // Don't reduce speed of the motors if pause set
+  if(m_bPauseTD == true) {
+    return;
+  }
+  
   // Remove the override if there was a new package within the interval
   lck_recvr(bIgnRcvr); // Copy the last command into a temporary
   if(bIgnRcvr == true) {
-    reduce_thr(packet_t - COM_PKT_TIMEOUT);
+    reduce_thr(packet_t - COM_PKT_TIMEOUT - m_iPauseTDTime);
   }
 }
 
@@ -89,14 +105,14 @@ void Exception::rls_recvr(bool &bSwitch) {
 }
 
 void Exception::disable_alti_hold() {
-  if(m_pReceiver->m_Waypoint.m_eMode == GPSPosition::HLD_ALTITUDE_F) {
-    m_pReceiver->m_Waypoint.m_eMode = GPSPosition::NOTHING_F;
+  if(m_pReceiver->m_Waypoint.mode == GPSPosition::HLD_ALTITUDE_F) {
+    m_pReceiver->m_Waypoint.mode = GPSPosition::NOTHING_F;
   }
 }
 
 void Exception::disable_gps_navigation() {
-  if(m_pReceiver->m_Waypoint.m_eMode == GPSPosition::GPS_NAVIGATN_F) {
-    m_pReceiver->m_Waypoint.m_eMode = GPSPosition::NOTHING_F;
+  if(m_pReceiver->m_Waypoint.mode == GPSPosition::GPS_NAVIGATN_F) {
+    m_pReceiver->m_Waypoint.mode = GPSPosition::NOTHING_F;
   }
 }
 
@@ -149,57 +165,46 @@ bool Exception::handle() {
   return false;
 }
 
-void Exception::reduce_thr(float fTime) {
-  //static float fLastAltitude_m  = -FLT_MAX;
-  static float fRho             = 0.f;    // if model is falling too fast, this variable is used as a stopper
-  static float fStepC           = 15.f;   // Default step size
-  static uint_fast32_t iTimer   = 0;
+void Exception::pause_take_down() {
+  m_bPauseTD = true;
+  m_t32Pause = m_pHalBoard->m_pHAL->scheduler->millis();
+}
 
+void Exception::continue_take_down() {
+  if(m_bPauseTD == false) {
+    return;
+  }
+
+  m_bPauseTD = false;
+  m_iPauseTDTime += m_pHalBoard->m_pHAL->scheduler->millis() - m_t32Pause;
+}
+
+void Exception::reduce_thr(float fTime) {
+  static float fStepC           = 15.f;   // Default step size
+
+  m_pReceiver->m_Waypoint.mode = GPSPosition::CONTRLD_DOWN_F;
+  
   // The speed of decreasing the throttle is dependent on the height
   uint_fast32_t iAltitudeTime = m_pHalBoard->m_pHAL->scheduler->millis() - m_t32Altitude;
   if(iAltitudeTime > ALTI_MEASURE_TIME) {
     bool bOK = false;
-    float fAlti = altitude_m(m_pHalBoard, bOK);
+    float fAlti_m = altitude_cm(m_pHalBoard, bOK) / 100.f;
     if(bOK == true) {
-      fStepC = go_down_t(fAlti, m_rgChannelsRC[2]);
+      fStepC = go_down_t(fAlti_m, m_rgChannelsRC[2]);
       fStepC = fStepC < THR_MIN_STEP_S ? THR_MIN_STEP_S : fStepC;
     }
-    /*
-    // Is model falling too fast?
-    if(fLastAltitude_m > fAlti) {
-      float fFSpeed = (fLastAltitude_m - fAlti) / (float)iAltitudeTime;
-      // If yes: increase fRho
-      if(fFSpeed > MAX_FALL_SPEED_MS + 0.25f) {
-        fRho += 10.f;
-      }
-    }
-    */
     // Save some variables and set timer
-    //fLastAltitude_m = fAlti;
     m_t32Altitude   = m_pHalBoard->m_pHAL->scheduler->millis();
   }
   
-  // Use the accelerometer in case model is falling too fast
-  uint_fast32_t iTime = m_pHalBoard->m_pHAL->scheduler->millis() - iTimer;
-  float fAcc = m_pHalBoard->get_accel_mg_mss().z;
-  fAcc = fAcc > 0.f ? 0 : fAcc < -INERT_G_CONST ? -INERT_G_CONST : fAcc;
-  if(-fAcc > 2.0f && iTime >= 10) {
-    fRho += 1.f;
-    iTimer = m_pHalBoard->m_pHAL->scheduler->millis();
-  }
-  
   // Calculate how much to reduce throttle
-  float fTConst = (THR_MOD_STEP_S * (fTime / fStepC) ) - fRho;
+  float fTConst = (THR_MOD_STEP_S * (fTime / fStepC) );
   int_fast16_t fThr = m_rgChannelsRC[2] - (int_fast16_t)fTConst;
+  
   // reduce throttle..
   m_pReceiver->m_rgChannelsRC[2] = fThr >= RC_THR_MIN ? fThr : RC_THR_OFF; // throttle
   // reset yaw, pitch and roll
   m_pReceiver->m_rgChannelsRC[3] = 0;                                      // yaw
   m_pReceiver->m_rgChannelsRC[1] = 0;                                      // pitch
   m_pReceiver->m_rgChannelsRC[0] = 0;                                      // roll
-  
-  // Reset the term
-  if(fThr <= RC_THR_MIN) {
-    fRho = 0.f;
-  }
 }

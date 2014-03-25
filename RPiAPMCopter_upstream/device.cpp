@@ -1,10 +1,13 @@
 #include <AP_Compass.h>
 #include <AP_Baro.h>
 #include <AP_InertialSensor.h>
-#include <AP_GPS.h>
+#include <AP_InertialNav.h>
+//#include <AP_InertialNav_NavEKF.h>
+#include <AP_GPS.h>             // ArduPilot GPS library
+
 #include <AP_BattMonitor.h>
 #include <AP_RangeFinder.h>
-
+#include <AP_BoardLED.h>
 
 #include "device.h"
 #include "config.h"
@@ -12,10 +15,13 @@
 #include "math.h"
 
 
+// create board led object
+AP_BoardLED board_led;
+
 Device::Device( const AP_HAL::HAL *pHAL,
-                AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, GPS *pGPS, BattMonitor *pBat, RangeFinder *pRF )
+                AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, AP_GPS_Auto *pGPS, BattMonitor *pBat, RangeFinder *pRF, AP_AHRS_DCM *pAHRS, AP_InertialNav *pInertNav )
 {
-  m_fAltitude_m   = 0.f;
+  m_iAltitude_cm  = 0;
 
   m_fInertRolOffs = 0.f;
   m_fInertPitOffs = 0.f;
@@ -40,17 +46,19 @@ Device::Device( const AP_HAL::HAL *pHAL,
   }
   
   // HAL
-  m_pHAL     = pHAL;
+  m_pHAL      = pHAL;
   // Sensors
-  m_pInert   = pInert;
-  m_pComp    = pComp;
-  m_pBaro    = pBar;
-  m_pGPS     = pGPS;
-  m_pBat     = pBat;
-  m_pRF      = pRF;
+  m_pInert    = pInert;
+  m_pComp     = pComp;
+  m_pBaro     = pBar;
+  m_pGPS      = pGPS;
+  m_pBat      = pBat;
+  m_pRF       = pRF;
+  m_pAHRS     = pAHRS;
+  m_pInertNav = pInertNav;
 
   // Timers
-  m_iInrtTimer = m_iAcclTimer = m_pHAL->scheduler->millis();
+  m_iInertialNav = m_iInrtTimer = m_pHAL->scheduler->millis();
   
   // PIDs
   memset(m_rgPIDS, 0, sizeof(m_rgPIDS) );
@@ -81,16 +89,38 @@ void Device::init_rf() {
     m_pHAL->console->println("No range finder installed\n");
   #endif
 }
+
+void Device::init_inertial_nav() {
+  if(m_pInert == NULL || m_pBaro == NULL || m_pGPS == NULL || m_pComp == NULL) {
+    return;
+  }
+  
+  if(m_pInertNav != NULL) {
+    return;
+  }
+
+  m_pAHRS->set_compass(m_pComp);
+
+  m_pInertNav->init();
+  m_pInertNav->set_velocity_xy(0.f, 0.f);
+  m_pInertNav->set_velocity_z(0.f);
+  
+  m_pInertNav->setup_home_position();
+  m_pInertNav->set_altitude(0.f);
+  
+  m_iInertialNav = m_pHAL->scheduler->millis();
+}
+
 #ifdef SONAR_TYPE
-float Device::read_rf_m() {
-  m_fAltitude_m = (float)m_pRF->read() / 100.f;
-  return m_fAltitude_m;
+int_fast32_t Device::read_rf_cm() {
+  m_iAltitude_cm = m_pRF->read();
+  return m_iAltitude_cm;
 }
 #endif
 
 #ifdef SONAR_TYPE
-float Device::get_rf_m() {
-  return m_fAltitude_m;
+int_fast32_t Device::get_rf_cm() {
+  return m_iAltitude_cm;
 }
 #endif
 
@@ -103,7 +133,7 @@ void Device::update_inertial() {
   
   // Calculate attitude from relative gyrometer changes
   m_vAttitude_deg += read_gyro_deg() * time_s;
-  m_vAttitude_deg = wrap180_V3f(m_vAttitude_deg);
+  m_vAttitude_deg  = wrap180_V3f(m_vAttitude_deg);
   // Use a temporary instead of the member variable for acceleration data
   Vector3f vAnneal = read_accl_deg();
 
@@ -200,6 +230,13 @@ void Device::init_barometer() {
   m_pBaro->calibrate();
 }
 
+void Device::update_intertial_nav() {
+  float fTime_s = (m_pHAL->scheduler->millis() - m_iInertialNav) / 1000.f;
+  m_pGPS->update();
+  m_pAHRS->update();
+  m_pInertNav->update(fTime_s);
+}
+
 void Device::init_pids() {
   // Rate PIDs
   m_rgPIDS[PID_PIT_RATE].kP(0.50);
@@ -214,20 +251,20 @@ void Device::init_pids() {
   m_rgPIDS[PID_YAW_RATE].kI(0.25);
   m_rgPIDS[PID_YAW_RATE].imax(50);
 
-  m_rgPIDS[PID_THR_RATE].kP(0.35);  // For altitude hold
+  m_rgPIDS[PID_THR_RATE].kP(0.75);  // For altitude hold
   m_rgPIDS[PID_THR_RATE].kI(0.25);  // For altitude hold
   m_rgPIDS[PID_THR_RATE].imax(100); // For altitude hold
   
-  // ACCELERATION PIDs
-  m_rgPIDS[PID_THR_ACCL].kP(1.25);  // For altitude hold
-  m_rgPIDS[PID_THR_ACCL].kI(0.00);  // For altitude hold
-  m_rgPIDS[PID_THR_ACCL].imax(0);   // For altitude hold
+  m_rgPIDS[PID_ACC_RATE].kP(1.00);  // For altitude hold
+  m_rgPIDS[PID_ACC_RATE].kI(0.50);  // For altitude hold
+  m_rgPIDS[PID_ACC_RATE].imax(50);  // For altitude hold
   
   // STAB PIDs
   m_rgPIDS[PID_PIT_STAB].kP(5.50);
   m_rgPIDS[PID_ROL_STAB].kP(5.50);
   m_rgPIDS[PID_YAW_STAB].kP(5.50);
   m_rgPIDS[PID_THR_STAB].kP(5.50);  // For altitude hold
+  m_rgPIDS[PID_ACC_STAB].kP(5.50);  // For altitude hold
 }
 
 void Device::init_compass() {
@@ -267,8 +304,12 @@ void Device::init_inertial() {
   calibrate_inertial();
 }
 
-void Device::init_gps() {
+void Device::init_gps() {  
+  m_pHAL->console->println("GPS AUTO library test");
   m_pGPS->init(m_pHAL->uartB, GPS::GPS_ENGINE_AIRBORNE_2G);
+
+  // initialise the leds
+  board_led.init();
 }
 
 void Device::init_batterymon() {
@@ -311,18 +352,11 @@ Vector3f Device::read_accl_deg() {
   }
 
   // Low Pass Filter
-  Vector3f vAccelT_mss = m_pInert->get_accel();
-  m_vAccel_deg = m_vAccelPG_mss = low_pass_filter_V3f(vAccelT_mss, m_vAccelPG_mss);
+  Vector3f vAccelCur_cmss = m_pInert->get_accel() * 100.f;
+  m_vAccel_deg = m_vAccelPG_cmss = low_pass_filter_V3f(vAccelCur_cmss, m_vAccelPG_cmss, INERT_LOWPATH_FILT_f);
   
   // Calculate G-const. corrected acceleration
-  m_vAccelMG_mss = vAccelT_mss - m_vAccelPG_mss;
-  
-  // Calculate the G-const. corrected derivative of the acceleration (speed)
-  float time_s = (float)(m_pHAL->scheduler->millis() - m_iAcclTimer) / 1000.f;
-  // v = v0 + a * t
-  Vector3f vCurVelocity = m_vAccelMG_mss * time_s; // a * t
-  m_vAccelMG_ms = low_pass_filter_V3f(vCurVelocity, m_vAccelMG_ms) + vCurVelocity; // v0 + a*t
-  m_iAcclTimer = m_pHAL->scheduler->millis();
+  m_vAccelMG_cmss = vAccelCur_cmss - m_vAccelPG_cmss;
   
   // Calculate roll and pitch in degrees from the filtered acceleration readouts (attitude)
   float fpYZ = sqrt(pow2_f(m_vAccel_deg.y) + pow2_f(m_vAccel_deg.z) );
@@ -335,16 +369,12 @@ Vector3f Device::read_accl_deg() {
   return m_vAccel_deg;
 }
 
-Vector3f Device::get_accel_mg_mss() {
-  return m_vAccelMG_mss;
+Vector3f Device::get_accel_mg_cmss() {
+  return m_vAccelMG_cmss;
 }
 
-Vector3f Device::get_accel_mg_ms() {
-  return m_vAccelMG_ms;
-}
-
-Vector3f Device::get_accel_pg_mss() {
-  return m_vAccelPG_mss;
+Vector3f Device::get_accel_pg_cmss() {
+  return m_vAccelPG_cmss;
 }
 
 /*
@@ -383,12 +413,12 @@ GPSData Device::read_gps() {
     if(m_pGPS->fix) {
       m_ContGPS.latitude    = m_pGPS->latitude;
       m_ContGPS.longitude   = m_pGPS->longitude;
-      m_ContGPS.altitude_m  = (float)m_pGPS->altitude_cm / 100.0;
+      m_ContGPS.altitude_cm = (int_fast32_t)m_pGPS->altitude_cm;
 
-      m_ContGPS.gspeed_ms   = (float)m_pGPS->ground_speed_cm / 100.0;
-      m_ContGPS.espeed_ms   = m_pGPS->velocity_east();
-      m_ContGPS.nspeed_ms   = m_pGPS->velocity_north();
-      m_ContGPS.dspeed_ms   = m_pGPS->velocity_down();
+      m_ContGPS.gspeed_cms  = m_pGPS->ground_speed_cm;
+      m_ContGPS.espeed_cms  = m_pGPS->velocity_east() * 100;
+      m_ContGPS.nspeed_cms  = m_pGPS->velocity_north() * 100;
+      m_ContGPS.dspeed_cms  = m_pGPS->velocity_down() * 100;
 
       // The fucking avr_g++ does NOT support dynamic C++ with class like objects in structs declared as static :(
       // Hate this permittivity
@@ -417,10 +447,13 @@ BaroData Device::read_baro() {
   }
   
   m_pBaro->read();
-  m_ContBaro.pressure_pa      = low_pass_filter_f(m_pBaro->get_pressure(),    m_ContBaro.pressure_pa);
-  m_ContBaro.altitude_m       = low_pass_filter_f(m_pBaro->get_altitude(),    m_ContBaro.altitude_m);
-  m_ContBaro.temperature_deg  = low_pass_filter_f(m_pBaro->get_temperature(), m_ContBaro.temperature_deg);
-  m_ContBaro.climb_rate_ms    = low_pass_filter_f(m_pBaro->get_climb_rate(),  m_ContBaro.climb_rate_ms);
+  
+  m_ContBaro.pressure_pa      = low_pass_filter_f(m_pBaro->get_pressure(), m_ContBaro.pressure_pa, BAROM_LOWPATH_FILT_f);
+  m_ContBaro.temperature_deg  = low_pass_filter_f(m_pBaro->get_temperature(), m_ContBaro.temperature_deg, BAROM_LOWPATH_FILT_f);
+  
+  m_ContBaro.altitude_cm      = low_pass_filter_l(m_pBaro->get_altitude() * 100, m_ContBaro.altitude_cm, BAROM_LOWPATH_FILT_i);
+  m_ContBaro.climb_rate_cms   = low_pass_filter_l(m_pBaro->get_climb_rate() * 100, m_ContBaro.climb_rate_cms, BAROM_LOWPATH_FILT_i);
+  
   m_ContBaro.pressure_samples = m_pBaro->get_pressure_samples();
 
   return m_ContBaro;

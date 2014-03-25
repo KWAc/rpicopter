@@ -58,24 +58,32 @@ void send_atti() {
 // barometer
 ///////////////////////////////////////////////////////////
 void send_baro() {
+  if(!_HAL_BOARD.m_pBaro->healthy) {
+    return;
+  }
+  
   BaroData baro = _HAL_BOARD.read_baro();
-  hal.console->printf("{\"type\":\"s_bar\",\"p\":%.1f,\"a\":%.1f,\"t\":%.1f,\"c\":%.1f,\"s\":%d}\n",
-  (double)baro.pressure_pa, (double)baro.altitude_m, (double)baro.temperature_deg, (double)baro.climb_rate_ms, (uint_fast16_t)baro.pressure_samples);
+  hal.console->printf("{\"type\":\"s_bar\",\"p\":%.1f,\"a\":%ld,\"t\":%.1f,\"c\":%.1f,\"s\":%d}\n",
+  (double)baro.pressure_pa, baro.altitude_cm, (double)baro.temperature_deg, (double)baro.climb_rate_cms, (uint_fast16_t)baro.pressure_samples);
 }
 ///////////////////////////////////////////////////////////
 // gps
 ///////////////////////////////////////////////////////////
 void send_gps() {
+  if(_HAL_BOARD.m_pGPS->status() == GPS::NO_GPS) {
+    return;
+  }
+  
   GPSData gps = _HAL_BOARD.read_gps();
-  hal.console->printf("{\"type\":\"s_gps\",\"lat\":%d,\"lon\":%d,\"a_m\":%.1f,\"g_ms\":%.1f,\"e_ms\":%.1f,\"n_ms\":%.1f,\"d_ms\":%.1f,\"h_x\":%.1f,\"h_y\":%.1f,\"h_z\":%.1f,\"g_cd\":%d,\"sat\":%d,\"tw\":%d,\"tw_s\":%d}\n",
+  hal.console->printf("{\"type\":\"s_gps\",\"lat\":%ld,\"lon\":%ld,\"a_cm\":%ld,\"g_cms\":%.1f,\"e_cms\":%.1f,\"n_cms\":%.1f,\"d_cms\":%.1f,\"h_x\":%.1f,\"h_y\":%.1f,\"h_z\":%.1f,\"g_cd\":%ld,\"sat\":%d,\"tw\":%d,\"tw_s\":%ld}\n",
   gps.latitude,
   gps.longitude,
-  (double)gps.altitude_m,
+  gps.altitude_cm,
 
-  (double)gps.gspeed_ms,
-  (double)gps.espeed_ms,
-  (double)gps.nspeed_ms,
-  (double)gps.dspeed_ms,
+  (double)gps.gspeed_cms,
+  (double)gps.espeed_cms,
+  (double)gps.nspeed_cms,
+  (double)gps.dspeed_cms,
 
   (double)gps.heading_x,
   (double)gps.heading_y,

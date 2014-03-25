@@ -85,12 +85,12 @@ inline float delta_f(float fCurVal_Deg, float fOldVal_Deg) {
  * mod: Determines the slope (how fast the function decays when the angular values increase)
  * mod: Higher means faster decay
  */
- inline float sigm_atti_f(float x, float mod){
+inline float sigm_atti_f(float x, float mod){
   float val = (180.f - smaller_f(abs(mod * x), 179.9f) ) / 180.f;
   return val / sqrt(1 + pow2_f(val) );
 }
 
- inline float sigm_climb_f(float x, float mod){
+inline float sigm_climb_f(float x, float mod){
   float val = smaller_f(abs(mod * x), 125.f) / 250.f;
   return val / sqrt(1 + pow2_f(val) );
 }
@@ -100,28 +100,66 @@ inline float delta_f(float fCurVal_Deg, float fOldVal_Deg) {
  * mod: Determines the slope (decay) of the sigmoid activation function
  * rate: Determines how fast the annealing takes place
  */
- inline float anneal_f( float &angle_fuse, 
-                        const float &angle_ref, float time, float mod, float rate, float (*functor)(float, float) ) {
-  float fR = rate * time;
-  angle_fuse += (angle_ref-angle_fuse) * fR * functor(angle_ref, mod);
-  return angle_fuse;
-}    
+inline int_fast32_t 
+anneal_l( int_fast32_t &val2fuse, const int_fast32_t &valconst, 
+          int_fast32_t time_ms, 
+          int_fast32_t mod, 
+          int_fast32_t rate, 
+          float (*functor)(float, float) ) 
+{
+  int_fast32_t fR = rate * time_ms;
+  int_fast32_t iFunctor = (int_fast32_t)(1.f / functor((float)valconst, (float)mod) );
+  val2fuse += (valconst - val2fuse) * fR / iFunctor / 1000;
+
+  return val2fuse;
+}
  
-inline Vector3f anneal_V3f( Vector3f &angle_fuse, 
-                            const Vector3f &angle_ref, float time, float mod, float rate, float (*functor)(float, float) ) {
-  angle_fuse.x += anneal_f(angle_fuse.x, angle_ref.x, time, mod, rate, functor);
-  angle_fuse.y += anneal_f(angle_fuse.y, angle_ref.y, time, mod, rate, functor);
-  angle_fuse.z += anneal_f(angle_fuse.z, angle_ref.z, time, mod, rate, functor);
-
-  return angle_fuse;
+inline float 
+anneal_f( float &val2fuse, const float &valconst, 
+          float time_s, 
+          float mod, 
+          float rate, 
+          float (*functor)(float, float) )
+{
+  float fR = rate * time_s;
+  val2fuse += (valconst - val2fuse) * fR * functor(valconst, mod);
+  return val2fuse;
 }
 
-inline float low_pass_filter_f(const float &fCurSmple, const float &fOldSmple) {
-  return fCurSmple * INERT_LOWPATH_FILT + (fOldSmple * (1.f - INERT_LOWPATH_FILT) );
+inline Vector3f 
+anneal_V3f( Vector3f &val2fuse, const Vector3f &valconst, 
+            float time_s, 
+            float mod, 
+            float rate, 
+            float (*functor)(float, float) ) 
+{
+  anneal_f(val2fuse.x, valconst.x, time_s, mod, rate, functor);
+  anneal_f(val2fuse.y, valconst.y, time_s, mod, rate, functor);
+  anneal_f(val2fuse.z, valconst.z, time_s, mod, rate, functor);
+
+  return val2fuse;
 }
 
-inline Vector3f low_pass_filter_V3f(const Vector3f &fCurSmple, const Vector3f &fOldSmple) {
-  return fCurSmple * INERT_LOWPATH_FILT + (fOldSmple * (1.f - INERT_LOWPATH_FILT) );
+/*
+ * Low pass filter
+ */
+inline int_fast32_t 
+low_pass_filter_l(const int_fast32_t fCurSmple, const int_fast32_t fOldSmple, const int_fast16_t p) 
+{
+  const int_fast16_t q = 100 - p;
+  return (fCurSmple * p + fOldSmple * q) / 100;
+}
+
+inline float 
+low_pass_filter_f(const float fCurSmple, const float fOldSmple, const float p) 
+{
+  return fCurSmple * p + (fOldSmple * (1.f - p) );
+}
+
+inline Vector3f 
+low_pass_filter_V3f(const Vector3f &fCurSmple, const Vector3f &fOldSmple, const float p) 
+{
+  return fCurSmple * p + (fOldSmple * (1.f - p) );
 }
 
 #endif

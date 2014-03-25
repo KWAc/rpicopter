@@ -92,9 +92,9 @@ bool Receiver::parse_waypoint(char *buffer) {
   char *chk = strtok(NULL, "*");                    // chk = chksum
   bool bRet = false;
   
-  int_fast16_t lat           = 0;
-  int_fast16_t lon           = 0;
-  int_fast16_t alt_m         = 0;
+  int_fast32_t lat           = 0;
+  int_fast32_t lon           = 0;
+  int_fast32_t alt_cm        = 0;
   GPSPosition::UAV_TYPE flag = GPSPosition::NOTHING_F;
   
   if(verf_chksum(str, chk) ) {                      // if chksum OK
@@ -107,13 +107,13 @@ bool Receiver::parse_waypoint(char *buffer) {
 
       switch(i) {
         case 0:
-          lat   = atoi(cstr);
+          lat    = atol(cstr);
           break;
         case 1:
-          lon   = atoi(cstr);
+          lon    = atol(cstr);
           break;
         case 2:
-          alt_m = atoi(cstr);
+          alt_cm = atol(cstr);
 	  break;
         case 3:
 	  // Parse the type flag
@@ -122,7 +122,7 @@ bool Receiver::parse_waypoint(char *buffer) {
           if(flag == GPSPosition::HLD_ALTITUDE_F) {
             bool bOK = false;
             // Measure the current height
-            alt_m = altitude_m(m_pHalBoard, bOK);
+            alt_cm = altitude_cm(m_pHalBoard, bOK);
             // If height measurement failed, then break it
             if(!bOK) {
               flag = GPSPosition::NOTHING_F;
@@ -136,7 +136,7 @@ bool Receiver::parse_waypoint(char *buffer) {
   }
   // Set new waypoint only if the everything worked out like expected
   if(bRet == true) {
-    m_Waypoint = GPSPosition(lat, lon, alt_m, flag);
+    m_Waypoint = GPSPosition(lat, lon, alt_cm, flag);
   }
   return bRet;
 }
@@ -264,15 +264,16 @@ bool Receiver::parse_pid_conf(char* buffer) {
         m_pHalBoard->m_rgPIDS[PID_THR_RATE].imax(pids[2]);
         break;
       case 4:
-        m_pHalBoard->m_rgPIDS[PID_THR_ACCL].kP(pids[0]);
-        m_pHalBoard->m_rgPIDS[PID_THR_ACCL].kI(pids[1]);
-        m_pHalBoard->m_rgPIDS[PID_THR_ACCL].imax(pids[2]);
+        m_pHalBoard->m_rgPIDS[PID_ACC_RATE].kP(pids[0]);
+        m_pHalBoard->m_rgPIDS[PID_ACC_RATE].kI(pids[1]);
+        m_pHalBoard->m_rgPIDS[PID_ACC_RATE].imax(pids[2]);
         break;
       case 5:
         m_pHalBoard->m_rgPIDS[PID_PIT_STAB].kP(pids[0]);
         m_pHalBoard->m_rgPIDS[PID_ROL_STAB].kP(pids[1]);
         m_pHalBoard->m_rgPIDS[PID_YAW_STAB].kP(pids[2]);
         m_pHalBoard->m_rgPIDS[PID_THR_STAB].kP(pids[3]);
+        m_pHalBoard->m_rgPIDS[PID_ACC_STAB].kP(pids[4]);
         bRet = true;
         break;
       }
