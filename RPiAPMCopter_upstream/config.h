@@ -80,7 +80,7 @@
 // Main loop
 //////////////////////////////////////////////////////////////////////////////////////////
 #define MAIN_LOOP_T_MS       6      // Update frequency of the main loop: 166.6 Hz
-#define ALTI_ESTIM_T_MS      20     // Update frequency of the main loop: 50 Hz
+#define AHRS_T_MS            20     // Update frequency of the main loop: 50 Hz
 #define INERT_TIMEOUT        10     // in ms
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -123,18 +123,14 @@
 #define INERT_ANNEAL_SLOPE   20.f   // Slope modifier of the annealing function
 #define INERT_FUSION_RATE    5.f    // Sensor fusion rate: higher => faster annealing
 
-#define CLIMB_ANNEAL_SLOPE   1.f    // Slope modifier of the annealing function
-#define CLIMB_FUSION_RATE    5.f    // Sensor fusion rate: higher => faster annealing
-
-#define INERT_LOWPATH_FILT_f   0.33f  // Filter for the accelerometer
-#define INERT_LOWPATH_FILT_l   33     // Filter for the accelerometer
-#define BAROM_LOWPATH_FILT_f   0.33f  // Filter for the accelerometer
-#define BAROM_LOWPATH_FILT_i   33     // Filter for the accelerometer
+#define INERT_LOWPATH_FILT_f 0.33f  // Filter for the accelerometer
+#define BAROM_LOWPATH_FILT_f 0.33f  // Filter for the accelerometer
+#define BAROM_LOWPATH_FILT_i 33     // Filter for the accelerometer
+#define COMPA_LOWPATH_FILT_f 0.25f  // Filter for the accelerometer
 
 #define INERT_G_CONST        9.81f
 
-#define CMP_FOR_YAW          0      // Compass
-#define GPS_FOR_YAW          0      // GPS
+#define SIGM_FOR_ATTITUDE    1
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Error handling
@@ -145,6 +141,5 @@
 #define THR_TAKE_OFF         1300
 #define THR_MIN_STEP_S       25.f
 #define MAX_FALL_SPEED_MS    0.833f
-#define ALTI_MEASURE_TIME    100    // Time in ms to measure the hight if the model takes down
 
 #endif /*DEFS_h*/

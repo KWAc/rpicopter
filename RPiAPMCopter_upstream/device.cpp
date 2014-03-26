@@ -21,41 +21,35 @@ AP_BoardLED board_led;
 Device::Device( const AP_HAL::HAL *pHAL,
                 AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, AP_GPS_Auto *pGPS, BattMonitor *pBat, RangeFinder *pRF, AP_AHRS_DCM *pAHRS, AP_InertialNav *pInertNav )
 {
-  m_iAltitude_cm  = 0;
+  m_iAltitude_cm      = 0;
 
-  m_fInertRolOffs = 0.f;
-  m_fInertPitOffs = 0.f;
-  m_fInertYawOffs = 0.f;
+  m_fInertRolOffs     = 0.f;
+  m_fInertPitOffs     = 0.f;
+  m_fInertYawOffs     = 0.f;
 
-  m_fInertRolCor  = 0.f;
-  m_fInertPitCor  = 0.f;
+  m_fInertRolCor      = 0.f;
+  m_fInertPitCor      = 0.f;
 
   m_vAttitude_deg.x   = 0.f;
   m_vAttitude_deg.y   = 0.f;
   m_vAttitude_deg.z   = 0.f;
 
-  m_fCmpH         = 0.f;
-  m_fGpsH         = 0.f;
+  m_fCmpH             = 0.f;
+  m_fGpsH             = 0.f;
   
-  m_eErrors       = NOTHING_F;
-  
-  if(CMP_FOR_YAW) {
-    m_fCmpH = -read_comp_deg(0, 0);
-  } else {
-    m_fCmpH = 0.f;
-  }
+  m_eErrors           = NOTHING_F;
   
   // HAL
-  m_pHAL      = pHAL;
+  m_pHAL              = pHAL;
   // Sensors
-  m_pInert    = pInert;
-  m_pComp     = pComp;
-  m_pBaro     = pBar;
-  m_pGPS      = pGPS;
-  m_pBat      = pBat;
-  m_pRF       = pRF;
-  m_pAHRS     = pAHRS;
-  m_pInertNav = pInertNav;
+  m_pInert            = pInert;
+  m_pComp             = pComp;
+  m_pBaro             = pBar;
+  m_pGPS              = pGPS;
+  m_pBat              = pBat;
+  m_pRF               = pRF;
+  m_pAHRS             = pAHRS;
+  m_pInertNav         = pInertNav;
 
   // Timers
   m_iInertialNav = m_iInrtTimer = m_pHAL->scheduler->millis();
@@ -99,6 +93,7 @@ void Device::init_inertial_nav() {
     return;
   }
 
+  m_pAHRS->init();
   m_pAHRS->set_compass(m_pComp);
 
   m_pInertNav->init();
@@ -124,7 +119,8 @@ int_fast32_t Device::get_rf_cm() {
 }
 #endif
 
-void Device::update_inertial() {
+void Device::update_attitude() {
+#if SIGM_FOR_ATTITUDE
   m_pInert->update();
   
   // Calculate time (in s) passed
@@ -146,37 +142,18 @@ void Device::update_inertial() {
   if(vAnneal.y > 45.f || vAnneal.y < -45.f) {
     return;
   }
-/*
-  // .. alternatively the compass or GPS could be used ..
-  // First read the sensors
-  if(CMP_FOR_YAW) {
-    m_fCmpH = -read_comp_deg(0, 0);
-  }
-  if(GPS_FOR_YAW) { // TODO TEST this code
-    GPSData gps = read_gps();
-    float fHyp = sqrt(pow2_f(gps.heading_x) + pow2_f(gps.heading_y) );  // Calculate hypotenuse
-    m_fGpsH = atan2(gps.heading_y, fHyp);                               // Calculate the heading in degrees (from X and Y heading)
-  }
-  // Then calculate the heading, dependent on the devices used
-  // NO compass or GPS is used:
-  if(!CMP_FOR_YAW && !GPS_FOR_YAW) {
-    vAnneal.z = m_vAttitude_deg.z; // Take the gyrometer
-  }
-  // Only compass used:
-  if(CMP_FOR_YAW && !GPS_FOR_YAW) {
-    vAnneal.z = m_fCmpH;
-  }
-  // Only GPS used:
-  if(!CMP_FOR_YAW && GPS_FOR_YAW) {
-    vAnneal.z = m_fGpsH;
-  }
-  // Compass and GPS used:
-  if(CMP_FOR_YAW && GPS_FOR_YAW) {
-    vAnneal.z = (m_fGpsH + m_fCmpH) / 2.f;
-  }
-*/
-  // Anneal both sensors
-  m_vAttitude_deg = anneal_V3f(m_vAttitude_deg, vAnneal, time_s, INERT_ANNEAL_SLOPE, INERT_FUSION_RATE, &sigm_atti_f);
+  
+  // Anneal Pitch gyrometer readout to accelerometer
+  m_vAttitude_deg.x = anneal_f(m_vAttitude_deg.x, vAnneal.x, time_s, INERT_ANNEAL_SLOPE, INERT_FUSION_RATE, &sigm_atti_f);
+  // Anneal Roll gyrometer readout to accelerometer
+  m_vAttitude_deg.y = anneal_f(m_vAttitude_deg.y, vAnneal.y, time_s, INERT_ANNEAL_SLOPE, INERT_FUSION_RATE, &sigm_atti_f);
+  // Use AHRS for the correct yaw estimate (with compass and GPS)
+  m_vAttitude_deg.z = wrap180_f(ToDeg(m_pAHRS->yaw) );
+#else
+  m_vAttitude_deg.x = wrap180_f(ToDeg(m_pAHRS->pitch) );
+  m_vAttitude_deg.y = wrap180_f(ToDeg(m_pAHRS->roll) );
+  m_vAttitude_deg.z = wrap180_f(ToDeg(m_pAHRS->yaw) );
+#endif
 }
 
 float Device::get_pit_cor() {
@@ -230,7 +207,7 @@ void Device::init_barometer() {
   m_pBaro->calibrate();
 }
 
-void Device::update_intertial_nav() {
+void Device::update_inav() {
   float fTime_s = (m_pHAL->scheduler->millis() - m_iInertialNav) / 1000.f;
   m_pGPS->update();
   m_pAHRS->update();
@@ -305,10 +282,9 @@ void Device::init_inertial() {
 }
 
 void Device::init_gps() {  
-  m_pHAL->console->println("GPS AUTO library test");
-  m_pGPS->init(m_pHAL->uartB, GPS::GPS_ENGINE_AIRBORNE_2G);
-
-  // initialise the leds
+  m_pHAL->uartB->begin(BAUD_RATE_B);
+  m_pGPS->init(m_pHAL->uartB, GPS::GPS_ENGINE_AIRBORNE_4G, NULL);
+  // Initialise the LEDs
   board_led.init();
 }
 
@@ -360,11 +336,10 @@ Vector3f Device::read_accl_deg() {
   
   // Calculate roll and pitch in degrees from the filtered acceleration readouts (attitude)
   float fpYZ = sqrt(pow2_f(m_vAccel_deg.y) + pow2_f(m_vAccel_deg.z) );
-  //float fuXZ = sign_f(m_vAccel_deg.z) * sqrt(0.1f * pow2_f(m_vAccel_deg.x) + pow2_f(m_vAccel_deg.z) );
-  m_vAccel_deg.x = ToDeg(atan2(m_vAccel_deg.x, fpYZ) )   - m_fInertPitOffs;   // PITCH
-  //m_vAccel_deg.y = ToDeg(atan2(-m_vAccel_deg.y, -fuXZ) ) - m_fInertRolOffs; // ROLL
+  // Pitch
+  m_vAccel_deg.x = ToDeg(atan2(m_vAccel_deg.x, fpYZ) ) - m_fInertPitOffs;
+  // Roll
   m_vAccel_deg.y = ToDeg(atan2(-m_vAccel_deg.y, -m_vAccel_deg.z) ) - m_fInertRolOffs;
-  m_vAccel_deg.z = 0.f;                                                       // YAW:   Cannot be calculated because accelerometer is aligned with the gravitational field vector
 
   return m_vAccel_deg;
 }
@@ -382,7 +357,7 @@ Vector3f Device::get_accel_pg_cmss() {
  * In heading the heading of the compass is written.
  * All units in degrees
  */
-float Device::read_comp_deg(const float roll, const float pitch) {
+float Device::read_comp_deg() {
   if (!m_pComp->healthy() ) {
     m_pHAL->console->println("read_comp_deg(): Compass not healthy\n");
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, COMPASS_F) );
@@ -391,9 +366,7 @@ float Device::read_comp_deg(const float roll, const float pitch) {
   
   m_pComp->read();
   
-  Matrix3f dcm_matrix;
-  dcm_matrix.from_euler(roll, pitch, 0);
-  m_fCmpH = m_pComp->calculate_heading(dcm_matrix);
+  m_fCmpH = m_pComp->calculate_heading(m_pAHRS->get_dcm_matrix() );
   m_fCmpH = ToDeg(m_fCmpH);
   m_pComp->learn_offsets();
 

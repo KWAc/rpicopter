@@ -79,7 +79,6 @@ void Exception::rcvr_take_down() {
   if(m_bPauseTD == true) {
     return;
   }
-  
   // Remove the override if there was a new package within the interval
   lck_recvr(bIgnRcvr); // Copy the last command into a temporary
   if(bIgnRcvr == true) {
@@ -186,7 +185,7 @@ void Exception::reduce_thr(float fTime) {
   
   // The speed of decreasing the throttle is dependent on the height
   uint_fast32_t iAltitudeTime = m_pHalBoard->m_pHAL->scheduler->millis() - m_t32Altitude;
-  if(iAltitudeTime > ALTI_MEASURE_TIME) {
+  if(iAltitudeTime > AHRS_T_MS) {
     bool bOK = false;
     float fAlti_m = altitude_cm(m_pHalBoard, bOK) / 100.f;
     if(bOK == true) {

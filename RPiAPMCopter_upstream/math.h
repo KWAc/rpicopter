@@ -126,20 +126,6 @@ anneal_f( float &val2fuse, const float &valconst,
   return val2fuse;
 }
 
-inline Vector3f 
-anneal_V3f( Vector3f &val2fuse, const Vector3f &valconst, 
-            float time_s, 
-            float mod, 
-            float rate, 
-            float (*functor)(float, float) ) 
-{
-  anneal_f(val2fuse.x, valconst.x, time_s, mod, rate, functor);
-  anneal_f(val2fuse.y, valconst.y, time_s, mod, rate, functor);
-  anneal_f(val2fuse.z, valconst.z, time_s, mod, rate, functor);
-
-  return val2fuse;
-}
-
 /*
  * Low pass filter
  */

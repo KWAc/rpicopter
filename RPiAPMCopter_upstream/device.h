@@ -45,6 +45,8 @@ private:
   float m_fInertPitOffs;
   float m_fInertYawOffs;
   
+  Matrix3f m_mCompassDCM;
+  
 protected:
   float        m_fCmpH; // Compass heading
   float        m_fGpsH; // GPS heading
@@ -66,6 +68,7 @@ protected:
   Vector3f  read_gyro_deg();        // converts sensor relative readout to absolute attitude in degrees and saves in m_vGyro_deg
   Vector3f  read_accl_deg();       // converts sensor relative readout to absolute attitude and saves in m_vAccel_deg
   
+  // Attitude heading reference system
   AP_AHRS_DCM        *m_pAHRS;
   
 public:
@@ -105,14 +108,14 @@ public:
   void init_inertial_nav();
 
   /* Update intertial navigation (accelerometer, barometer, GPS sensor fusion) */
-  void update_intertial_nav();
+  void update_inav();
 
   /* Updating the inertial and calculates the attitude from fused sensor values */
-  void update_inertial();   // Calls: read_gyro_deg() and read_accl_deg() and saves results to m_vAttitude_deg, m_vGyro_deg and m_vAccel_deg
+  void update_attitude();   // Calls: read_gyro_deg() and read_accl_deg() and saves results to m_vAttitude_deg, m_vGyro_deg and m_vAccel_deg
   
   /* updating the sensors */
   BaroData  read_baro();
-  float     read_comp_deg(const float roll = 0.f, const float pitch = 0.f);
+  float     read_comp_deg();
   GPSData   read_gps();
   BattData  read_bat();
 // Ensure, there is a compiler error if sonar is not installed, but function used 

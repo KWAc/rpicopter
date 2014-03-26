@@ -101,9 +101,11 @@ bool Receiver::parse_waypoint(char *buffer) {
     char *cstr;
     
     for(uint_fast8_t i = 0; i < GPSP_ARGS; i++) {   // loop through final 3 RC_CHANNELS
-      if(i == 0)
+      if(i == 0) {
         cstr = strtok (buffer, ",");
-      else cstr = strtok (NULL, ",");
+      } else {
+        cstr = strtok (NULL, ",");
+      }
 
       switch(i) {
         case 0:
@@ -114,9 +116,9 @@ bool Receiver::parse_waypoint(char *buffer) {
           break;
         case 2:
           alt_cm = atol(cstr);
-	  break;
+          break;
         case 3:
-	  // Parse the type flag
+          // Parse the type flag
           flag = static_cast<GPSPosition::UAV_TYPE>(atoi(cstr) );
           // Override the height if the flag is HLD_ALTITUDE_F
           if(flag == GPSPosition::HLD_ALTITUDE_F) {

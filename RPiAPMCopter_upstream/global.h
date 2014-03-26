@@ -7,6 +7,7 @@
 #include "device.h"
 #include "receiver.h"
 #include "exceptions.h"
+#include "rcframe.h"
 
 
 ///////////////////////////////////////////////////////////
@@ -30,7 +31,6 @@ GPS_Glitch                 _GPS_GLITCH(_GPS);
 
 AP_AHRS_DCM                _AHRS(_INERT, _BARO, _GPS);
 AP_InertialNav             _INERT_NAV(_AHRS, _BARO, _GPS, _GPS_GLITCH);
-//AP_InertialNav_NavEKF      _INERT_NAV(_AHRS, _BARO, _GPS, _GPS_GLITCH);
 
 ///////////////////////////////////////////////////////////
 // Abstracted hardware abstraction classes :D
@@ -42,6 +42,9 @@ Scheduler                  _SCHED     (&hal);
 Device                     _HAL_BOARD (&hal, &_INERT, &_COMP, &_BARO, &_AUTO_GPS, &_BAT, &_SON, &_AHRS, &_INERT_NAV);
 Receiver                   _RECVR     (&_HAL_BOARD);
 Exception                  _EXCP      (&_HAL_BOARD, &_RECVR);
+
+// Currently just a quad-copter with X-frame is implemented
+M4XFrame                   _MODEL     (&_HAL_BOARD, &_RECVR, &_EXCP);
 
 #endif
 

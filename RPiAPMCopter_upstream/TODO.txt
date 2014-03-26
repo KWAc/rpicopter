@@ -1,1 +1,0 @@
-- Altitude hold was not tested
