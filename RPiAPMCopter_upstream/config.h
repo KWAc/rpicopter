@@ -79,7 +79,7 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 // Main loop
 //////////////////////////////////////////////////////////////////////////////////////////
-#define MAIN_LOOP_T_MS       6      // Update frequency of the main loop: 166.6 Hz
+#define MAIN_T_MS            6      // Update frequency of the main loop: 166.6 Hz
 #define AHRS_T_MS            20     // Update frequency of the main loop: 50 Hz
 #define INERT_TIMEOUT        10     // in ms
 

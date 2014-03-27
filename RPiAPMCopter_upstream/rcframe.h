@@ -19,7 +19,7 @@ protected:
   Exception* m_pExeption;
 
 public:
-  Frame(Device *pDev, Receiver *pRecv, Exception *pExcp);
+  Frame(Device *, Receiver *, Exception *);
   
   // Execute the magic here!
   virtual void run() = 0;
@@ -50,7 +50,7 @@ protected:
   void calc_gpsnavig_hold();
   
 public:
-  M4XFrame(Device *pDev, Receiver *pRecv, Exception *pExcp);
+  M4XFrame(Device *, Receiver *, Exception *);
   
   // Execute the magic here!
   void run();

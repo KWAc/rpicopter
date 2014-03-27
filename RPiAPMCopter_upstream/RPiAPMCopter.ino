@@ -46,21 +46,20 @@
 #include "math.h"
 
 
+// Main callback routine for the model, which is used by the task manager
+inline void main_loop() {
+  _MODEL.run();
+}
+// Altitude estimation and AHRS system (yaw correction with GPS, barometer, ..)
 inline void ahrs_loop() {
-  // For altitude estimation and AHRS system (yaw correction with GPS, barometer, ..)
   _HAL_BOARD.update_inav();
 #ifdef SONAR_TYPE
   _HAL_BOARD.read_rf_m();
 #endif
 }
 
-inline void main_loop() {
-  // Calculation: Holding the model in the air
-  _MODEL.run();
-}
-
 #if SIGM_FOR_ATTITUDE
-Task taskMain(&main_loop, MAIN_LOOP_T_MS, 1);
+Task taskMain(&main_loop, MAIN_T_MS, 1);
 Task taskAHRS(&ahrs_loop, AHRS_T_MS, 1);
 #else // Set it to 100 Hz
 Task taskMain(&main_loop, 10, 1);
