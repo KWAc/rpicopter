@@ -12,7 +12,7 @@ Receiver::Receiver(Device *pHalBoard) {
   memset(m_rgChannelsRC, 0, sizeof(m_rgChannelsRC) );
   
   m_iSParseTimer_A = m_iSParseTimer_C = m_iSParseTimer = m_pHalBoard->m_pHAL->scheduler->millis();
-  m_iSParseTime_A = m_iSParseTime_C = m_iSParseTime = 0;
+  m_iSParseTime_A  = m_iSParseTime_C  = m_iSParseTime  = 0;
   
   m_eErrors = NOTHING_F;
 }
@@ -41,17 +41,17 @@ bool Receiver::parse_ctrl_com(char* buffer) {
     return false;
   }
 
-  char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
-  char *chk = strtok(NULL, "*");                    // chk = chksum
+  char *str = strtok(buffer, "*");                      // str = roll, pit, thr, yaw
+  char *chk = strtok(NULL, "*");                        // chk = chksum
 
-  if(verf_chksum(str, chk) ) {                      // if chksum OK
-    char *ch = strtok(str, ",");                    // first channel
-    m_rgChannelsRC[0] = strtol(ch, NULL, 10);  // parse
+  if(verf_chksum(str, chk) ) {                          // if chksum OK
+    char *ch = strtok(str, ",");                        // first channel
+    m_rgChannelsRC[0] = strtol(ch, NULL, 10);           // parse
     for(uint_fast8_t i = 1; i < APM_IOCHAN_CNT; i++) {  // loop through final 3 RC_CHANNELS
       char *ch = strtok(NULL, ",");
       m_rgChannelsRC[i] = strtol(ch, NULL, 10);
     }
-    m_iSParseTimer = m_pHalBoard->m_pHAL->scheduler->millis();           // update last valid packet
+    m_iSParseTimer = m_pHalBoard->m_pHAL->scheduler->millis(); // update last valid packet
   }
   return true;
 }
@@ -284,27 +284,6 @@ bool Receiver::parse_pid_conf(char* buffer) {
   return bRet;
 }
 
-bool Receiver::read_uartA(uint_fast16_t bytesAvail) {
-  static uint_fast16_t offset = 0;
-
-  bool bRet = false;
-  for(; bytesAvail > 0; bytesAvail--) {
-    char c = (char)m_pHalBoard->m_pHAL->console->read();// read next byte
-    if(c == '\n') {                                     // new line reached - process cmd
-      m_cBuffer[offset] = '\0';                         // null terminator
-      bRet = parse(m_cBuffer);
-      if(bRet) {
-        m_iSParseTimer_A = m_iSParseTimer;
-      }
-      memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;
-    }
-    else if(c != '\r' && offset < sizeof(m_cBuffer)-1) {
-      m_cBuffer[offset++] = c;                          // store in buffer and continue until newline
-    }
-  }
-  last_parse_uartA_t32();
-  return bRet;
-}
 /* 
  * Compact remote control packet system for the radio on Uart2,
  * Everything fits into 7 bytes 
@@ -346,6 +325,29 @@ bool Receiver::parse_radio(char *buffer) {
   return true;
 }
 
+bool Receiver::read_uartA(uint_fast16_t bytesAvail) {
+  static uint_fast16_t offset = 0;
+
+  bool bRet = false;
+  for(; bytesAvail > 0; bytesAvail--) {
+    char c = (char)m_pHalBoard->m_pHAL->console->read();// read next byte
+    if(c == '\n') {                                     // new line reached - process cmd
+      m_cBuffer[offset] = '\0';                         // null terminator
+      bRet = parse(m_cBuffer);
+      if(bRet) {
+        m_iSParseTimer_A = m_iSParseTimer;
+      }
+      memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;
+    }
+    else if(c != '\r' && offset < sizeof(m_cBuffer)-1) {
+      m_cBuffer[offset++] = c;                          // store in buffer and continue until newline
+    }
+  }
+  
+  last_parse_uartA_t32();
+  return bRet;
+}
+
 bool Receiver::read_uartC(uint_fast16_t bytesAvail) {
   static uint_fast16_t offset = 0;
 
@@ -375,6 +377,7 @@ bool Receiver::read_uartC(uint_fast16_t bytesAvail) {
       m_cBuffer[offset++] = c;                                // store in buffer and continue until newline
     }
   }
+  
   last_parse_uartC_t32();
   return bRet;
 }
@@ -414,11 +417,13 @@ bool Receiver::parse(char *buffer) {
 }
 
 bool Receiver::try_uartAC() {
-  // Commands via serial port (in this case WiFi -> RPi -> APM2.5)
-  bool bOK = read_uartA(m_pHalBoard->m_pHAL->uartA->available() ); 	// Try WiFi (serial) first
-  if(!bOK && last_parse_uartA_t32() > UART_A_TIMEOUT) {
-    bOK = read_uartC(m_pHalBoard->m_pHAL->uartC->available() ); 	        // If not working: Try radio next
+  // Try WiFi first
+  bool bOK = read_uartA(m_pHalBoard->m_pHAL->uartA->available() );
+  if(!bOK && m_iSParseTime_A > UART_A_TIMEOUT) {
+    // Try radio next
+    bOK = read_uartC(m_pHalBoard->m_pHAL->uartC->available() );
   }
+  // Update the time for the last successful parse of a control string
   last_parse_t32();
   return bOK;
 }

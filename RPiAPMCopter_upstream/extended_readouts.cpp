@@ -22,8 +22,8 @@
 #include "device.h"
 
 
-Vector3f accel_g(Device *pDev, bool &bOK) {
-  Vector3f fGForce;
+float zaccel_g(Device *pDev, bool &bOK) {
+  static float fGForce = 0.f;
   
   bOK = false;
   // Break when no device was found
@@ -40,8 +40,8 @@ Vector3f accel_g(Device *pDev, bool &bOK) {
   }
   
   float fCFactor = 100.f * INERT_G_CONST;
-  fGForce    = pDev->get_accel_mg_cmss() / fCFactor;
-  fGForce.z *= -1.f;
+  float fG       = -pDev->get_accel_mg_cmss().z / fCFactor;
+  fGForce        = low_pass_filter_f(fG, fGForce, ZACCL_LOWPATH_FILT_f);
   
   bOK = true;
   return fGForce;

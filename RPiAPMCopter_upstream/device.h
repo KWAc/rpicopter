@@ -17,6 +17,7 @@ class AP_InertialNav;
 class AP_AHRS_DCM;
 class Compass;
 class AP_Baro;
+class GPS;
 class AP_GPS_Auto;
 class BattMonitor;
 class RangeFinder;
@@ -33,8 +34,9 @@ class PID;
 ///////////////////////////////////////////////////////////
 class Device : public AbsErrorDevice {
 private:
-  uint_fast32_t m_iInrtTimer; // For calculating the derivative of the angular changes
-  uint_fast32_t m_iInertialNav;
+  uint_fast32_t m_t32Inertial; // For calculating the derivative of the angular changes
+  uint_fast32_t m_t32InertialNav;
+  uint_fast32_t m_t32Compass;
   
   // Used with low path filter
   Vector3f m_vAccelPG_cmss; // acceleration readout
@@ -43,7 +45,6 @@ private:
   // Set by inertial calibration
   float m_fInertRolOffs;
   float m_fInertPitOffs;
-  float m_fInertYawOffs;
   
   Matrix3f m_mCompassDCM;
   
@@ -83,7 +84,7 @@ public:
   // Barometer
   AP_Baro            *m_pBaro;
   // GPS
-  AP_GPS_Auto        *m_pGPS;
+  GPS                **m_pGPS;
   // battery monitor
   BattMonitor        *m_pBat;
   // Sonar
@@ -94,7 +95,7 @@ public:
 public:
   // Accepts pointers to abstract base classes to handle different sensor types
   Device( const AP_HAL::HAL *,
-          AP_InertialSensor *, Compass *, AP_Baro *, AP_GPS_Auto *, BattMonitor *, RangeFinder *, AP_AHRS_DCM *, AP_InertialNav *);
+          AP_InertialSensor *, Compass *, AP_Baro *, GPS **, BattMonitor *, RangeFinder *, AP_AHRS_DCM *, AP_InertialNav *);
 
   Vector3f calibrate_inertial();
 
@@ -143,7 +144,7 @@ public:
   BattData get_bat();           // Just return the last estimated battery data
 // Ensure, there is a compiler error if sonar is not installed, but function used 
 #ifdef SONAR_TYPE
-  int_fast32_t get_rf_cm();          // Altitude estimate using range finder
+  int_fast32_t get_rf_cm();     // Altitude estimate using range finder
 #endif
   // Setter and getter for inertial adjustments
   float get_pit_cor();

@@ -19,6 +19,6 @@ int_fast32_t altitude_cm(Device*, bool &);   // Atm fused barometer and GPS read
 // Scaled from 0.fX g - 1.fX g (or higher)
 // Positive when accelerating down, negative when accelerating up
 ///////////////////////////////////////////////////////////
-Vector3f accel_g(Device*, bool &);
+float zaccel_g(Device*, bool &);
 
 #endif

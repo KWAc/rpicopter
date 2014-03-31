@@ -44,6 +44,10 @@ void leds_on() {
 // compass
 ///////////////////////////////////////////////////////////
 void send_comp() {
+  if(!_HAL_BOARD.m_pComp->use_for_yaw() ) {
+    return;
+  }
+  
   hal.console->printf("{\"type\":\"s_cmp\",\"h\":%.1f}\n",
   (double)_HAL_BOARD.read_comp_deg() );
 }
@@ -70,11 +74,11 @@ void send_baro() {
 // gps
 ///////////////////////////////////////////////////////////
 void send_gps() {
-  if(_HAL_BOARD.m_pGPS->status() == GPS::NO_GPS) {
+  if(!(*_HAL_BOARD.m_pGPS)->fix) {
     return;
   }
   
-  GPSData gps = _HAL_BOARD.read_gps();
+  GPSData gps = _HAL_BOARD.get_gps();
   hal.console->printf("{\"type\":\"s_gps\",\"lat\":%ld,\"lon\":%ld,\"a_cm\":%ld,\"g_cms\":%.1f,\"e_cms\":%.1f,\"n_cms\":%.1f,\"d_cms\":%.1f,\"h_x\":%.1f,\"h_y\":%.1f,\"h_z\":%.1f,\"g_cd\":%ld,\"sat\":%d,\"tw\":%d,\"tw_s\":%ld}\n",
   gps.latitude,
   gps.longitude,

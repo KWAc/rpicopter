@@ -16,7 +16,7 @@ class Device;
 
 class Receiver : public AbsErrorDevice {  
 private:
-  char    m_cBuffer[512];
+  char    m_cBuffer[128];
 
   Device  *m_pHalBoard;
   

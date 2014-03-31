@@ -6,6 +6,7 @@
 class Device;
 class Receiver;
 class Exception;
+class UAVNav;
 
 
 /*
@@ -17,9 +18,10 @@ protected:
   Device*    m_pHalBoard;
   Receiver*  m_pReceiver;
   Exception* m_pExeption;
+  UAVNav*    m_pNavigation;
 
 public:
-  Frame(Device *, Receiver *, Exception *);
+  Frame(Device *, Receiver *, Exception *, UAVNav *);
   
   // Execute the magic here!
   virtual void run() = 0;
@@ -50,7 +52,7 @@ protected:
   void calc_gpsnavig_hold();
   
 public:
-  M4XFrame(Device *, Receiver *, Exception *);
+  M4XFrame(Device *, Receiver *, Exception *, UAVNav *);
   
   // Execute the magic here!
   void run();

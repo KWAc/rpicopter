@@ -27,8 +27,16 @@ inline float sign_f(float fVal) {
   return fVal >= 0.f ? 1.f : -1.f;
 }
 
+inline long sign_l(long lVal) {
+  return lVal >= 0 ? 1 : -1;
+}
+
 inline float pow2_f(float fVal) {
   return fVal * fVal;
+}
+
+inline long pow2_l(long lVal) {
+  return lVal * lVal;
 }
 
 /*
@@ -75,55 +83,9 @@ inline float bigger_f(float value, float bias) {
   return value > bias ? value : bias;
 }
 
-inline float delta_f(float fCurVal_Deg, float fOldVal_Deg) {
-  float fVal = fCurVal_Deg - fOldVal_Deg;
-  return fVal < -180.f ? ((fCurVal_Deg + 360) - fOldVal_Deg) : fVal > 180.f ? ((fCurVal_Deg - 360) - fOldVal_Deg) : fVal;
-}
-
-/*
- * Sigmoid transfer function
- * mod: Determines the slope (how fast the function decays when the angular values increase)
- * mod: Higher means faster decay
- */
-inline float sigm_atti_f(float x, float mod){
-  float val = (180.f - smaller_f(abs(mod * x), 179.9f) ) / 180.f;
-  return val / sqrt(1 + pow2_f(val) );
-}
-
-inline float sigm_climb_f(float x, float mod){
-  float val = smaller_f(abs(mod * x), 125.f) / 250.f;
-  return val / sqrt(1 + pow2_f(val) );
-}
-
-/*
- * Fuses two sensor values together by annealing angle_fuse to angle_ref
- * mod: Determines the slope (decay) of the sigmoid activation function
- * rate: Determines how fast the annealing takes place
- */
-inline int_fast32_t 
-anneal_l( int_fast32_t &val2fuse, const int_fast32_t &valconst, 
-          int_fast32_t time_ms, 
-          int_fast32_t mod, 
-          int_fast32_t rate, 
-          float (*functor)(float, float) ) 
-{
-  int_fast32_t fR = rate * time_ms;
-  int_fast32_t iFunctor = (int_fast32_t)(1.f / functor((float)valconst, (float)mod) );
-  val2fuse += (valconst - val2fuse) * fR / iFunctor / 1000;
-
-  return val2fuse;
-}
- 
-inline float 
-anneal_f( float &val2fuse, const float &valconst, 
-          float time_s, 
-          float mod, 
-          float rate, 
-          float (*functor)(float, float) )
-{
-  float fR = rate * time_s;
-  val2fuse += (valconst - val2fuse) * fR * functor(valconst, mod);
-  return val2fuse;
+inline float anneal_f(float &fSens, const float fErr, const float fSigm_dT) {
+  fSens += fErr * fSigm_dT;
+  return fSens;
 }
 
 /*

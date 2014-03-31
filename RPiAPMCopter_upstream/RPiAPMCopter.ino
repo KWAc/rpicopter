@@ -67,6 +67,9 @@ Task taskAHRS(&ahrs_loop, 10, 1);
 #endif
 
 void setup() {
+  // Totally necessary
+  _GPS = &_AUTO_GPS;
+
   // Prepare scheduler for the main loop ..
   _SCHED.add_task(&taskMain, 0);  // Main loop with own attitude calculation (166 Hz)
   _SCHED.add_task(&taskAHRS, 0);  // Inertial, GPS, Compass, Barometer sensor fusions (slow) ==> running at 50 Hz
@@ -80,6 +83,7 @@ void setup() {
 
   // Set baud rate when connected to RPi
   hal.uartA->begin(BAUD_RATE_A); // USB
+  hal.uartB->begin(BAUD_RATE_B); // GPS
   hal.uartC->begin(BAUD_RATE_C); // RADIO
   hal.console->printf("Setup device ..\n");
 

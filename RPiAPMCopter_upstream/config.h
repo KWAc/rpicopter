@@ -120,6 +120,9 @@
 
 #define ATTITUDE_SAMPLE_CNT  10     // Inertial calibration sample count
 
+#define COMP_ANNEAL_SLOPE    1.0f   // Slope modifier of the annealing function
+#define COMP_FUSION_RATE     0.75f  // Sensor fusion rate: higher => faster annealing
+
 #define INERT_ANNEAL_SLOPE   20.f   // Slope modifier of the annealing function
 #define INERT_FUSION_RATE    5.f    // Sensor fusion rate: higher => faster annealing
 
@@ -128,9 +131,12 @@
 #define BAROM_LOWPATH_FILT_i 33     // Filter for the accelerometer
 #define COMPA_LOWPATH_FILT_f 0.25f  // Filter for the accelerometer
 
+#define ZACCL_LOWPATH_FILT_f 0.025f // Filter for the accelerometer
+
 #define INERT_G_CONST        9.81f
 
-#define SIGM_FOR_ATTITUDE    1
+#define SIGM_FOR_ATTITUDE    1      // A little bit slower than standard method
+#define COMPASS_UPDATE_T     100
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Error handling
@@ -141,5 +147,11 @@
 #define THR_TAKE_OFF         1300
 #define THR_MIN_STEP_S       25.f
 #define MAX_FALL_SPEED_MS    0.833f
+
+//////////////////////////////////////////////////////////////////////////////////////////
+// Auto navigation
+//////////////////////////////////////////////////////////////////////////////////////////
+
+#define MAX_YAW              45
 
 #endif /*DEFS_h*/

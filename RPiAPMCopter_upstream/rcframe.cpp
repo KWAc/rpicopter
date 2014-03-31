@@ -4,6 +4,7 @@
 #include "device.h"
 #include "receiver.h"
 #include "exceptions.h"
+#include "navigation.h"
 #include "math.h"
 #include "extended_readouts.h"
 
@@ -22,16 +23,17 @@ inline void set_channels(const Receiver *pRecvr, int_fast16_t &pit, int_fast16_t
 ////////////////////////////////////////////////////////////////////////
 // Abstract class implementation
 ////////////////////////////////////////////////////////////////////////
-Frame::Frame(Device *pDev, Receiver *pRecv, Exception *pExcp) {
-  m_pHalBoard = pDev;
-  m_pReceiver = pRecv;
-  m_pExeption = pExcp;
+Frame::Frame(Device *pDev, Receiver *pRecv, Exception *pExcp, UAVNav* pUAV) {
+  m_pHalBoard   = pDev;
+  m_pReceiver   = pRecv;
+  m_pExeption   = pExcp;
+  m_pNavigation = pUAV;
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Class implementation
 ////////////////////////////////////////////////////////////////////////
-M4XFrame::M4XFrame(Device *pDev, Receiver *pRecv, Exception *pExcp) : Frame(pDev, pRecv, pExcp)
+M4XFrame::M4XFrame(Device *pDev, Receiver *pRecv, Exception *pExcp, UAVNav* pUAV) : Frame(pDev, pRecv, pExcp, pUAV)
 {
   _FL = _BL = _FR = _BR = RC_THR_OFF;
 }
@@ -83,8 +85,8 @@ void M4XFrame::calc_gpsnavig_hold() {
     return;
   }
   
-  // Turn to the currently set way point
-  
+  // Flying to the next way-point
+  m_pNavigation->run();
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -94,7 +96,7 @@ void M4XFrame::calc_gpsnavig_hold() {
 // * GPS auto-navigation
 ////////////////////////////////////////////////////////////////////////
 void M4XFrame::calc_altitude_hold() {
-  const float fBias_g   = 0.25f;
+  const float fBias_g   = 0.50f;
   const float fScaleF_g = 100.0f;
 
   int_fast16_t iAltZOutput = 0; // Barometer & Sonar
@@ -110,7 +112,7 @@ void M4XFrame::calc_altitude_hold() {
   int_fast32_t iCurAlti_cm = altitude_cm(m_pHalBoard, bOK_H);
   float fClimbRate_cms = climbrate_cms(m_pHalBoard, bOK_R);
   // Get the acceleration in g
-  Vector3f vAccel_g = accel_g(m_pHalBoard, bOK_G) * fScaleF_g;
+  float fAccel_g = zaccel_g(m_pHalBoard, bOK_G) * fScaleF_g;
   
   if(!bOK_H || !bOK_R || !bOK_G) {
     return;
@@ -122,21 +124,22 @@ void M4XFrame::calc_altitude_hold() {
     float fAltZStabOut = m_pHalBoard->m_rgPIDS[PID_THR_STAB].get_pid((float)(iRCAlt_cm - iCurAlti_cm), 1);
     iAltZOutput        = m_pHalBoard->m_rgPIDS[PID_THR_RATE].get_pid(fAltZStabOut - fClimbRate_cms, 1);
   }
-  
+/*
+// TODO TEST
   // If the quad-copter is going down too fast, fAcceleration_g becomes greater
-  if(m_pReceiver->m_Waypoint.mode == GPSPosition::CONTRLD_DOWN_F && vAccel_g.z > fBias_g) {
+  if(m_pReceiver->m_Waypoint.mode == GPSPosition::CONTRLD_DOWN_F && fAccel_g > fBias_g) {
     m_pExeption->pause_take_down();
   }
   
   // else: the fAcceleration_g becomes smaller
-  if(m_pReceiver->m_Waypoint.mode == GPSPosition::CONTRLD_DOWN_F && vAccel_g.z <= fBias_g) {
+  if(m_pReceiver->m_Waypoint.mode == GPSPosition::CONTRLD_DOWN_F && fAccel_g <= fBias_g) {
     m_pExeption->continue_take_down();
   }
-  
+*/  
   // Don't change the throttle if acceleration is below a certain bias
-  if(abs(vAccel_g.z) >= fBias_g) {
-    //vAccel_g.z         = sign_f(vAccel_g.z) * (abs(vAccel_g.z) - fBias_g) * fScaleF_g;
-    float fAccZStabOut = m_pHalBoard->m_rgPIDS[PID_ACC_STAB].get_pid(vAccel_g.z, 1);
+  if(abs(fAccel_g) >= fBias_g) {
+    //fAccel_g         = sign_f(fAccel_g) * (abs(fAccel_g) - fBias_g) * fScaleF_g;
+    float fAccZStabOut = m_pHalBoard->m_rgPIDS[PID_ACC_STAB].get_pid(fAccel_g, 1);
     iAccZOutput        = m_pHalBoard->m_rgPIDS[PID_ACC_RATE].get_pid(fAccZStabOut, 1);
   }
 
@@ -159,8 +162,8 @@ void M4XFrame::calc_attitude_hold() {
   // additional filter or rc variables
   static float targ_yaw = 0.f; // yaw target from rc
 
-  // Wait until new orientation data (normally 5 ms max)
-  while(m_pHalBoard->m_pInert->wait_for_sample(INERT_TIMEOUT) == 0);
+  // Wait if there is no new data (save ressources)
+  while(!m_pHalBoard->m_pInert->wait_for_sample(MAIN_T_MS) );
 
   // Handle all defined problems (time-outs, broken gyrometer, GPS signal ..)
   m_pExeption->handle();
@@ -207,7 +210,7 @@ void M4XFrame::calc_attitude_hold() {
     targ_yaw = vAtti.z;
 
     // reset PID integrals whilst on the ground
-    for(uint_fast8_t i = 0; i < sizeof(m_pHalBoard->m_rgPIDS); i++) {
+    for(uint_fast8_t i = 0; i < NR_OF_PIDS; i++) {
       m_pHalBoard->m_rgPIDS[i].reset_I();
     }
   }

@@ -8,12 +8,13 @@
 #include "receiver.h"
 #include "exceptions.h"
 #include "rcframe.h"
+#include "navigation.h"
 
 
 ///////////////////////////////////////////////////////////
 // ArduPilot Hardware Abstraction Layer
 ///////////////////////////////////////////////////////////
-const AP_HAL::HAL&         hal = AP_HAL_AVR_APM2;
+const AP_HAL::HAL&         hal = AP_HAL_BOARD_DRIVER;
 
 ///////////////////////////////////////////////////////////
 // Board specific sensors
@@ -39,12 +40,13 @@ AP_InertialNav             _INERT_NAV(_AHRS, _BARO, _GPS, _GPS_GLITCH);
 // to circumvent the usage of AP_Param for changing settings
 ///////////////////////////////////////////////////////////
 Scheduler                  _SCHED     (&hal);
-Device                     _HAL_BOARD (&hal, &_INERT, &_COMP, &_BARO, &_AUTO_GPS, &_BAT, &_SON, &_AHRS, &_INERT_NAV);
+Device                     _HAL_BOARD (&hal, &_INERT, &_COMP, &_BARO, &_GPS, &_BAT, &_SON, &_AHRS, &_INERT_NAV);
 Receiver                   _RECVR     (&_HAL_BOARD);
 Exception                  _EXCP      (&_HAL_BOARD, &_RECVR);
 
 // Currently just a quad-copter with X-frame is implemented
-M4XFrame                   _MODEL     (&_HAL_BOARD, &_RECVR, &_EXCP);
+UAVNav                     _UAV       (&_HAL_BOARD, &_RECVR, &_EXCP);
+M4XFrame                   _MODEL     (&_HAL_BOARD, &_RECVR, &_EXCP, &_UAV);
 
 #endif
 
