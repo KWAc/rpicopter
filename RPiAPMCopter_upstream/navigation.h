@@ -8,17 +8,15 @@ class Receiver;
 class Exception;
 
 
-inline float sigm_uav_f(float x, float mod);
-
 class UAVNav {
 private:  
   uint_fast32_t m_t32YawTimer;
 
-  float  m_fDestin_deg;
-  float  m_fDelta_deg;
-  float  m_fCurrentYaw_deg;
+  float  m_dX;
+  float  m_dY;
   
-  float  m_fTargetYaw_deg;
+  float         m_fTargetYaw_deg;
+  int_fast16_t  m_iTargetPit_deg;
 
   Device*       m_pHalBoard;
   Receiver*     m_pReceiver;
@@ -28,8 +26,11 @@ private:
    * Calculate the change in degrees 
    * necessary to head with the front of the frame to the target way point
    */
-  void target_angle();
-  int_fast32_t delta_angle();   // target angle minus current angle in degree * 1000
+  float calc_error_deg();
+
+  float width_of_merid_m(const float fLat_deg) const;
+  float dist_2_equat_m  (const float fLat_deg) const;
+  float dist_2_greenw_m (const float fLat_deg, const float fLon_deg) const;
   
 public:
   UAVNav(Device *, Receiver *, Exception *);

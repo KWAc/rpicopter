@@ -13,6 +13,7 @@
 #include "config.h"
 #include "BattMonitor.h"
 #include "math.h"
+#include "filter.h"
 
 
 // create board led object
@@ -21,30 +22,48 @@ AP_BoardLED board_led;
 
 /*
  * Sigmoid transfer function
- * mod: Determines the slope (how fast the function decays when the angular values increase)
- * mod: Higher means faster decay
  */
-inline float sigm_atti_f(float fX, float fSlope) {
+inline float atti_f(float fX, float fSlope) {
   float fVal = (180.f - smaller_f(abs(fSlope * fX), 179.9f) ) / 180.f;
   return fVal / sqrt(1.f + pow2_f(fVal) );
 }
 
-inline float sigm_cyaw_f(float fX, float fSlope) {
-  float fVal = smaller_f(abs(fSlope * fX), 180.f) / 180.f;
-  fVal *= sign_f(fX);
-  return fVal / sqrt(1.f + pow2_f(fVal) );
-}
+void Device::update_attitude() {
+  m_pAHRS->update();
+#if SIGM_FOR_ATTITUDE
+  // Use "m_pInert->update()" only if "m_pAHRS->update()" is not used
+  //m_pInert->update();
 
-/*
- * Fuses two sensor values together by annealing angle_fuse to angle_ref
- * mod: Determines the slope (decay) of the sigmoid activation function
- * rate: Determines how fast the annealing takes place
- */
-inline float atti_sfuse_f(float &fSens, const float fRef, const float dT) {
-  fSens += (fRef - fSens) * INERT_FUSION_RATE * sigm_atti_f(fRef, INERT_ANNEAL_SLOPE) * dT;
-  return fSens;
-}
+  // Calculate time (in s) passed
+  uint_fast32_t t32CurrentTime = m_pHAL->scheduler->millis();
+  float dT = (float)(t32CurrentTime - m_t32Inertial) / 1000.f;
+  m_t32Inertial = t32CurrentTime;
+  
+  // Calculate attitude from relative gyrometer changes
+  m_vAtti_deg  += read_gyro_deg() * dT;
+  m_vAtti_deg   = wrap180_V3f(m_vAtti_deg);
+  m_vAtti_deg.z = ToDeg(m_pAHRS->yaw); // Use AHRS for the yaw
+  
+  // Use a temporary instead of the member variable for acceleration data
+  Vector3f vRef_deg = read_accl_deg();
 
+  // Use accelerometer on in +/-45° range
+  if(vRef_deg.x > 45.f || vRef_deg.x < -45.f) {
+    return;
+  }
+  if(vRef_deg.y > 45.f || vRef_deg.y < -45.f) {
+    return;
+  }
+
+  // Anneal Pitch/Roll gyrometer to accelerometer  
+  m_vAtti_deg.x = SFilter::anneal_f(m_vAtti_deg.x, vRef_deg.x-m_vAtti_deg.x, dT*INERT_FUSION_RATE, Functor_f(&atti_f, vRef_deg.x, INERT_ANNEAL_SLOPE) );
+  m_vAtti_deg.y = SFilter::anneal_f(m_vAtti_deg.y, vRef_deg.y-m_vAtti_deg.y, dT*INERT_FUSION_RATE, Functor_f(&atti_f, vRef_deg.y, INERT_ANNEAL_SLOPE) );
+#else
+  m_vAtti_deg.x = ToDeg(m_pAHRS->pitch);
+  m_vAtti_deg.y = ToDeg(m_pAHRS->roll);
+  m_vAtti_deg.z = ToDeg(m_pAHRS->yaw);
+#endif
+}
 
 Device::Device( const AP_HAL::HAL *pHAL,
                 AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, GPS **pGPS, BattMonitor *pBat, RangeFinder *pRF, AP_AHRS_DCM *pAHRS, AP_InertialNav *pInertNav )
@@ -57,9 +76,9 @@ Device::Device( const AP_HAL::HAL *pHAL,
   m_fInertRolCor      = 0.f;
   m_fInertPitCor      = 0.f;
 
-  m_vAttitude_deg.x   = 0.f;
-  m_vAttitude_deg.y   = 0.f;
-  m_vAttitude_deg.z   = 0.f;
+  m_vAtti_deg.x       = 0.f;
+  m_vAtti_deg.y       = 0.f;
+  m_vAtti_deg.z       = 0.f;
 
   m_fCmpH             = 0.f;
   m_fGpsH             = 0.f;
@@ -137,53 +156,6 @@ int_fast32_t Device::get_rf_cm() {
 }
 #endif
 
-void Device::update_attitude() {
-  m_pAHRS->update();
-#if SIGM_FOR_ATTITUDE
-  // Use "m_pInert->update()" only if "m_pAHRS->update()" is not used
-  //m_pInert->update();
-
-  // Calculate time (in s) passed
-  uint_fast32_t t32CurrentTime = m_pHAL->scheduler->millis();
-  float dT = (float)(t32CurrentTime - m_t32Inertial) / 1000.f;
-  m_t32Inertial = t32CurrentTime;
-  
-  // Calculate attitude from relative gyrometer changes
-  m_vAttitude_deg += read_gyro_deg() * dT;
-  m_vAttitude_deg  = wrap180_V3f(m_vAttitude_deg);
-  // Use a temporary instead of the member variable for acceleration data
-  Vector3f vAnneal = read_accl_deg();
-
-  // Use AHRS for the yaw
-  m_vAttitude_deg.z = ToDeg(m_pAHRS->yaw);
-/*
-  // Anneal the yaw to the compass readout
-  if(m_pComp->use_for_yaw() ) {
-    float fErr = read_comp_deg() - m_vAttitude_deg.z;
-    float fSigm_dT = COMP_FUSION_RATE * sigm_cyaw_f(fErr, COMP_ANNEAL_SLOPE) * dT;
-    m_vAttitude_deg.z = anneal_f(m_vAttitude_deg.z, fErr, fSigm_dT);
-  }
-*/
-  // Use accelerometer on in +/-45° range
-  // Pitch
-  if(vAnneal.x > 45.f || vAnneal.x < -45.f) {
-    return;
-  }
-  // Roll
-  if(vAnneal.y > 45.f || vAnneal.y < -45.f) {
-    return;
-  }
-
-  // Anneal Pitch/Roll gyrometer to accelerometer
-  m_vAttitude_deg.x = atti_sfuse_f(m_vAttitude_deg.x, vAnneal.x, dT);
-  m_vAttitude_deg.y = atti_sfuse_f(m_vAttitude_deg.y, vAnneal.y, dT);
-#else
-  m_vAttitude_deg.x = ToDeg(m_pAHRS->pitch);
-  m_vAttitude_deg.y = ToDeg(m_pAHRS->roll);
-  m_vAttitude_deg.z = ToDeg(m_pAHRS->yaw);
-#endif
-}
-
 float Device::get_pit_cor() {
   return m_fInertPitCor;
 }
@@ -201,13 +173,13 @@ void Device::set_rol_cor(float fValDeg) {
 }
 
 Vector3f Device::get_atti_cor_deg() {
-  return Vector3f(m_vAttitude_deg.x - m_fInertPitCor, // Pitch correction for inbalances
-                  m_vAttitude_deg.y - m_fInertRolCor, // Roll correction for inbalances
-                  m_vAttitude_deg.z);                 // Yaw is without correction on that point, because compass/GPS is thought to do that job, but not here
+  return Vector3f(m_vAtti_deg.x - m_fInertPitCor, // Pitch correction for inbalances
+                  m_vAtti_deg.y - m_fInertRolCor, // Roll correction for inbalances
+                  m_vAtti_deg.z);                 // Yaw is without correction on that point, because compass/GPS is thought to do that job, but not here
 }
 
 Vector3f Device::get_atti_raw_deg() {
-  return m_vAttitude_deg;
+  return m_vAtti_deg;
 }
 
 Vector3f Device::get_gyro_cor_deg() {
@@ -246,7 +218,7 @@ void Device::update_inav() {
     return;
   }
   
-  (*m_pGPS)->update();
+  read_gps();
   m_pAHRS->update();
   
   uint_fast32_t t32CurrentTime = m_pHAL->scheduler->millis();
@@ -372,9 +344,9 @@ Vector3f Device::read_accl_deg() {
     return m_vAccel_deg;
   }
 
-  // Low Pass Filter
+  // Low Pass SFilter
   Vector3f vAccelCur_cmss = m_pInert->get_accel() * 100.f;
-  m_vAccel_deg = m_vAccelPG_cmss = low_pass_filter_V3f(vAccelCur_cmss, m_vAccelPG_cmss, INERT_LOWPATH_FILT_f);
+  m_vAccel_deg = m_vAccelPG_cmss = SFilter::low_pass_filter_V3f(vAccelCur_cmss, m_vAccelPG_cmss, INERT_LOWPATH_FILT_f);
   
   // Calculate G-const. corrected acceleration
   m_vAccelMG_cmss = vAccelCur_cmss - m_vAccelPG_cmss;
@@ -428,16 +400,17 @@ GPSData Device::read_gps() {
     return m_ContGPS;
   }
 
+  (*m_pGPS)->update();
   if((*m_pGPS)->new_data) {
     if((*m_pGPS)->fix) {
-      m_ContGPS.latitude    = m_pInertNav->get_latitude();
-      m_ContGPS.longitude   = m_pInertNav->get_longitude();
-      m_ContGPS.altitude_cm = (int_fast32_t)m_pInertNav->get_altitude();
+      m_ContGPS.latitude    = (*m_pGPS)->latitude;
+      m_ContGPS.longitude   = (*m_pGPS)->longitude;
+      m_ContGPS.altitude_cm = (*m_pGPS)->altitude_cm;
 
-      m_ContGPS.gspeed_cms  = m_pInertNav->get_velocity_xy();
-      m_ContGPS.espeed_cms  = m_pInertNav->get_velocity().x;
-      m_ContGPS.nspeed_cms  = m_pInertNav->get_velocity().y;
-      m_ContGPS.dspeed_cms  = m_pInertNav->get_velocity().z;
+      m_ContGPS.gspeed_cms  = (*m_pGPS)->ground_speed_cm;
+      m_ContGPS.espeed_cms  = (*m_pGPS)->velocity_east();
+      m_ContGPS.nspeed_cms  = (*m_pGPS)->velocity_north();
+      m_ContGPS.dspeed_cms  = (*m_pGPS)->velocity_down();
 
       // The fucking avr_g++ does NOT support dynamic C++ with class like objects in structs declared as static :(
       // Hate this permittivity
@@ -468,11 +441,11 @@ BaroData Device::read_baro() {
   
   m_pBaro->read();
   
-  m_ContBaro.pressure_pa      = low_pass_filter_f(m_pBaro->get_pressure(), m_ContBaro.pressure_pa, BAROM_LOWPATH_FILT_f);
-  m_ContBaro.temperature_deg  = low_pass_filter_f(m_pBaro->get_temperature(), m_ContBaro.temperature_deg, BAROM_LOWPATH_FILT_f);
+  m_ContBaro.pressure_pa      = SFilter::low_pass_filter_f(m_pBaro->get_pressure(), m_ContBaro.pressure_pa, BAROM_LOWPATH_FILT_f);
+  m_ContBaro.temperature_deg  = SFilter::low_pass_filter_f(m_pBaro->get_temperature(), m_ContBaro.temperature_deg, BAROM_LOWPATH_FILT_f);
   
-  m_ContBaro.altitude_cm      = low_pass_filter_l(m_pBaro->get_altitude() * 100, m_ContBaro.altitude_cm, BAROM_LOWPATH_FILT_i);
-  m_ContBaro.climb_rate_cms   = low_pass_filter_l(m_pBaro->get_climb_rate() * 100, m_ContBaro.climb_rate_cms, BAROM_LOWPATH_FILT_i);
+  m_ContBaro.altitude_cm      = SFilter::low_pass_filter_l(m_pBaro->get_altitude() * 100, m_ContBaro.altitude_cm, BAROM_LOWPATH_FILT_i);
+  m_ContBaro.climb_rate_cms   = SFilter::low_pass_filter_l(m_pBaro->get_climb_rate() * 100, m_ContBaro.climb_rate_cms, BAROM_LOWPATH_FILT_i);
   
   m_ContBaro.pressure_samples = m_pBaro->get_pressure_samples();
 

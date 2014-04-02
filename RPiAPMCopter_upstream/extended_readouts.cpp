@@ -20,6 +20,7 @@
 #include "config.h"
 #include "math.h"
 #include "device.h"
+#include "filter.h"
 
 
 float zaccel_g(Device *pDev, bool &bOK) {
@@ -41,7 +42,7 @@ float zaccel_g(Device *pDev, bool &bOK) {
   
   float fCFactor = 100.f * INERT_G_CONST;
   float fG       = -pDev->get_accel_mg_cmss().z / fCFactor;
-  fGForce        = low_pass_filter_f(fG, fGForce, ZACCL_LOWPATH_FILT_f);
+  fGForce        = SFilter::low_pass_filter_f(fG, fGForce, ZACCL_LOWPATH_FILT_f);
   
   bOK = true;
   return fGForce;

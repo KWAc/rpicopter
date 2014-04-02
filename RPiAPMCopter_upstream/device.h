@@ -46,15 +46,13 @@ private:
   float m_fInertRolOffs;
   float m_fInertPitOffs;
   
-  Matrix3f m_mCompassDCM;
-  
 protected:
   float        m_fCmpH; // Compass heading
   float        m_fGpsH; // GPS heading
   // x = pitch, y = roll, z = yaw
   Vector3f     m_vGyro_deg;
   Vector3f     m_vAccel_deg;
-  Vector3f     m_vAttitude_deg;
+  Vector3f     m_vAtti_deg;
   int_fast16_t m_iAltitude_cm;
   // misc
   BaroData     m_ContBaro;
@@ -91,7 +89,7 @@ public:
   RangeFinder        *m_pRF;
   // Inertial Navigation
   AP_InertialNav     *m_pInertNav;
-
+  
 public:
   // Accepts pointers to abstract base classes to handle different sensor types
   Device( const AP_HAL::HAL *,
@@ -112,7 +110,7 @@ public:
   void update_inav();
 
   /* Updating the inertial and calculates the attitude from fused sensor values */
-  void update_attitude();   // Calls: read_gyro_deg() and read_accl_deg() and saves results to m_vAttitude_deg, m_vGyro_deg and m_vAccel_deg
+  void update_attitude();   // Calls: read_gyro_deg() and read_accl_deg() and saves results to m_vAtti_deg, m_vGyro_deg and m_vAccel_deg
   
   /* updating the sensors */
   BaroData  read_baro();

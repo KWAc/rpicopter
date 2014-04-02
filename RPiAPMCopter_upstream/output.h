@@ -79,9 +79,9 @@ void send_gps() {
   }
   
   GPSData gps = _HAL_BOARD.get_gps();
-  hal.console->printf("{\"type\":\"s_gps\",\"lat\":%ld,\"lon\":%ld,\"a_cm\":%ld,\"g_cms\":%.1f,\"e_cms\":%.1f,\"n_cms\":%.1f,\"d_cms\":%.1f,\"h_x\":%.1f,\"h_y\":%.1f,\"h_z\":%.1f,\"g_cd\":%ld,\"sat\":%d,\"tw\":%d,\"tw_s\":%ld}\n",
-  gps.latitude,
-  gps.longitude,
+  hal.console->printf("{\"type\":\"s_gps\",\"lat\":%.1f,\"lon\":%.1f,\"a_cm\":%ld,\"g_cms\":%.1f,\"e_cms\":%.1f,\"n_cms\":%.1f,\"d_cms\":%.1f,\"h_x\":%.1f,\"h_y\":%.1f,\"h_z\":%.1f,\"g_cd\":%ld,\"sat\":%d,\"tw\":%d,\"tw_s\":%ld}\n",
+  (double)(gps.latitude  / 10000000),
+  (double)(gps.longitude / 10000000),
   gps.altitude_cm,
 
   (double)gps.gspeed_cms,
