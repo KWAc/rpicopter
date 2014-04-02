@@ -30,6 +30,19 @@ inline float atti_f(float fX, float fSlope) {
 
 void Device::update_attitude() {
   m_pAHRS->update();
+  
+#if BENCH_OUT
+  static int iCounter = 0;
+  static int iTimer = 0;
+  int iCurTime = m_pHAL->scheduler->millis();
+  ++iCounter;
+  if(iCurTime - iTimer >= 1000) {
+    m_pHAL->console->printf("Benchmark - update_attitude(): %d Hz\n", iCounter);
+    iCounter = 0;
+    iTimer = iCurTime;
+  }
+#endif
+  
 #if SIGM_FOR_ATTITUDE
   // Use "m_pInert->update()" only if "m_pAHRS->update()" is not used
   //m_pInert->update();
@@ -47,6 +60,10 @@ void Device::update_attitude() {
   // Use a temporary instead of the member variable for acceleration data
   Vector3f vRef_deg = read_accl_deg();
 
+  #if DEBUG_OUT && !BENCH_OUT
+  m_pHAL->console->printf("Attitude - x: %.1f/%.1f, y: %.1f/%.1f, z: %.1f\n", m_vAtti_deg.x, vRef_deg.x, m_vAtti_deg.y, vRef_deg.y, m_vAtti_deg.z);
+  #endif
+  
   // Use accelerometer on in +/-45° range
   if(vRef_deg.x > 45.f || vRef_deg.x < -45.f) {
     return;
@@ -56,8 +73,8 @@ void Device::update_attitude() {
   }
 
   // Anneal Pitch/Roll gyrometer to accelerometer  
-  m_vAtti_deg.x = SFilter::anneal_f(m_vAtti_deg.x, vRef_deg.x-m_vAtti_deg.x, dT*INERT_FUSION_RATE, Functor_f(&atti_f, vRef_deg.x, INERT_ANNEAL_SLOPE) );
-  m_vAtti_deg.y = SFilter::anneal_f(m_vAtti_deg.y, vRef_deg.y-m_vAtti_deg.y, dT*INERT_FUSION_RATE, Functor_f(&atti_f, vRef_deg.y, INERT_ANNEAL_SLOPE) );
+  m_vAtti_deg.x = SFilter::transff_filt_f(m_vAtti_deg.x, vRef_deg.x-m_vAtti_deg.x, dT*INERT_FUSION_RATE, Functor_f(&atti_f, vRef_deg.x, INERT_ANNEAL_SLOPE) );
+  m_vAtti_deg.y = SFilter::transff_filt_f(m_vAtti_deg.y, vRef_deg.y-m_vAtti_deg.y, dT*INERT_FUSION_RATE, Functor_f(&atti_f, vRef_deg.y, INERT_ANNEAL_SLOPE) );
 #else
   m_vAtti_deg.x = ToDeg(m_pAHRS->pitch);
   m_vAtti_deg.y = ToDeg(m_pAHRS->roll);
@@ -219,6 +236,7 @@ void Device::update_inav() {
   }
   
   read_gps();
+  read_comp_deg();
   m_pAHRS->update();
   
   uint_fast32_t t32CurrentTime = m_pHAL->scheduler->millis();
@@ -346,7 +364,7 @@ Vector3f Device::read_accl_deg() {
 
   // Low Pass SFilter
   Vector3f vAccelCur_cmss = m_pInert->get_accel() * 100.f;
-  m_vAccel_deg = m_vAccelPG_cmss = SFilter::low_pass_filter_V3f(vAccelCur_cmss, m_vAccelPG_cmss, INERT_LOWPATH_FILT_f);
+  m_vAccel_deg = m_vAccelPG_cmss = SFilter::low_pass_filt_V3f(vAccelCur_cmss, m_vAccelPG_cmss, INERT_LOWPATH_FILT_f);
   
   // Calculate G-const. corrected acceleration
   m_vAccelMG_cmss = vAccelCur_cmss - m_vAccelPG_cmss;
@@ -441,11 +459,11 @@ BaroData Device::read_baro() {
   
   m_pBaro->read();
   
-  m_ContBaro.pressure_pa      = SFilter::low_pass_filter_f(m_pBaro->get_pressure(), m_ContBaro.pressure_pa, BAROM_LOWPATH_FILT_f);
-  m_ContBaro.temperature_deg  = SFilter::low_pass_filter_f(m_pBaro->get_temperature(), m_ContBaro.temperature_deg, BAROM_LOWPATH_FILT_f);
+  m_ContBaro.pressure_pa      = SFilter::low_pass_filt_f(m_pBaro->get_pressure(), m_ContBaro.pressure_pa, BAROM_LOWPATH_FILT_f);
+  m_ContBaro.temperature_deg  = SFilter::low_pass_filt_f(m_pBaro->get_temperature(), m_ContBaro.temperature_deg, BAROM_LOWPATH_FILT_f);
   
-  m_ContBaro.altitude_cm      = SFilter::low_pass_filter_l(m_pBaro->get_altitude() * 100, m_ContBaro.altitude_cm, BAROM_LOWPATH_FILT_i);
-  m_ContBaro.climb_rate_cms   = SFilter::low_pass_filter_l(m_pBaro->get_climb_rate() * 100, m_ContBaro.climb_rate_cms, BAROM_LOWPATH_FILT_i);
+  m_ContBaro.altitude_cm      = SFilter::low_pass_filt_l(m_pBaro->get_altitude() * 100, m_ContBaro.altitude_cm, BAROM_LOWPATH_FILT_i);
+  m_ContBaro.climb_rate_cms   = SFilter::low_pass_filt_l(m_pBaro->get_climb_rate() * 100, m_ContBaro.climb_rate_cms, BAROM_LOWPATH_FILT_i);
   
   m_ContBaro.pressure_samples = m_pBaro->get_pressure_samples();
 
@@ -554,4 +572,101 @@ Vector3f Device::calibrate_inertial() {
   m_pHAL->console->printf("Gyroscope calibrated - Offsets are roll:%f, pitch:%f.\nAverage euclidian distance:%f, standard deviation:%f\n",
                           (double)m_fInertRolOffs, (double)m_fInertPitOffs, (double)samples_avg, (double)samples_dev);
   return offset;
+}
+
+float Device::get_altitude_cm(Device *pDev, bool &bOK) {
+  bOK = false;
+  if(!pDev) {
+    return 0.f; 
+  }
+  
+  float fAltitude_cm = 0.f;
+  // Barometer and GPS usable
+  if(pDev->m_pInertNav->altitude_ok() ) {
+    fAltitude_cm = (float)pDev->m_pInertNav->get_altitude();
+    bOK = true;
+  }
+#ifdef SONAR_TYPE
+  // Use the range finder for smaller altitudes
+  float iAltitudeRF_cm = (float)pDev->get_rf_cm();
+  if(iAltitudeRF_cm <= 600) {
+    fAltitude_cm = iAltitudeRF_cm;
+  }
+#endif
+  return fAltitude_cm;
+}
+
+float Device::get_accel_x_g(Device *pDev, bool &bOK) {
+  static float fGForce = 0.f;
+  
+  bOK = false;
+  // Break when no device was found
+  if(!pDev) {
+    return fGForce; 
+  }
+  // -45 < Pitch < +45
+  if(pDev->get_atti_raw_deg().x > 45.f || pDev->get_atti_raw_deg().x < -45.f) {
+    return fGForce;
+  }
+  // -45 < Roll < +45
+  if(pDev->get_atti_raw_deg().y > 45.f || pDev->get_atti_raw_deg().y < -45.f) {
+    return fGForce;
+  }
+  
+  float fCFactor = 100.f * INERT_G_CONST;
+  float fG       = -pDev->get_accel_mg_cmss().x / fCFactor;
+  fGForce        = SFilter::low_pass_filt_f(fG, fGForce, ACCL_LOWPATH_FILT_f);
+  
+  bOK = true;
+  return fGForce;
+}
+
+float Device::get_accel_y_g(Device *pDev, bool &bOK) {
+  static float fGForce = 0.f;
+  
+  bOK = false;
+  // Break when no device was found
+  if(!pDev) {
+    return fGForce; 
+  }
+  // -45 < Pitch < +45
+  if(pDev->get_atti_raw_deg().x > 45.f || pDev->get_atti_raw_deg().x < -45.f) {
+    return fGForce;
+  }
+  // -45 < Roll < +45
+  if(pDev->get_atti_raw_deg().y > 45.f || pDev->get_atti_raw_deg().y < -45.f) {
+    return fGForce;
+  }
+  
+  float fCFactor = 100.f * INERT_G_CONST;
+  float fG       = -pDev->get_accel_mg_cmss().y / fCFactor;
+  fGForce        = SFilter::low_pass_filt_f(fG, fGForce, ACCL_LOWPATH_FILT_f);
+  
+  bOK = true;
+  return fGForce;
+}
+
+float Device::get_accel_z_g(Device *pDev, bool &bOK) {
+  static float fGForce = 0.f;
+  
+  bOK = false;
+  // Break when no device was found
+  if(!pDev) {
+    return fGForce; 
+  }
+  // -45 < Pitch < +45
+  if(pDev->get_atti_raw_deg().x > 45.f || pDev->get_atti_raw_deg().x < -45.f) {
+    return fGForce;
+  }
+  // -45 < Roll < +45
+  if(pDev->get_atti_raw_deg().y > 45.f || pDev->get_atti_raw_deg().y < -45.f) {
+    return fGForce;
+  }
+  
+  float fCFactor = 100.f * INERT_G_CONST;
+  float fG       = -pDev->get_accel_mg_cmss().z / fCFactor;
+  fGForce        = SFilter::low_pass_filt_f(fG, fGForce, ACCL_LOWPATH_FILT_f);
+  
+  bOK = true;
+  return fGForce;
 }

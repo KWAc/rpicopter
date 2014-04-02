@@ -1,4 +1,5 @@
 #include <AP_InertialSensor_MPU6000.h>
+#include <AP_InertialNav.h>
 
 #include "rcframe.h"
 #include "device.h"
@@ -6,7 +7,6 @@
 #include "exceptions.h"
 #include "navigation.h"
 #include "math.h"
-#include "extended_readouts.h"
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -107,25 +107,25 @@ void M4XFrame::calc_altitude_hold() {
   }
 
   // Return estimated altitude by GPS and barometer 
-  bool bOK_H, bOK_R, bOK_G;
-  int_fast32_t iRCAlt_cm = m_pReceiver->m_Waypoint.altitude_cm;
-  int_fast32_t iCurAlti_cm = altitude_cm(m_pHalBoard, bOK_H);
-  float fClimbRate_cms = climbrate_cms(m_pHalBoard, bOK_R);
+  bool bOK_H, bOK_G;
+  float fTargAlti_cm  = (float)m_pReceiver->m_Waypoint.altitude_cm;
+  float fCurrAlti_cm  = Device::get_altitude_cm(m_pHalBoard, bOK_H);
+  float fClmbRate_cms = m_pHalBoard->m_pInertNav->get_velocity_z();
   // Get the acceleration in g
-  float fAccel_g = zaccel_g(m_pHalBoard, bOK_G) * fScaleF_g;
+  float fAccel_g      = Device::get_accel_z_g(m_pHalBoard, bOK_G) * fScaleF_g;
   
-  if(!bOK_H || !bOK_R || !bOK_G) {
+  if(!bOK_H || !bOK_G) {
     return;
   }
   
   // Calculate the motor speed changes by the error from the height estimate and the current climb rates
   // If the quadro is going down, because of an device error, then this code is not used
   if(m_pReceiver->m_Waypoint.mode != GPSPosition::CONTRLD_DOWN_F) {
-    float fAltZStabOut = m_pHalBoard->m_rgPIDS[PID_THR_STAB].get_pid((float)(iRCAlt_cm - iCurAlti_cm), 1);
-    iAltZOutput        = m_pHalBoard->m_rgPIDS[PID_THR_RATE].get_pid(fAltZStabOut - fClimbRate_cms, 1);
+    float fAltZStabOut = m_pHalBoard->m_rgPIDS[PID_THR_STAB].get_pid(fTargAlti_cm - fCurrAlti_cm, 1);
+    iAltZOutput        = m_pHalBoard->m_rgPIDS[PID_THR_RATE].get_pid(fAltZStabOut - fClmbRate_cms, 1);
   }
-/*
-// TODO TEST
+
+  // TODO: TEST
   // If the quad-copter is going down too fast, fAcceleration_g becomes greater
   if(m_pReceiver->m_Waypoint.mode == GPSPosition::CONTRLD_DOWN_F && fAccel_g > fBias_g) {
     m_pExeption->pause_take_down();
@@ -135,7 +135,7 @@ void M4XFrame::calc_altitude_hold() {
   if(m_pReceiver->m_Waypoint.mode == GPSPosition::CONTRLD_DOWN_F && fAccel_g <= fBias_g) {
     m_pExeption->continue_take_down();
   }
-*/  
+
   // Don't change the throttle if acceleration is below a certain bias
   if(abs(fAccel_g) >= fBias_g) {
     //fAccel_g         = sign_f(fAccel_g) * (abs(fAccel_g) - fBias_g) * fScaleF_g;

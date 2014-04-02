@@ -2,7 +2,6 @@
 #include "device.h"
 #include "BattMonitor.h"
 #include "math.h"
-#include "extended_readouts.h"
 
 
 Receiver::Receiver(Device *pHalBoard) {
@@ -124,7 +123,7 @@ bool Receiver::parse_waypoint(char *buffer) {
           if(flag == GPSPosition::HLD_ALTITUDE_F) {
             bool bOK = false;
             // Measure the current height
-            alt_cm = altitude_cm(m_pHalBoard, bOK);
+            alt_cm = Device::get_altitude_cm(m_pHalBoard, bOK);
             // If height measurement failed, then break it
             if(!bOK) {
               flag = GPSPosition::NOTHING_F;

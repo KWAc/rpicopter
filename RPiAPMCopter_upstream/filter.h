@@ -37,17 +37,17 @@ public:
 class SFilter {
 public:
   // return: fSens += fErr * dT;
-  static float anneal_f (float fSens, float fError, float dT);
+  static float transff_filt_f (float fSens, float fError, float dT);
   // return: fSens += fError * pfTransfer(pfVal, pfSlope) * dT;
-  static float anneal_f (float fSens, float fError, float dT, const Functor_f &);
+  static float transff_filt_f (float fSens, float fError, float dT, const Functor_f &);
     
   /*
    * Low pass filter function prototypes
    * Method: fCurSmple * p + (fOldSmple * (1.f - p) );
    */
-  static int_fast32_t low_pass_filter_l  (const long fCurr,      const long fLast,      const int p);
-  static float        low_pass_filter_f  (const float fCurr,     const float fLast,     const float p);
-  static Vector3f     low_pass_filter_V3f(const Vector3f &fCurr, const Vector3f &fLast, const float p);
+  static int_fast32_t low_pass_filt_l  (const long fCurr,      const long fLast,      const int p);
+  static float        low_pass_filt_f  (const float fCurr,     const float fLast,     const float p);
+  static Vector3f     low_pass_filt_V3f(const Vector3f &fCurr, const Vector3f &fLast, const float p);
 };
 
 #endif

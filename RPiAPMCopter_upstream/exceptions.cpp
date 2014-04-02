@@ -7,7 +7,6 @@
 #include "receiver.h"
 #include "device.h"
 #include "absdevice.h"
-#include "extended_readouts.h"
 
 /*
  * Calculate time necessary to reduce the throttle until the value "THR_TAKE_OFF"
@@ -187,7 +186,7 @@ void Exception::reduce_thr(float fTime) {
   uint_fast32_t iAltitudeTime = m_pHalBoard->m_pHAL->scheduler->millis() - m_t32Altitude;
   if(iAltitudeTime > AHRS_T_MS) {
     bool bOK = false;
-    float fAlti_m = altitude_cm(m_pHalBoard, bOK) / 100.f;
+    float fAlti_m = Device::get_altitude_cm(m_pHalBoard, bOK) / 100.f;
     if(bOK == true) {
       fStepC = go_down_t(fAlti_m, m_rgChannelsRC[2]);
       fStepC = fStepC < THR_MIN_STEP_S ? THR_MIN_STEP_S : fStepC;

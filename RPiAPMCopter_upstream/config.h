@@ -32,6 +32,9 @@
 // General settings
 //////////////////////////////////////////////////////////////////////////////////////////
 
+#define DEBUG_OUT            0
+#define BENCH_OUT            0
+
 #define NR_OF_PIDS           10
 // PID indices
 #define PID_PIT_RATE 	       0      // From Dr. Owen..
@@ -79,8 +82,8 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 // Main loop
 //////////////////////////////////////////////////////////////////////////////////////////
-#define MAIN_T_MS            6      // Update frequency of the main loop: 166.6 Hz
-#define AHRS_T_MS            20     // Update frequency of the main loop: 50 Hz
+#define MAIN_T_MS            9      // Update frequency of the main loop: ~111.1 Hz
+#define AHRS_T_MS            50     // Update frequency: 20 Hz
 #define INERT_TIMEOUT        10     // in ms
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -131,7 +134,7 @@
 #define BAROM_LOWPATH_FILT_i 33     // Filter for the accelerometer
 #define COMPA_LOWPATH_FILT_f 0.25f  // Filter for the accelerometer
 
-#define ZACCL_LOWPATH_FILT_f 0.025f // Filter for the accelerometer
+#define ACCL_LOWPATH_FILT_f  0.025f // Filter for the accelerometer
 
 #define INERT_G_CONST        9.81f
 
@@ -153,5 +156,8 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 
 #define MAX_YAW              45
+#define YAW_ZERO_SLOPE       20.f
+#define YAW_CTRL_SLOPE       5.0f
+#define YAW_ERROR_RATE       5.0f
 
 #endif /*DEFS_h*/

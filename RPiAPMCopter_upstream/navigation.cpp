@@ -1,4 +1,5 @@
 #include <AP_Math.h>
+#include <AP_InertialNav.h>
 #include <math.h>
 
 #include "navigation.h"
@@ -16,17 +17,22 @@
 /*
  * Sigmoid transfer function
  */
-inline float uav_f(float x, float mod){
+inline float uav_yaw_f(float x, float mod){
   float val = sign_f(x) * smaller_f(abs(mod * x), 180.f) / 180.f;
   return val / sqrt(1 + pow2_f(val) );
 }
 
+inline float uav_zero_f(float x, float mod){
+  float val = (180.0 - smaller_f(abs(mod * x), 179.9f)) / 180.f;
+  return val / sqrt(1 + pow2_f(val) );
+}
+
 UAVNav::UAVNav(Device *pDev, Receiver *pRecv, Exception *pExcp) {
-  m_pHalBoard       = pDev;
-  m_pReceiver       = pRecv;
-  m_pExeption       = pExcp;
+  m_pHalBoard      = pDev;
+  m_pReceiver      = pRecv;
+  m_pExeption      = pExcp;
   
-  m_t32YawTimer     = m_pHalBoard->m_pHAL->scheduler->millis();
+  m_t32YawTimer    = m_pHalBoard->m_pHAL->scheduler->millis();
   
   m_fTargetYaw_deg = 0.f;
   m_iTargetPit_deg = 0;
@@ -68,9 +74,6 @@ float UAVNav::calc_error_deg() {
 }
 
 void UAVNav::run() {
-  const float fRate  = 0.25f;
-  const float fSlope = 1.f;
- 
   // Calculate the time since last call
   uint_fast32_t t32CurTimer = m_pHalBoard->m_pHAL->scheduler->millis();
   float dT = (float)(t32CurTimer - m_t32YawTimer) / 1000.f;
@@ -80,12 +83,15 @@ void UAVNav::run() {
   float fError_deg = calc_error_deg();
   
   // Calculate the error dependent modifier, using a normed sigmoid transfer function (-1 < x < 1) 
-  float fSigma = uav_f(fError_deg, fSlope) * fRate * dT;
+  float fCtrl = uav_yaw_f(fError_deg, YAW_CTRL_SLOPE) * YAW_ERROR_RATE * dT;
+  float fZero = uav_zero_f(fError_deg, YAW_ZERO_SLOPE) * YAW_ERROR_RATE * dT;
   
-  m_fTargetYaw_deg = SFilter::anneal_f(m_fTargetYaw_deg, -m_fTargetYaw_deg, 1.f/fSigma); // Anneal to zero if the delta angle is low
-  m_fTargetYaw_deg = SFilter::anneal_f(m_fTargetYaw_deg, fError_deg, fSigma);            // Anneal to target yaw if the delta angle is high
-  // limit the maximum yaw change
-  m_fTargetYaw_deg = abs(m_fTargetYaw_deg) > MAX_YAW ? sign_f(m_fTargetYaw_deg) * MAX_YAW : m_fTargetYaw_deg;
+  // Change the yaw of the copter if error to target is high
+  m_fTargetYaw_deg += fCtrl;
+  // Anneal the yaw change to zero if the error is low
+  m_fTargetYaw_deg += sign_f(-m_fTargetYaw_deg) * fZero;
+  // Cap the maximum yaw change
+  m_fTargetYaw_deg  = abs(m_fTargetYaw_deg) > MAX_YAW ? sign_f(m_fTargetYaw_deg) * MAX_YAW : m_fTargetYaw_deg;
   
   if(fError_deg <= 1.f) {
     m_iTargetPit_deg = -10;
@@ -93,7 +99,12 @@ void UAVNav::run() {
     m_iTargetPit_deg = 0;
   }
   
+  #if DEBUG_OUT
+  m_pHalBoard->m_pHAL->console->printf("Navigation - Comp: %.3f, Err: %.3f, CTRL: %.3f, ZERO: %.3f, Yaw: %.3f\n", m_pHalBoard->get_comp_deg(), fError_deg, fCtrl, fZero, m_fTargetYaw_deg);
+  #endif
+  
   // Override the remote control
+  // TODO Speed control
   m_pReceiver->m_rgChannelsRC[1] = m_iTargetPit_deg;
   m_pReceiver->m_rgChannelsRC[3] = (int_fast16_t)m_fTargetYaw_deg;
 }

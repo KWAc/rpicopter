@@ -150,6 +150,14 @@ public:
   
   void set_pit_cor(float fValDeg);
   void set_rol_cor(float fValDeg);
+  
+  // Static functions
+  // Altitude estimation in cm with support for sonar
+  static float get_altitude_cm(Device *pDev, bool &bOK);
+  // Filtered acceleration in g:
+  static float get_accel_x_g  (Device *pDev, bool &bOK);
+  static float get_accel_y_g  (Device *pDev, bool &bOK);
+  static float get_accel_z_g  (Device *pDev, bool &bOK);
 };
 
 #endif

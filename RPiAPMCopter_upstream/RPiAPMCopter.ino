@@ -46,32 +46,22 @@
 #include "math.h"
 
 
-// Main callback routine for the model, which is used by the task manager
-inline void main_loop() {
-  _MODEL.run();
-}
+inline void ahrs_loop();
+Task taskAHRS(&ahrs_loop, AHRS_T_MS, 1);
+
 // Altitude estimation and AHRS system (yaw correction with GPS, barometer, ..)
-inline void ahrs_loop() {
+void ahrs_loop() {
   _HAL_BOARD.update_inav();
 #ifdef SONAR_TYPE
   _HAL_BOARD.read_rf_m();
 #endif
 }
 
-#if SIGM_FOR_ATTITUDE
-Task taskMain(&main_loop, MAIN_T_MS, 1);
-Task taskAHRS(&ahrs_loop, AHRS_T_MS, 1);
-#else // Set it to 100 Hz
-Task taskMain(&main_loop, 10, 1);
-Task taskAHRS(&ahrs_loop, 10, 1);
-#endif
-
 void setup() {
   // Totally necessary
   _GPS = &_AUTO_GPS;
 
   // Prepare scheduler for the main loop ..
-  _SCHED.add_task(&taskMain, 0);  // Main loop with own attitude calculation (166 Hz)
   _SCHED.add_task(&taskAHRS, 0);  // Inertial, GPS, Compass, Barometer sensor fusions (slow) ==> running at 50 Hz
   // .. and the sensor output functions
   _SCHED.add_task(&outAtti,  75);
@@ -124,11 +114,19 @@ void setup() {
   _HAL_BOARD.init_inertial_nav();
 }
 
-void loop() { 
+void loop() {
   // Commands via serial port (in this case WiFi -> RPi -> APM2.5)
   _RECVR.try_uartAC();
   // send some json formatted information about the model over serial port
   _SCHED.run(); // Wrote my own small and absolutely fair scheduler
+  
+  // Don't use the scheduler for the very time critical main loop (~20% faster)
+  static int timer = 0;
+  int time = _HAL_BOARD.m_pHAL->scheduler->millis();
+  if(time - timer >= MAIN_T_MS) {
+    _MODEL.run();
+    timer = time;
+  }
 }
 
 AP_HAL_MAIN();
