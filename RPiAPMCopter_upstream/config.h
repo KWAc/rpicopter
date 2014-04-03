@@ -94,6 +94,13 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 // Receiver module
 //////////////////////////////////////////////////////////////////////////////////////////
+
+// Indices for the remote control array
+#define RC_ROL               0
+#define RC_PIT               1
+#define RC_THR               2
+#define RC_YAW               3
+
 #define RADIO_MAX_OFFS       7      // Maximum length of command message via radio without stop bit
 #define APM_IOCHAN_CNT 	     8
 
@@ -156,6 +163,7 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 
 #define MAX_YAW              45
+#define MAX_PIT              15
 #define YAW_ZERO_SLOPE       20.f
 #define YAW_CTRL_SLOPE       5.0f
 #define YAW_ERROR_RATE       5.0f

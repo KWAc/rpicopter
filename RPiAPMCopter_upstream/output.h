@@ -14,7 +14,7 @@ void send_bat();
 void send_rc();
 void send_pids();
 
-// function, delay, multiplier of the delay 
+// function, delay, multiplier of the delay
 Task outAtti(&send_atti, 3,  1);
 Task outRC  (&send_rc,   37, 1);
 Task outComp(&send_comp, 44, 1);
@@ -47,7 +47,7 @@ void send_comp() {
   if(!_HAL_BOARD.m_pComp->use_for_yaw() ) {
     return;
   }
-  
+
   hal.console->printf("{\"type\":\"s_cmp\",\"h\":%.1f}\n",
   (double)_HAL_BOARD.read_comp_deg() );
 }
@@ -65,7 +65,7 @@ void send_baro() {
   if(!_HAL_BOARD.m_pBaro->healthy) {
     return;
   }
-  
+
   BaroData baro = _HAL_BOARD.read_baro();
   hal.console->printf("{\"type\":\"s_bar\",\"p\":%.1f,\"a\":%ld,\"t\":%.1f,\"c\":%.1f,\"s\":%d}\n",
   (double)baro.pressure_pa, baro.altitude_cm, (double)baro.temperature_deg, (double)baro.climb_rate_cms, (uint_fast16_t)baro.pressure_samples);
@@ -77,7 +77,7 @@ void send_gps() {
   if(!(*_HAL_BOARD.m_pGPS)->fix) {
     return;
   }
-  
+
   GPSData gps = _HAL_BOARD.get_gps();
   hal.console->printf("{\"type\":\"s_gps\",\"lat\":%.1f,\"lon\":%.1f,\"a_cm\":%ld,\"g_cms\":%.1f,\"e_cms\":%.1f,\"n_cms\":%.1f,\"d_cms\":%.1f,\"h_x\":%.1f,\"h_y\":%.1f,\"h_z\":%.1f,\"g_cd\":%ld,\"sat\":%d,\"tw\":%d,\"tw_s\":%ld}\n",
   ((double)gps.latitude)  / 10000000.f,
@@ -137,10 +137,10 @@ void send_bat() {
 // remote control
 ///////////////////////////////////////////////////////////
 void send_rc() {
-  int_fast16_t rcthr = _RECVR.m_rgChannelsRC[2];
-  int_fast16_t rcyaw = _RECVR.m_rgChannelsRC[3];
-  int_fast16_t rcpit = _RECVR.m_rgChannelsRC[1];
-  int_fast16_t rcrol = _RECVR.m_rgChannelsRC[0];
+  int_fast16_t rcthr = _RECVR.m_rgChannelsRC[RC_THR];
+  int_fast16_t rcyaw = _RECVR.m_rgChannelsRC[RC_YAW];
+  int_fast16_t rcpit = _RECVR.m_rgChannelsRC[RC_PIT];
+  int_fast16_t rcrol = _RECVR.m_rgChannelsRC[RC_ROL];
 
   hal.console->printf("{\"type\":\"rc_in\",\"r\":%d,\"p\":%d,\"t\":%d,\"y\":%d}\n",
   rcrol, rcpit, rcthr, rcyaw);
@@ -165,17 +165,17 @@ void send_pids() {
   float thr_rkp   = _HAL_BOARD.m_rgPIDS[PID_THR_RATE].kP();
   float thr_rki   = _HAL_BOARD.m_rgPIDS[PID_THR_RATE].kI();
   float thr_rimax = _HAL_BOARD.m_rgPIDS[PID_THR_RATE].imax();
-  
+
   float acc_rkp   = _HAL_BOARD.m_rgPIDS[PID_ACC_RATE].kP();
   float acc_rki   = _HAL_BOARD.m_rgPIDS[PID_ACC_RATE].kI();
   float acc_rimax = _HAL_BOARD.m_rgPIDS[PID_ACC_RATE].imax();
-  
+
   float pit_skp   = _HAL_BOARD.m_rgPIDS[PID_PIT_STAB].kP();
   float rol_skp   = _HAL_BOARD.m_rgPIDS[PID_ROL_STAB].kP();
   float yaw_skp   = _HAL_BOARD.m_rgPIDS[PID_YAW_STAB].kP();
   float thr_skp   = _HAL_BOARD.m_rgPIDS[PID_ROL_STAB].kP();
   float acc_skp   = _HAL_BOARD.m_rgPIDS[PID_YAW_STAB].kP();
-  
+
   hal.console->printf("{\"type\":\"pid_cnf\","
                       "\"pit_rkp\":%.2f,\"pit_rki\":%.2f,\"pit_rimax\":%.2f,"
                       "\"rol_rkp\":%.2f,\"rol_rki\":%.2f,\"rol_rimax\":%.2f,"

@@ -12,7 +12,7 @@ inline int add_flag(int flag, int mask) {
   flag |= mask;
   return flag;
 }
-  
+
 inline int rem_flag(int flag, int mask) {
   flag &= ~mask;
   return flag;
@@ -59,6 +59,15 @@ inline Vector3f wrap360_V3f(Vector3f &vec) {
   vec.y = wrap360_f(vec.y);
   vec.z = wrap360_f(vec.z);
   return vec;
+}
+
+// Subtracts an from another angle (0 <= angle <= 180 && 0 >= angle >= -180)
+inline float delta180_f(float fA1, float fA2) {
+  fA1 = wrap180_f(fA1);
+  fA2 = wrap180_f(fA2);
+
+	float fDelta = fA1 - fA2;
+	return fDelta <= -180.f ? fDelta += 360.f : fDelta >= 180.f ? fDelta -= 360.f : fDelta;
 }
 
 inline float smaller_f(float value, float bias) {

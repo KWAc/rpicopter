@@ -12,7 +12,7 @@ struct BaroData {
   float         temperature_deg;
   int_fast16_t  climb_rate_cms;
   uint_fast8_t  pressure_samples;
-  
+
   BaroData();
 };
 
@@ -36,7 +36,7 @@ struct GPSData {
   int_fast16_t  status_fix;
   uint_fast16_t time_week;
   uint_fast32_t time_week_s;
-  
+
   GPSData();
 };
 
@@ -52,7 +52,7 @@ struct GPSPosition {
   int_fast32_t longitude;    // in degrees * 10,000,000
   int_fast32_t altitude_cm;  // altitude in cm
   UAV_TYPE     mode;
-  
+
   GPSPosition();
   GPSPosition(int_fast32_t, int_fast32_t, int_fast32_t, GPSPosition::UAV_TYPE);
 };
@@ -62,7 +62,7 @@ struct BattData {
   float       voltage_V;
   float       current_A;
   float       consumpt_mAh;
-  
+
   BattData();
 };
 

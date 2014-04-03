@@ -26,7 +26,7 @@ public:
 
   bool start();
   void reset();
-  
+
   uint_fast16_t get_delay();
   void set_delay(const uint_fast32_t iDelay, const uint_fast32_t iMult);
 
@@ -43,7 +43,7 @@ private:
 
   uint_fast8_t   m_iItems;                        // Current number of items in the arrays below
   Task*          m_functionList[NO_PRC_SCHED];    // function list
-  uint_fast16_t  m_tickrateList[NO_PRC_SCHED];    // tick rates are intervals e.g.: Call rate is 100 ms + delay[ms]*multiplier 
+  uint_fast16_t  m_tickrateList[NO_PRC_SCHED];    // tick rates are intervals e.g.: Call rate is 100 ms + delay[ms]*multiplier
 
 protected:
   bool is_started(const uint_fast8_t iInd);

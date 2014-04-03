@@ -22,10 +22,10 @@ protected:
 
 public:
   Frame(Device *, Receiver *, Exception *, UAVNav *);
-  
+
   // Execute the magic here!
   virtual void run() = 0;
-}; 
+};
 
 /*
  * Implementation of an quad-copter with X-configuration
@@ -46,14 +46,14 @@ protected:
   void set(int_fast16_t, int_fast16_t, int_fast16_t, int_fast16_t);
   // Add a certain value to the rating of the motors
   void add(int_fast16_t, int_fast16_t, int_fast16_t, int_fast16_t);
-  
+
   void calc_attitude_hold();
   void calc_altitude_hold();
   void calc_gpsnavig_hold();
-  
+
 public:
   M4XFrame(Device *, Receiver *, Exception *, UAVNav *);
-  
+
   // Execute the magic here!
   void run();
 };

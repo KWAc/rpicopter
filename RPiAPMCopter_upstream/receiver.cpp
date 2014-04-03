@@ -6,13 +6,13 @@
 
 Receiver::Receiver(Device *pHalBoard) {
   m_pHalBoard = pHalBoard;
-  
+
   memset(m_cBuffer, 0, sizeof(m_cBuffer) );
   memset(m_rgChannelsRC, 0, sizeof(m_rgChannelsRC) );
-  
+
   m_iSParseTimer_A = m_iSParseTimer_C = m_iSParseTimer = m_pHalBoard->m_pHAL->scheduler->millis();
   m_iSParseTime_A  = m_iSParseTime_C  = m_iSParseTime  = 0;
-  
+
   m_eErrors = NOTHING_F;
 }
 
@@ -61,7 +61,7 @@ bool Receiver::parse_gyr_cor(char* buffer) {
   char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
   char *chk = strtok(NULL, "*");                    // chk = chksum
   bool bRet = false;
-  
+
   if(verf_chksum(str, chk) ) {                      // if chksum OK
     char *cstr;
 
@@ -90,15 +90,15 @@ bool Receiver::parse_waypoint(char *buffer) {
   char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
   char *chk = strtok(NULL, "*");                    // chk = chksum
   bool bRet = false;
-  
+
   int_fast32_t lat           = 0;
   int_fast32_t lon           = 0;
   int_fast32_t alt_cm        = 0;
   GPSPosition::UAV_TYPE flag = GPSPosition::NOTHING_F;
-  
+
   if(verf_chksum(str, chk) ) {                      // if chksum OK
     char *cstr;
-    
+
     for(uint_fast8_t i = 0; i < GPSP_ARGS; i++) {   // loop through final 3 RC_CHANNELS
       if(i == 0) {
         cstr = strtok (buffer, ",");
@@ -192,7 +192,7 @@ float *Receiver::parse_pid_substr(char* buffer) {
   char rgcPIDS[PID_BUFFER_S][32];
   memset(rgfPIDS, 0, sizeof(rgfPIDS) );
   memset(rgcPIDS, 0, sizeof(rgcPIDS) );
-  
+
   size_t i = 0, iPIDcstr = 0, iPID = 0;
   for(; i < strlen(buffer); i++) {
     // String ended here
@@ -224,7 +224,7 @@ float *Receiver::parse_pid_substr(char* buffer) {
 bool Receiver::parse_pid_conf(char* buffer) {
   if(m_pHalBoard == NULL) {
     return false;
-  } 
+  }
   else if(m_rgChannelsRC[2] > RC_THR_MIN) {        // If motors run: Do nothing!
     return false;
   }
@@ -241,7 +241,7 @@ bool Receiver::parse_pid_conf(char* buffer) {
       if(i == 0)
         cstr = strtok (buffer, ";");
       else cstr = strtok (NULL, ";");
-      
+
       float *pids = parse_pid_substr(cstr);
       switch(i) {
       case 0:
@@ -283,9 +283,9 @@ bool Receiver::parse_pid_conf(char* buffer) {
   return bRet;
 }
 
-/* 
+/*
  * Compact remote control packet system for the radio on Uart2,
- * Everything fits into 7 bytes 
+ * Everything fits into 7 bytes
  */
 bool Receiver::parse_radio(char *buffer) {
   int_fast16_t thr = 1000 + ((uint_fast8_t)buffer[0] * 100) + (uint_fast8_t)buffer[1]; // 1000 - 1900
@@ -300,7 +300,7 @@ bool Receiver::parse_radio(char *buffer) {
     checksum = (checksum + buffer[i]) << 1;
   }
 
-  // Validity check: 
+  // Validity check:
   // First checksum
   if(checksum != chk)
     return false;
@@ -313,13 +313,13 @@ bool Receiver::parse_radio(char *buffer) {
     return false;
   if(thr > RC_THR_80P || thr < RC_THR_MIN)
     return false;
-    
+
   // Set values
-  m_rgChannelsRC[0] = rol;
-  m_rgChannelsRC[1] = pit;
-  m_rgChannelsRC[2] = thr;
-  m_rgChannelsRC[3] = yaw;
-  
+  m_rgChannelsRC[RC_ROL] = rol;
+  m_rgChannelsRC[RC_PIT] = pit;
+  m_rgChannelsRC[RC_THR] = thr;
+  m_rgChannelsRC[RC_YAW] = yaw;
+
   m_iSParseTimer = m_pHalBoard->m_pHAL->scheduler->millis();           // update last valid packet
   return true;
 }
@@ -342,7 +342,7 @@ bool Receiver::read_uartA(uint_fast16_t bytesAvail) {
       m_cBuffer[offset++] = c;                          // store in buffer and continue until newline
     }
   }
-  
+
   last_parse_uartA_t32();
   return bRet;
 }
@@ -376,7 +376,7 @@ bool Receiver::read_uartC(uint_fast16_t bytesAvail) {
       m_cBuffer[offset++] = c;                                // store in buffer and continue until newline
     }
   }
-  
+
   last_parse_uartC_t32();
   return bRet;
 }
@@ -411,7 +411,7 @@ bool Receiver::parse(char *buffer) {
   if(strcmp(ctype, "UAV") == 0) {
     return parse_waypoint(command);
   }
-  
+
   return false;
 }
 
@@ -429,11 +429,11 @@ bool Receiver::try_uartAC() {
 
 uint_fast32_t Receiver::last_parse_t32() {
   m_iSParseTime = m_pHalBoard->m_pHAL->scheduler->millis() - m_iSParseTimer;
-  
+
   if(m_iSParseTime > COM_PKT_TIMEOUT) {
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, UART_TIMEOUT_F) );
   }
-  
+
   return m_iSParseTime;
 }
 

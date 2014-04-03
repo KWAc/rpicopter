@@ -1,6 +1,6 @@
 #include "absdevice.h"
 
-  
+
 AbsErrorDevice::AbsErrorDevice() {
   m_eErrors = NOTHING_F;
 }

@@ -45,7 +45,7 @@ Scheduler::Scheduler(const AP_HAL::HAL *p) {
 
   memset(m_functionList, 0, sizeof(m_functionList) );
   memset(m_tickrateList, 0, sizeof(m_tickrateList) );
-  
+
   m_iItems = 0;
 }
 
@@ -60,7 +60,7 @@ void Scheduler::add_task(Task *p, uint_fast16_t iTickRate) {
 bool Scheduler::is_started(const uint_fast8_t i) {
   Task *pCurTask = m_functionList[i];
   uint_fast32_t time = m_pHAL->scheduler->millis() - pCurTask->get_timer();
-  
+
   // Time yet to start the current emitter?
   if(time <= m_tickrateList[i] + pCurTask->get_delay() ) {
     return false;
@@ -68,14 +68,14 @@ bool Scheduler::is_started(const uint_fast8_t i) {
     // Release the block for the transmitter
     pCurTask->reset();
   }
-  
+
   if(pCurTask->start() ) {
     // Set timer to the current time
     pCurTask->set_timer(m_pHAL->scheduler->millis() );
   } else {
     return false;
   }
-  
+
   return true;
 }
 

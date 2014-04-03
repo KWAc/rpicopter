@@ -6,8 +6,18 @@ float SFilter::transff_filt_f(float fSens, float fError, float dT) {
   return fSens;
 }
 
+float SFilter::transff_filt_f (float fSens, float fErrorF, float dTF, float fErrorS, float dTS) {
+  fSens += (fErrorF * dTF) + (fErrorS * dTS);
+  return fSens;
+}
+
 float SFilter::transff_filt_f(float fSens, float fError, float dT, const Functor_f &functor) {
   fSens += fError * functor.run() * dT;
+  return fSens;
+}
+
+float SFilter::transff_filt_f (float fSens, const Functor_f &pFF, float dTF, const Functor_f &pFS,  float dTS) {
+  fSens += (pFF.run() * dTF) + (pFS.run() * dTS);
   return fSens;
 }
 

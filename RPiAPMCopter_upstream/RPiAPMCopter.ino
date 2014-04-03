@@ -46,8 +46,22 @@
 #include "math.h"
 
 
+////////////////////////////////////////////////////////////////////////////////
+// Declarations
+////////////////////////////////////////////////////////////////////////////////
+inline void main_loop();
 inline void ahrs_loop();
 Task taskAHRS(&ahrs_loop, AHRS_T_MS, 1);
+
+// Attitude-, Altitude and Navigation control loop
+void main_loop() {
+  static int timer = 0;
+  int time = _HAL_BOARD.m_pHAL->scheduler->millis();
+  if(time - timer >= MAIN_T_MS) {
+    _MODEL.run();
+    timer = time;
+  }
+}
 
 // Altitude estimation and AHRS system (yaw correction with GPS, barometer, ..)
 void ahrs_loop() {
@@ -105,11 +119,11 @@ void setup() {
   // battery monitor initializing
   hal.console->printf("\n%.1f%%: Init battery monitor\n", progress_f(7, 9) );
   _HAL_BOARD.init_batterymon();
-  
+
   // battery monitor initializing
   hal.console->printf("\n%.1f%%: Init range finder\n", progress_f(8, 9) );
   _HAL_BOARD.init_rf();
-  
+
   hal.console->printf("\n%.1f%%: Init inertial navigation\n", progress_f(9, 9) );
   _HAL_BOARD.init_inertial_nav();
 }
@@ -119,14 +133,8 @@ void loop() {
   _RECVR.try_uartAC();
   // send some json formatted information about the model over serial port
   _SCHED.run(); // Wrote my own small and absolutely fair scheduler
-  
-  // Don't use the scheduler for the very time critical main loop (~20% faster)
-  static int timer = 0;
-  int time = _HAL_BOARD.m_pHAL->scheduler->millis();
-  if(time - timer >= MAIN_T_MS) {
-    _MODEL.run();
-    timer = time;
-  }
+  // Don't use the scheduler for the time critical main loop (~20% faster)
+  main_loop();
 }
 
 AP_HAL_MAIN();

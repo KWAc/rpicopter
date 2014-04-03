@@ -14,10 +14,10 @@
 // Saving the current controls from the remote control into references
 ////////////////////////////////////////////////////////////////////////
 inline void set_channels(const Receiver *pRecvr, int_fast16_t &pit, int_fast16_t &rol, int_fast16_t &yaw, int_fast16_t &thr) {
-  rol = pRecvr->m_rgChannelsRC[0];
-  pit = pRecvr->m_rgChannelsRC[1];
-  thr = pRecvr->m_rgChannelsRC[2] > RC_THR_80P ? RC_THR_80P : pRecvr->m_rgChannelsRC[2];
-  yaw = pRecvr->m_rgChannelsRC[3];
+  rol = pRecvr->m_rgChannelsRC[RC_ROL];
+  pit = pRecvr->m_rgChannelsRC[RC_PIT];
+  thr = pRecvr->m_rgChannelsRC[RC_THR] > RC_THR_80P ? RC_THR_80P : pRecvr->m_rgChannelsRC[2];
+  yaw = pRecvr->m_rgChannelsRC[RC_YAW];
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -84,9 +84,9 @@ void M4XFrame::calc_gpsnavig_hold() {
   if(m_pReceiver->m_Waypoint.mode != GPSPosition::GPS_NAVIGATN_F) {
     return;
   }
-  
-  // Flying to the next way-point
-  m_pNavigation->run();
+
+  // Set yaw in remote control
+  m_pReceiver->m_rgChannelsRC[RC_YAW] = m_pNavigation->calc_yaw();
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -101,23 +101,23 @@ void M4XFrame::calc_altitude_hold() {
 
   int_fast16_t iAltZOutput = 0; // Barometer & Sonar
   int_fast16_t iAccZOutput = 0; // Accelerometer
-    
+
   if(m_pReceiver->m_Waypoint.mode == GPSPosition::NOTHING_F) {
     return;
   }
 
-  // Return estimated altitude by GPS and barometer 
+  // Return estimated altitude by GPS and barometer
   bool bOK_H, bOK_G;
   float fTargAlti_cm  = (float)m_pReceiver->m_Waypoint.altitude_cm;
   float fCurrAlti_cm  = Device::get_altitude_cm(m_pHalBoard, bOK_H);
   float fClmbRate_cms = m_pHalBoard->m_pInertNav->get_velocity_z();
   // Get the acceleration in g
   float fAccel_g      = Device::get_accel_z_g(m_pHalBoard, bOK_G) * fScaleF_g;
-  
+
   if(!bOK_H || !bOK_G) {
     return;
   }
-  
+
   // Calculate the motor speed changes by the error from the height estimate and the current climb rates
   // If the quadro is going down, because of an device error, then this code is not used
   if(m_pReceiver->m_Waypoint.mode != GPSPosition::CONTRLD_DOWN_F) {
@@ -130,7 +130,7 @@ void M4XFrame::calc_altitude_hold() {
   if(m_pReceiver->m_Waypoint.mode == GPSPosition::CONTRLD_DOWN_F && fAccel_g > fBias_g) {
     m_pExeption->pause_take_down();
   }
-  
+
   // else: the fAcceleration_g becomes smaller
   if(m_pReceiver->m_Waypoint.mode == GPSPosition::CONTRLD_DOWN_F && fAccel_g <= fBias_g) {
     m_pExeption->continue_take_down();
@@ -148,7 +148,7 @@ void M4XFrame::calc_altitude_hold() {
   int_fast16_t iBL = iAltZOutput + iAccZOutput;
   int_fast16_t iFR = iAltZOutput + iAccZOutput;
   int_fast16_t iBR = iAltZOutput + iAccZOutput;
-  
+
   add(iFL, iBL, iFR, iBR);
 }
 

@@ -3,7 +3,7 @@
 
 
 /*
- * This class should be used as a base for other classes which may want to throw an exception, 
+ * This class should be used as a base for other classes which may want to throw an exception,
  * which is analysed by the exception handler (called in the main loop)
  * TODO: I don't know so far, whether it would be more elegant to implement the exception handler as a virtual function
  */
@@ -29,7 +29,7 @@ protected:
 
 public:
   AbsErrorDevice();
-  
+
   DEVICE_ERROR_FLAGS get_errors();
   void set_errors(DEVICE_ERROR_FLAGS flags);
 };

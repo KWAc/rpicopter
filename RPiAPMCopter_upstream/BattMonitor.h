@@ -24,7 +24,7 @@
 #ifdef AP_BATT_CAPACITY_DEFAULT
   #undef  AP_BATT_CAPACITY_DEFAULT       // If already defines: un-define
   #define AP_BATT_CAPACITY_DEFAULT 10000 // Total capacity of the battery
-#else 
+#else
   #define AP_BATT_CAPACITY_DEFAULT 10000 // Total capacity of the battery
 #endif
 

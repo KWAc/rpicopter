@@ -34,7 +34,7 @@ GPSPosition::GPSPosition() {
   latitude    = 0;
   longitude   = 0;
   altitude_cm = 0;
-  
+
   mode     = GPSPosition::NOTHING_F;
 }
 
@@ -42,7 +42,7 @@ GPSPosition::GPSPosition(int_fast32_t lat, int_fast32_t lon, int_fast32_t alt, G
   latitude    = lat;
   longitude   = lon;
   altitude_cm = alt;
-  
+
   mode        = flag;
 }
 
