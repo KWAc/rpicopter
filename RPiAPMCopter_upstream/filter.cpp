@@ -1,4 +1,5 @@
 #include "filter.h"
+#include "math.h"
 
 
 float SFilter::transff_filt_f(float fSens, float fError, float dT) {
@@ -35,4 +36,8 @@ float SFilter::low_pass_filt_f(const float fCurSmple, const float fOldSmple, con
 
 Vector3f SFilter::low_pass_filt_V3f(const Vector3f &fCurSmple, const Vector3f &fOldSmple, const float p) {
   return fCurSmple * p + (fOldSmple * (1.f - p) );
+}
+
+float SFilter::round_half_f(float fVal) {
+  return floorf(fabs(fVal)*2.f) / 2.f * sign_f(fVal);
 }

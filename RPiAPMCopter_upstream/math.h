@@ -23,12 +23,12 @@ inline bool chk_fset(int flag, int mask) {
 }
 
 // Returns the sign of a float
-inline float sign_f(float fVal) {
-  return fVal >= 0.f ? 1.f : -1.f;
+inline short sign_l(long lVal) {
+  return lVal >= 0 ? 1 : -1;
 }
 
-inline long sign_l(long lVal) {
-  return lVal >= 0 ? 1 : -1;
+inline short sign_f(float fVal) {
+  return fVal >= 0.f ? 1 : -1;
 }
 
 inline float pow2_f(float fVal) {
@@ -40,11 +40,11 @@ inline long pow2_l(long lVal) {
 }
 
 inline float wrap180_f(float x) {
-  return x < -180.f ? (x + 360.f) : (x > 180.f ? (x - 360.f) : x);
+  return x < -180 ? (x + 360.f) : (x > 180 ? (x - 360.f) : x);
 }
 
 inline float wrap360_f(float x) {
-  return x < 0.f ? (x + 360.f) : (x > 360.f ? (x - 360.f) : x);
+  return x < 0 ? (x + 360.f) : (x > 360 ? (x - 360.f) : x);
 }
 
 inline Vector3f wrap180_V3f(Vector3f &vec) {
@@ -67,7 +67,7 @@ inline float delta180_f(float fA1, float fA2) {
   fA2 = wrap180_f(fA2);
 
 	float fDelta = fA1 - fA2;
-	return fDelta <= -180.f ? fDelta += 360.f : fDelta >= 180.f ? fDelta -= 360.f : fDelta;
+	return fDelta <= -180 ? fDelta += 360.f : fDelta >= 180 ? fDelta -= 360.f : fDelta;
 }
 
 inline float smaller_f(float value, float bias) {

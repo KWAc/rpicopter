@@ -4,7 +4,7 @@ from __future__ import print_function
 import serial
 import time
 
-com_port = 3
+com_port = 4
 baud_rate = '9600'
 #baud_rate = '115200'
 pySerial = serial.Serial(com_port, baud_rate)

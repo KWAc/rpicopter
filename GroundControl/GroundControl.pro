@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT          += core gui network serialport printsupport
+QT          += serialport core gui network printsupport
 
 greaterThan(QT_MAJOR_VERSION, 5): QT += widgets
 

@@ -98,8 +98,6 @@ private:
     QSerialPort *m_pSerialPort;
     
     CUSTOM_KEY m_customKeyStatus;
-    RANGE m_RANGE;
-    RC_COM m_COM;
     DRIFT_CAL m_DRIFT;
 
     float m_fYaw;
@@ -132,8 +130,14 @@ public slots:
     void sl_startTimer();
     void sl_setRadioEnabled(bool state);
 
+signals:
+    void si_throttleChanged(int);
+
 public:
     QRCWidget(QUdpSocket *pSock, QSerialPort *pSerialPort = NULL, QWidget *parent = NULL);
+
+    RANGE m_RANGE;
+    RC_COM m_COM;
 
     void setYaw(float fVal);
     void start();

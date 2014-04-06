@@ -62,7 +62,7 @@
 #define RC_THR_ACRO          1125   // Minimum throttle to begin with stabilization
 #define RC_THR_MAX           1900   // Maximum throttle bias
 // Maximum allowed throttle value, settable by user
-#define RC_THR_80P           0.8 * (RC_THR_MAX - RC_THR_MIN) + RC_THR_MIN
+#define RC_THR_80P           1650
 
 // Degree range for remote control
 #define RC_YAW_MIN           -180
@@ -82,8 +82,9 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 // Main loop
 //////////////////////////////////////////////////////////////////////////////////////////
-#define MAIN_T_MS            9      // Update frequency of the main loop: ~111.1 Hz
-#define AHRS_T_MS            50     // Update frequency: 20 Hz
+#define MAIN_T_MS            0      // Update frequency of the main loop: ~100.0 Hz is the theoretical maximum
+#define FALB_T_MS            20     // Update frequency of the main loop: ~50,0 Hz
+#define INAV_T_MS            20     // Update frequency: 50 Hz - Only important for auto navigation system
 #define INERT_TIMEOUT        10     // in ms
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -162,10 +163,12 @@
 // Auto navigation
 //////////////////////////////////////////////////////////////////////////////////////////
 
-#define MAX_YAW              45
+#define MAX_YAW              15
 #define MAX_PIT              15
-#define YAW_ZERO_SLOPE       20.f
+#define YAW_ZERO_SLOPE       25.f
+#define YAW_ZERO_MOD         5.0f
 #define YAW_CTRL_SLOPE       5.0f
+#define YAW_CTRL_MOD         1.0f
 #define YAW_ERROR_RATE       5.0f
 
 #endif /*DEFS_h*/

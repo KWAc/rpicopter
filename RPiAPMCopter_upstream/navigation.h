@@ -12,11 +12,8 @@ class UAVNav {
 private:
   uint_fast32_t m_t32YawTimer;
 
-  float  m_dX;
-  float  m_dY;
-
-  float         m_fTargetYaw_deg;
-  int_fast16_t  m_iTargetPit_deg;
+  float  m_fTargetYaw_deg;
+  float  m_fTargetPit_deg;
 
   Device*       m_pHalBoard;
   Receiver*     m_pReceiver;
@@ -37,5 +34,6 @@ public:
 
   // This function is overriding the remote control
   // and implementing the way the copter has to move to the defined target way-point
-  virtual int_fast16_t calc_yaw();
+  int_fast16_t calc_yaw();
+  int_fast16_t calc_pitch();
 };

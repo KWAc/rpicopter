@@ -119,35 +119,38 @@ bool Exception::handle() {
   // Device handler
   //////////////////////////////////////////////////////////////////////////////////////////
   if(m_pHalBoard->get_errors() & AbsErrorDevice::GYROMETER_F) {     // Gyrometer was not healthy: Go down straight
+    #if DEBUG_OUT
+    m_pHalBoard->m_pHAL->console->printf("Inertial exception - Taking model down\n");
+    #endif
     dev_take_down();
     return true;
   }
   if(m_pHalBoard->get_errors() & AbsErrorDevice::ACCELEROMETR_F) {  // Accelerometer was not healthy: Go down straight
+    #if DEBUG_OUT
+    m_pHalBoard->m_pHAL->console->printf("Inertial exception - Taking model down\n");
+    #endif
     dev_take_down();
     return true;
   }
   if(m_pHalBoard->get_errors() & AbsErrorDevice::BAROMETER_F) {     // If barometer is not working, the height calculation would be likely unreliable (GPS probably not stable)
+    #if DEBUG_OUT
+    m_pHalBoard->m_pHAL->console->printf("barometer exception - disable hold altitude\n");
+    #endif
     disable_alti_hold();
-    return true;
   }
   if(m_pHalBoard->get_errors() & AbsErrorDevice::COMPASS_F) {       // If Compass not working, the GPS navigation shouldn't be used
     disable_gps_navigation();
-    return true;
   }
   if(m_pHalBoard->get_errors() & AbsErrorDevice::GPS_F) {           // And if GPS not working, the GPS navigation shouldn't be used at all :D
     disable_gps_navigation();
-    return true;
   }
   if(m_pHalBoard->get_errors() & AbsErrorDevice::VOLTAGE_HIGH_F) {
-    return true;
   }
   if(m_pHalBoard->get_errors() & AbsErrorDevice::VOLTAGE_LOW_F) {
-    return true;
   }
   if(m_pHalBoard->get_errors() & AbsErrorDevice::CURRENT_HIGH_F) {
-    return true;
   }
-  if(m_pHalBoard->get_errors() & AbsErrorDevice::CURRENT_LOW_F) {   // Battery is at the end: Go down straight
+  if(m_pHalBoard->get_errors() & AbsErrorDevice::CURRENT_LOW_F) {   // Battery is at the end: Go down straight  
     dev_take_down();
     return true;
   }
@@ -156,6 +159,9 @@ bool Exception::handle() {
   // Remote control handler
   //////////////////////////////////////////////////////////////////////////////////////////
   if(m_pReceiver->get_errors() & AbsErrorDevice::UART_TIMEOUT_F) {
+    #if DEBUG_OUT
+    m_pHalBoard->m_pHAL->console->printf("No signal from receiver for more than 500 ms\n");
+    #endif
     rcvr_take_down();
     return true;
   }
@@ -184,7 +190,7 @@ void Exception::reduce_thr(float fTime) {
 
   // The speed of decreasing the throttle is dependent on the height
   uint_fast32_t iAltitudeTime = m_pHalBoard->m_pHAL->scheduler->millis() - m_t32Altitude;
-  if(iAltitudeTime > AHRS_T_MS) {
+  if(iAltitudeTime > INAV_T_MS) {
     bool bOK = false;
     float fAlti_m = Device::get_altitude_cm(m_pHalBoard, bOK) / 100.f;
     if(bOK == true) {
@@ -194,11 +200,15 @@ void Exception::reduce_thr(float fTime) {
     // Save some variables and set timer
     m_t32Altitude   = m_pHalBoard->m_pHAL->scheduler->millis();
   }
-
+  
   // Calculate how much to reduce throttle
   float fTConst = (THR_MOD_STEP_S * (fTime / fStepC) );
   int_fast16_t fThr = m_rgChannelsRC[RC_THR] - (int_fast16_t)fTConst;
 
+  #if DEBUG_OUT
+  m_pHalBoard->m_pHAL->console->printf("Reduce throttle - fStepC: %f, fThr: %d\n", fStepC, fThr);
+  #endif
+  
   // reduce throttle..
   m_pReceiver->m_rgChannelsRC[RC_THR] = fThr >= RC_THR_MIN ? fThr : RC_THR_OFF; // throttle
   // reset yaw, pitch and roll

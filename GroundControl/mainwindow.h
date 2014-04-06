@@ -31,7 +31,7 @@ private:
 
     QString m_sHostName;
     QUdpSocket *m_pUdpSocket;
-    QSerialPort *m_pSerialPort;
+    QSerialPort m_pSerialPort;
     QSerialPortInfo m_serialPortInfo;
 
     bool m_bUdpSockCon;
@@ -44,6 +44,10 @@ private:
     QTextStream *m_pStatBarStream;
     QStatusBar *m_pStatusBar;
     
+    QGroupBox *m_pMainWidget;
+    QProgressBar *m_pThrottleBar;
+    QHBoxLayout *m_pMainLayout;
+
     QPIDDockWidget *m_pPIDConfig;
     QLogDockWidget *m_pLogger;
     QAttitudeDockWidget *m_pAttitude;
@@ -80,7 +84,8 @@ private slots:
     void sl_recvCommand();
     void sl_replotGraphs();
     void sl_UpdateSensorData(QPair<unsigned long, QVariantMap> map);
-    
+    void sl_setThrottleBar(int);
+
 public:
     MainWindow(QWidget *parent = 0);
     ~MainWindow();

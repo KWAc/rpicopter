@@ -50,21 +50,21 @@
 // Declarations
 ////////////////////////////////////////////////////////////////////////////////
 inline void main_loop();
-inline void ahrs_loop();
-Task taskAHRS(&ahrs_loop, AHRS_T_MS, 1);
+inline void inav_loop();
+Task taskINAV(&inav_loop, INAV_T_MS, 1);
 
 // Attitude-, Altitude and Navigation control loop
 void main_loop() {
-  static int timer = 0;
-  int time = _HAL_BOARD.m_pHAL->scheduler->millis();
-  if(time - timer >= MAIN_T_MS) {
+  static uint_fast16_t timer = 0;
+  uint_fast16_t time = _HAL_BOARD.m_pHAL->scheduler->millis();
+  if(time - timer >= _RECVR.get_update_rate_ms() ) {
     _MODEL.run();
     timer = time;
   }
 }
 
 // Altitude estimation and AHRS system (yaw correction with GPS, barometer, ..)
-void ahrs_loop() {
+void inav_loop() {  
   _HAL_BOARD.update_inav();
 #ifdef SONAR_TYPE
   _HAL_BOARD.read_rf_m();
@@ -76,7 +76,7 @@ void setup() {
   _GPS = &_AUTO_GPS;
 
   // Prepare scheduler for the main loop ..
-  _SCHED.add_task(&taskAHRS, 0);  // Inertial, GPS, Compass, Barometer sensor fusions (slow) ==> running at 50 Hz
+  _SCHED.add_task(&taskINAV, 0);  // Inertial, GPS, Compass, Barometer sensor fusions (slow) ==> running at 50 Hz
   // .. and the sensor output functions
   _SCHED.add_task(&outAtti,  75);
   _SCHED.add_task(&outBaro,  1000);

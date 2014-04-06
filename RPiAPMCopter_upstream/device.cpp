@@ -19,12 +19,11 @@
 // create board led object
 AP_BoardLED board_led;
 
-
 /*
  * Sigmoid transfer function
  */
 inline float atti_f(float fX, float fSlope) {
-  float fVal = (180.f - smaller_f(abs(fSlope * fX), 179.9f) ) / 180.f;
+  float fVal = (180.f - smaller_f(fabs(fSlope * fX), 179.9f) ) / 180.f;
   return fVal / sqrt(1.f + pow2_f(fVal) );
 }
 
@@ -237,7 +236,7 @@ void Device::update_inav() {
 
   read_gps();
   read_comp_deg();
-  m_pAHRS->update();
+  //m_pAHRS->update(); // AHRS system is already updated at 100 Hz in the attitude update function
 
   uint_fast32_t t32CurrentTime = m_pHAL->scheduler->millis();
   float fTime_s = (t32CurrentTime - m_t32InertialNav) / 1000.f;
@@ -248,15 +247,15 @@ void Device::update_inav() {
 void Device::init_pids() {
   // Rate PIDs
   m_rgPIDS[PID_PIT_RATE].kP(0.50);
-  m_rgPIDS[PID_PIT_RATE].kI(0.25);
+  m_rgPIDS[PID_PIT_RATE].kI(0.45);
   m_rgPIDS[PID_PIT_RATE].imax(50);
 
   m_rgPIDS[PID_ROL_RATE].kP(0.50);
-  m_rgPIDS[PID_ROL_RATE].kI(0.25);
+  m_rgPIDS[PID_ROL_RATE].kI(0.45);
   m_rgPIDS[PID_ROL_RATE].imax(50);
 
   m_rgPIDS[PID_YAW_RATE].kP(1.25);
-  m_rgPIDS[PID_YAW_RATE].kI(0.25);
+  m_rgPIDS[PID_YAW_RATE].kI(0.35);
   m_rgPIDS[PID_YAW_RATE].imax(50);
 
   m_rgPIDS[PID_THR_RATE].kP(0.75);  // For altitude hold
@@ -394,7 +393,7 @@ Vector3f Device::get_accel_pg_cmss() {
  */
 float Device::read_comp_deg() {
   if (!m_pComp->use_for_yaw() ) {
-    m_pHAL->console->println("read_comp_deg(): Compass not healthy\n");
+    //m_pHAL->console->println("read_comp_deg(): Compass not healthy\n");
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, COMPASS_F) );
     return m_fCmpH;
   }

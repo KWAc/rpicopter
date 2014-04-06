@@ -68,8 +68,8 @@ void M4XFrame::add(int_fast16_t FL, int_fast16_t BL, int_fast16_t FR, int_fast16
 
 void M4XFrame::run() {
   calc_attitude_hold(); // Must get called before altitude hold calculation
-  calc_altitude_hold(); // Calculates motor changes _after_ attitude calculation
-  calc_gpsnavig_hold();
+  //calc_altitude_hold(); // Calculates motor changes _after_ attitude calculation
+  //calc_gpsnavig_hold();
   out();                // Output to the motors of the model
 }
 
@@ -81,10 +81,9 @@ void M4XFrame::run() {
 ////////////////////////////////////////////////////////////////////////
 void M4XFrame::calc_gpsnavig_hold() {
   // Break this function if there was not the proper UAV-mode set
-  if(m_pReceiver->m_Waypoint.mode != GPSPosition::GPS_NAVIGATN_F) {
+  if(!chk_fset(m_pReceiver->m_Waypoint.mode, GPSPosition::GPS_NAVIGATN_F) ) {
     return;
   }
-
   // Set yaw in remote control
   m_pReceiver->m_rgChannelsRC[RC_YAW] = m_pNavigation->calc_yaw();
 }
@@ -137,7 +136,7 @@ void M4XFrame::calc_altitude_hold() {
   }
 
   // Don't change the throttle if acceleration is below a certain bias
-  if(abs(fAccel_g) >= fBias_g) {
+  if(fabs(fAccel_g) >= fBias_g) {
     //fAccel_g         = sign_f(fAccel_g) * (abs(fAccel_g) - fBias_g) * fScaleF_g;
     float fAccZStabOut = m_pHalBoard->m_rgPIDS[PID_ACC_STAB].get_pid(fAccel_g, 1);
     iAccZOutput        = m_pHalBoard->m_rgPIDS[PID_ACC_RATE].get_pid(fAccZStabOut, 1);
@@ -185,7 +184,7 @@ void M4XFrame::calc_attitude_hold() {
     float yaw_stab_output = constrain_float(m_pHalBoard->m_rgPIDS[PID_YAW_STAB].get_pid(wrap180_f(targ_yaw - vAtti.z), 1), -360, 360);
 
     // is pilot asking for yaw change - if so feed directly to rate pid (overwriting yaw stab output)
-    if(abs(rcyaw ) > 5.f) {
+    if(fabs(rcyaw ) > 5.f) {
       yaw_stab_output = rcyaw;
       targ_yaw = vAtti.z; // remember this yaw for when pilot stops
     }

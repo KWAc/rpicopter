@@ -14,16 +14,17 @@
 #define M_RADIUS_EARTH_M    (M_PERIMETER_EARTH_M / M_2PI)
 #define M_AP_INT2FLOAT_DEG  (10000000.f)
 
+
 /*
  * Sigmoid transfer function
  */
 inline float uav_yaw_f(float x, float mod){
-  float val = sign_f(x) * smaller_f(abs(mod * x), 180.f) / 180.f;
+  float val = sign_f(x) * smaller_f(fabs(mod * x), 180.f) / 180.f;
   return val / sqrt(1 + pow2_f(val) );
 }
 
 inline float uav_zero_f(float x, float mod){
-  float val = (180.0 - smaller_f(abs(mod * x), 179.9f)) / 180.f;
+  float val = (180.0 - smaller_f(fabs(mod * x), 179.9f)) / 180.f;
   return val / sqrt(1 + pow2_f(val) );
 }
 
@@ -35,8 +36,7 @@ UAVNav::UAVNav(Device *pDev, Receiver *pRecv, Exception *pExcp) {
   m_t32YawTimer    = m_pHalBoard->m_pHAL->scheduler->millis();
 
   m_fTargetYaw_deg = 0.f;
-  m_iTargetPit_deg = 0;
-  m_dX = m_dY      = 0.f;
+  m_fTargetPit_deg = 0.f;
 }
 
 /*
@@ -67,10 +67,7 @@ float UAVNav::calc_error_deg() {
   float fXTarg = dist_2_greenw_m(fLatTarg_deg, fLonTarg_deg);
   float fYTarg = dist_2_equat_m(fLatTarg_deg);
 
-  m_dX = fXTarg - fXHome;
-  m_dY = fYTarg - fYHome;
-
-  return delta180_f(atan2(m_dX, m_dY) , m_pHalBoard->get_comp_deg() );
+  return delta180_f(atan2(fXTarg - fXHome, fYTarg - fYHome) , m_pHalBoard->get_comp_deg() );
 }
 
 int_fast16_t UAVNav::calc_yaw() {
@@ -81,25 +78,19 @@ int_fast16_t UAVNav::calc_yaw() {
 
   // Update position data and calculate the errors
   float fError_deg = calc_error_deg();
-/*
-  // Calculate the error dependent modifier, using a normed sigmoid transfer function (-1 < x < 1)
-  float fCtrl = uav_yaw_f(fError_deg, YAW_CTRL_SLOPE) * YAW_ERROR_RATE * dT;
-  float fZero = uav_zero_f(fError_deg, YAW_ZERO_SLOPE) * YAW_ERROR_RATE * dT;
   // Change the yaw of the copter if error to target is high
-  m_fTargetYaw_deg += fCtrl;
-  // Anneal the yaw change to zero if the error is low
-  m_fTargetYaw_deg += sign_f(-m_fTargetYaw_deg) * fZero;
-*/
-  // Change the yaw of the copter if error to target is high
-  float fCtrl = YAW_ERROR_RATE * dT;
-  float fZero = fCtrl * sign_f(-m_fTargetYaw_deg);
-  m_fTargetYaw_deg = SFilter::transff_filt_f(m_fTargetYaw_deg, uav_yaw_f(fError_deg, YAW_CTRL_SLOPE), fCtrl, uav_zero_f(fError_deg, YAW_ZERO_SLOPE), fZero);
+  float fCtrl = YAW_ERROR_RATE * dT * YAW_CTRL_MOD;
+  float fZero = YAW_ERROR_RATE * dT * sign_f(-m_fTargetYaw_deg) * YAW_ZERO_MOD;
+  m_fTargetYaw_deg = SFilter::transff_filt_f( m_fTargetYaw_deg, 
+                                              uav_yaw_f(fError_deg, YAW_CTRL_SLOPE),  fCtrl, 
+                                              uav_zero_f(fError_deg, YAW_ZERO_SLOPE), fZero);
 
   // Cap the maximum yaw change
-  m_fTargetYaw_deg  = abs(m_fTargetYaw_deg) > MAX_YAW ? sign_f(m_fTargetYaw_deg) * MAX_YAW : m_fTargetYaw_deg;
+  m_fTargetYaw_deg  = fabs(m_fTargetYaw_deg) > MAX_YAW ? sign_f(m_fTargetYaw_deg) * MAX_YAW : m_fTargetYaw_deg;
 
   #if DEBUG_OUT
-  m_pHalBoard->m_pHAL->console->printf("Navigation - Comp: %.3f, Err: %.3f, CTRL: %.3f, ZERO: %.3f, Yaw: %.3f\n", m_pHalBoard->get_comp_deg(), fError_deg, fCtrl, fZero, m_fTargetYaw_deg);
+  m_pHalBoard->m_pHAL->console->printf("Navigation - Comp: %.3f, Err: %.3f, CTRL: %.3f, ZERO: %.3f, Yaw: %d\n", 
+                                        m_pHalBoard->get_comp_deg(), fError_deg, fCtrl, fZero, (int_fast16_t)m_fTargetYaw_deg);
   #endif
 
   if(fError_deg > 1.f) {
@@ -108,4 +99,8 @@ int_fast16_t UAVNav::calc_yaw() {
   }
   // Anneal to correct yaw
   return (int_fast16_t)m_fTargetYaw_deg;
+}
+
+int_fast16_t UAVNav::calc_pitch() {
+
 }

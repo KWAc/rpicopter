@@ -20,6 +20,8 @@ private:
 
   Device  *m_pHalBoard;
 
+  uint_fast16_t m_iUpdateRate;
+  
   uint_fast32_t m_iSParseTimer;   // Last successful read timer of command string from radio or wifi
   uint_fast32_t m_iSParseTimer_A; // Last successful read timer of command string from wifi
   uint_fast32_t m_iSParseTimer_C; // Last successful read timer of command string from radio
@@ -61,6 +63,10 @@ public:
   uint_fast32_t last_parse_t32();       // general
   uint_fast32_t last_parse_uartA_t32(); // UART A
   uint_fast32_t last_parse_uartC_t32(); // UART C
+  
+  // Suggests an update rate in ms for the main loop
+  void set_update_rate_ms(const uint_fast16_t);
+  uint_fast16_t get_update_rate_ms() const;
 };
 
 #endif

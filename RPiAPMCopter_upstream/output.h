@@ -44,7 +44,7 @@ void leds_on() {
 // compass
 ///////////////////////////////////////////////////////////
 void send_comp() {
-  if(!_HAL_BOARD.m_pComp->use_for_yaw() ) {
+  if(!_HAL_BOARD.m_pComp->healthy() ) {
     return;
   }
 

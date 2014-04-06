@@ -54,9 +54,9 @@ RANGE::RANGE() {
     YAW_MAX = 45;
 
     THR_MIN = 1100;
-    THR_MAX = 1700;
+    THR_MAX = 1900;
 
-    THR_80P = (int)((float)(1700 - 1100) * 0.8f) + THR_MIN;
+    THR_80P = (int)((float)(THR_MAX - THR_MIN) * 0.8f) + THR_MIN;
 }
 
 
@@ -159,7 +159,7 @@ QRCWidget::QRCWidget(QUdpSocket *pSock, QSerialPort *pSerialPort, QWidget *paren
     m_bRadioEnabled = true;
     m_bAltitudeHold = false;
 
-    m_iUpdateTime = 13;
+    m_iUpdateTime = 8;
     m_fTimeConstRed = (float)m_iUpdateTime/150.f;
     m_fTimeConstEnh = (float)m_iUpdateTime/75.f;
 
@@ -257,6 +257,7 @@ void QRCWidget::sl_customKeyPressHandler() {
         m_DRIFT.PIT = 0;
 
         sendJSON2UDP(m_DRIFT.cstr_makeWiFiCommand() );
+        emit si_throttleChanged(m_COM.THR);
     }
 
     // Inertial calibration
@@ -275,26 +276,42 @@ void QRCWidget::sl_customKeyPressHandler() {
     }
 
     if(m_customKeyStatus[Qt::Key_W] == true) {
-        //qDebug() << "W";
+        qDebug() << "W";
+        if(m_COM.PIT > 0) {
+            m_COM.PIT = 0;
+        }
+
         if(m_COM.PIT + m_RANGE.PIT_MIN/10 >= m_RANGE.PIT_MIN)
             m_COM.PIT += m_RANGE.PIT_MIN/10 * m_fTimeConstEnh;
         else m_COM.PIT = m_RANGE.PIT_MIN;
     }
     if(m_customKeyStatus[Qt::Key_S] == true) {
-        //qDebug() << "S";
+        qDebug() << "S";
+        if(m_COM.PIT < 0) {
+            m_COM.PIT = 0;
+        }
+
         if(m_COM.PIT + m_RANGE.PIT_MAX/10 <= m_RANGE.PIT_MAX)
             m_COM.PIT += m_RANGE.PIT_MAX/10 * m_fTimeConstEnh;
         else m_COM.PIT = m_RANGE.PIT_MAX;
     }
 
     if(m_customKeyStatus[Qt::Key_A] == true) {
-        //qDebug() << "A";
+        qDebug() << "A";
+        if(m_COM.ROL > 0) {
+            m_COM.ROL = 0;
+        }
+
         if(m_COM.ROL + m_RANGE.ROL_MIN/10 >= m_RANGE.ROL_MIN)
             m_COM.ROL += m_RANGE.ROL_MIN/10 * m_fTimeConstEnh;
         else m_COM.ROL = m_RANGE.ROL_MIN;
     }
     if(m_customKeyStatus[Qt::Key_D] == true) {
         //qDebug() << "D";
+        if(m_COM.ROL < 0) {
+            m_COM.ROL = 0;
+        }
+
         if(m_COM.ROL + m_RANGE.ROL_MAX/10 <= m_RANGE.ROL_MAX)
             m_COM.ROL += m_RANGE.ROL_MAX/10 * m_fTimeConstEnh;
         else m_COM.ROL = m_RANGE.ROL_MAX;
@@ -302,12 +319,20 @@ void QRCWidget::sl_customKeyPressHandler() {
 
     if(m_customKeyStatus[Qt::Key_Q] == true) {
         //qDebug() << "Q";
+        if(m_COM.YAW < 0) {
+            m_COM.YAW = 0;
+        }
+
         if(m_COM.YAW + m_RANGE.YAW_MAX/10 <= m_RANGE.YAW_MAX)
             m_COM.YAW += m_RANGE.YAW_MAX/10 * m_fTimeConstEnh;
         else m_COM.YAW = m_RANGE.YAW_MAX;
     }
     if(m_customKeyStatus[Qt::Key_E] == true) {
         //qDebug() << "E";
+        if(m_COM.YAW > 0) {
+            m_COM.YAW = 0;
+        }
+
         if(m_COM.YAW + m_RANGE.YAW_MIN/10 >= m_RANGE.YAW_MIN)
             m_COM.YAW += m_RANGE.YAW_MIN/10 * m_fTimeConstEnh;
         else m_COM.YAW = m_RANGE.YAW_MIN;
@@ -361,12 +386,16 @@ void QRCWidget::sl_customKeyPressHandler() {
         if(m_COM.THR + fStep <= m_RANGE.THR_80P)
             m_COM.THR += fStep * m_fTimeConstEnh;
         else m_COM.THR = m_RANGE.THR_80P;
+
+        emit si_throttleChanged(m_COM.THR);
     }
     if(m_customKeyStatus[CUSTOM_KEY::mapCustomKeyIndex(Qt::Key_Down)] == true) {
         //qDebug() << "Down";
         if(m_COM.THR - fStep >= m_RANGE.THR_MIN)
             m_COM.THR -= fStep * m_fTimeConstEnh;
         else m_COM.THR = m_RANGE.THR_MIN;
+
+        emit si_throttleChanged(m_COM.THR);
     }
 
     update();
@@ -400,7 +429,7 @@ void QRCWidget::sendJSON2UDP(QPair<int, char*> pair) {
         return;
 
     if (pair.first > 0) {
-        //qDebug() << "WiFi: " << pair.first << pair.second;
+        qDebug() << "WiFi: " << pair.first << pair.second;
         m_pUdpSock->write(pair.second, pair.first);
     }
 }
@@ -410,13 +439,13 @@ void QRCWidget::sendJSON2UDP(QString sCom) {
         return;
 
     if (sCom.size() > 0) {
-        //qDebug() << "WiFi: " << pair.first << pair.second;
+        qDebug() << "WiFi: " << sCom;
         m_pUdpSock->write(sCom.toLatin1(), sCom.size() );
     }
 }
 
 void QRCWidget::sendJSON2COM(QPair<int, char*> pair) {
-    if(!m_pSerialPort)
+    if(!m_pSerialPort || !m_pSerialPort->isOpen() )
         return;
 
     if (pair.first > 0) {

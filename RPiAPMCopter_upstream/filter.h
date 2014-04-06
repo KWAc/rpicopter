@@ -53,6 +53,11 @@ public:
   static int_fast32_t low_pass_filt_l  (const long fCurr,      const long fLast,      const int p);
   static float        low_pass_filt_f  (const float fCurr,     const float fLast,     const float p);
   static Vector3f     low_pass_filt_V3f(const Vector3f &fCurr, const Vector3f &fLast, const float p);
+  
+  /*
+   * Round 
+   */
+  static float round_half_f(float);
 };
 
 #endif

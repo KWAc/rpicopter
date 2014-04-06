@@ -12,8 +12,10 @@ MainWindow::MainWindow(QWidget *parent)
     m_pStatusBar     = new QStatusBar(this);
     m_pUdpSocket     = new QUdpSocket(this);
     m_pPIDConfigDial = new QPIDConfig(m_pUdpSocket);
-    m_pRCWidget      = new QRCWidget(m_pUdpSocket, m_pSerialPort, this);
+    m_pRCWidget      = new QRCWidget(m_pUdpSocket, &m_pSerialPort, this);
     m_pStatBarStream = new QTextStream(&m_sStatBarText);
+
+    m_pThrottleBar   = new QProgressBar(this);
 
     m_pPIDConfig     = new QPIDDockWidget("PID Configuration");
     m_pLogger        = new QLogDockWidget("Logger");
@@ -70,8 +72,29 @@ void MainWindow::prepareWidgets() {
     m_sHostName = "";
 
 
-    this->setCentralWidget(m_pRCWidget);
+    m_pThrottleBar->setOrientation(Qt::Vertical);
+    m_pThrottleBar->setMinimum(m_pRCWidget->m_RANGE.THR_MIN);
+    m_pThrottleBar->setMaximum(m_pRCWidget->m_RANGE.THR_80P);
+    m_pThrottleBar->setTextVisible(true);
+    //m_pThrottleBar->setTextDirection();
+
+    m_pMainLayout = new QHBoxLayout(this);
+
+    m_pMainLayout->addWidget(m_pRCWidget);
+    m_pMainLayout->addWidget(m_pThrottleBar);
+
+    m_pMainWidget = new QGroupBox(this);
+    m_pMainWidget->setLayout(m_pMainLayout);
+
+    this->setCentralWidget(m_pMainWidget);
+
     m_pRCWidget->setDisabled(true);
+}
+
+void MainWindow::sl_setThrottleBar(int value) {
+    if(value >= m_pThrottleBar->maximum() )
+        return;
+    m_pThrottleBar->setValue(value);
 }
 
 void MainWindow::connectWidgets() {
@@ -82,28 +105,31 @@ void MainWindow::connectWidgets() {
 
     connect(m_pOptionMPIDConf, SIGNAL(triggered() ), this, SLOT(sl_configPIDs() ) );
     connect(m_pOptionRadioEnabled, SIGNAL(toggled(bool) ) , m_pRCWidget, SLOT(sl_setRadioEnabled(bool) ) );
+    connect(m_pRCWidget, SIGNAL(si_throttleChanged(int) ), this, SLOT(sl_setThrottleBar(int) ) );
 }
 
 bool MainWindow::searchSerialRadio() {
+    bool bRes = false;
     // Example use QSerialPortInfo
-    foreach (const QSerialPortInfo &info, QSerialPortInfo::availablePorts() ) {
-        qDebug() << "Name : "        << info.portName();
+    foreach (const QSerialPortInfo &info, QSerialPortInfo::availablePorts()) {
+        qDebug() << "Name        : " << info.portName();
         qDebug() << "Description : " << info.description();
         qDebug() << "Manufacturer: " << info.manufacturer();
 
         if(info.description().contains("FT232R")) {
-            m_serialPortInfo = info;
-            m_pSerialPort = new QSerialPort(info);
-            m_pSerialPort->setBaudRate(QSerialPort::Baud9600);
-            return m_pSerialPort->open(QIODevice::ReadWrite);
+            // Example use QSerialPort
+            m_pSerialPort.setPort(info);
+            if (m_pSerialPort.open(QIODevice::ReadWrite)) {
+                m_pSerialPort.setBaudRate(QSerialPort::Baud9600);
+                bRes = true;
+            }
         }
     }
-    m_pSerialPort = NULL;
-    return false;
+    return bRes;
 }
 
 MainWindow::~MainWindow() {
-    m_pSerialPort->close();
+    m_pSerialPort.close();
 }
 
 void MainWindow::sl_saveLog() {
@@ -316,15 +342,15 @@ void MainWindow::connectToHost(const QString & hostName, quint16 port, QIODevice
         m_pUdpSocket->write(0, 0);
         qDebug("connectToHost: UDP socket connected");
         m_sHostName = hostName;
-
-        m_pRCWidget->sl_startTimer();
-        m_pRCWidget->setDisabled(false);
-        m_pRCWidget->setFocus();
-
-        m_udpRecvTimer.start(25);
-        m_plotTimer.start(1000);
     }
     else {
         qDebug() << "connectToHost - Not connected: " << m_pUdpSocket->error();
     }
+
+    m_pRCWidget->sl_startTimer();
+    m_pRCWidget->setDisabled(false);
+    m_pRCWidget->setFocus();
+
+    m_udpRecvTimer.start(25);
+    m_plotTimer.start(1000);
 }
