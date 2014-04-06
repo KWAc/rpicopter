@@ -20,7 +20,7 @@ private:
 
   Device  *m_pHalBoard;
 
-  uint_fast16_t m_iUpdateRate;
+  uint_fast8_t m_iUpdateRate;
   
   uint_fast32_t m_iSParseTimer;   // Last successful read timer of command string from radio or wifi
   uint_fast32_t m_iSParseTimer_A; // Last successful read timer of command string from wifi
@@ -65,8 +65,10 @@ public:
   uint_fast32_t last_parse_uartC_t32(); // UART C
   
   // Suggests an update rate in ms for the main loop
-  void set_update_rate_ms(const uint_fast16_t);
-  uint_fast16_t get_update_rate_ms() const;
+  // The rate linked with the usage of the 3DR radio
+  // The 3DR radio is only working if the loop rate is slow
+  void set_update_rate_ms(const uint_fast8_t);
+  uint_fast8_t get_update_rate_ms() const;
 };
 
 #endif

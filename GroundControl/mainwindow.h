@@ -41,6 +41,7 @@ private:
     QRCWidget *m_pRCWidget;
     
     QString m_sStatBarText;
+    QString m_sStatBarRC;
     QTextStream *m_pStatBarStream;
     QStatusBar *m_pStatusBar;
     
@@ -85,6 +86,8 @@ private slots:
     void sl_replotGraphs();
     void sl_UpdateSensorData(QPair<unsigned long, QVariantMap> map);
     void sl_setThrottleBar(int);
+
+    void sl_updateStatusBar(QString);
 
 public:
     MainWindow(QWidget *parent = 0);

@@ -67,10 +67,17 @@ void M4XFrame::add(int_fast16_t FL, int_fast16_t BL, int_fast16_t FR, int_fast16
 }
 
 void M4XFrame::run() {
-  calc_attitude_hold(); // Must get called before altitude hold calculation
-  //calc_altitude_hold(); // Calculates motor changes _after_ attitude calculation
-  //calc_gpsnavig_hold();
-  out();                // Output to the motors of the model
+  // Must get called before altitude hold calculation
+  calc_attitude_hold();
+  
+  // Calculates motor changes _after_ attitude calculation if there is a need (e.g. UAV mode)
+  if(m_pReceiver->m_Waypoint.mode != GPSPosition::NOTHING_F) {
+    calc_altitude_hold();
+    calc_gpsnavig_hold();
+  }
+  
+  // Output to the motors of the model
+  out();
 }
 
 ////////////////////////////////////////////////////////////////////////

@@ -106,6 +106,7 @@ void MainWindow::connectWidgets() {
     connect(m_pOptionMPIDConf, SIGNAL(triggered() ), this, SLOT(sl_configPIDs() ) );
     connect(m_pOptionRadioEnabled, SIGNAL(toggled(bool) ) , m_pRCWidget, SLOT(sl_setRadioEnabled(bool) ) );
     connect(m_pRCWidget, SIGNAL(si_throttleChanged(int) ), this, SLOT(sl_setThrottleBar(int) ) );
+    connect(m_pRCWidget, SIGNAL(si_send2Model(QString) ), this, SLOT(sl_updateStatusBar(QString) ) );
 }
 
 bool MainWindow::searchSerialRadio() {
@@ -265,6 +266,10 @@ void MainWindow::sl_UpdateSensorData(QPair<unsigned long, QVariantMap> sensorRea
         m_pPIDConfigDial->sl_Activate();
         m_pPIDConfigDial->sl_setPIDs(map);
     }
+}
+
+void MainWindow::sl_updateStatusBar(QString str) {
+    m_pStatusBar->showMessage(m_sStatBarText + "\t Current RC-JSON: " + str, 5000);
 }
 
 void MainWindow::sl_replotGraphs() {

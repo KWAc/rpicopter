@@ -23,13 +23,14 @@ void QPIDConfig::sl_Activate() {
     m_thr_rkp_V->setDisabled(false);
     m_thr_rki_V->setDisabled(false);
     m_thr_rimax_V->setDisabled(false);
-    m_thr_akp_V->setDisabled(false);
-    m_thr_aki_V->setDisabled(false);
-    m_thr_aimax_V->setDisabled(true);
+    m_acc_rkp_V->setDisabled(false);
+    m_acc_rki_V->setDisabled(false);
+    m_acc_rimax_V->setDisabled(true);
     m_pit_skp_V->setDisabled(false);
     m_rol_skp_V->setDisabled(false);
     m_yaw_skp_V->setDisabled(false);
     m_thr_skp_V->setDisabled(false);
+    m_acc_skp_V->setDisabled(false);
 }
 
 void QPIDConfig::sl_Deactivate() {
@@ -46,13 +47,14 @@ void QPIDConfig::sl_Deactivate() {
     m_thr_rkp_V->setDisabled(true);
     m_thr_rki_V->setDisabled(true);
     m_thr_rimax_V->setDisabled(true);
-    m_thr_akp_V->setDisabled(true);
-    m_thr_aki_V->setDisabled(true);
-    m_thr_aimax_V->setDisabled(true);
+    m_acc_rkp_V->setDisabled(true);
+    m_acc_rki_V->setDisabled(true);
+    m_acc_rimax_V->setDisabled(true);
     m_pit_skp_V->setDisabled(true);
     m_rol_skp_V->setDisabled(true);
     m_yaw_skp_V->setDisabled(true);
     m_thr_skp_V->setDisabled(true);
+    m_acc_skp_V->setDisabled(true);
 }
 
 void QPIDConfig::sl_setPIDs(QVariantMap map) {
@@ -62,24 +64,37 @@ void QPIDConfig::sl_setPIDs(QVariantMap map) {
     m_pit_rkp_V->setValue(map["pit_rkp"].toDouble() );
     m_pit_rki_V->setValue(map["pit_rki"].toDouble() );
     m_pit_rimax_V->setValue(map["pit_rimax"].toDouble() );
+
     m_rol_rkp_V->setValue(map["rol_rkp"].toDouble() );
     m_rol_rki_V->setValue(map["rol_rki"].toDouble() );
     m_rol_rimax_V->setValue(map["rol_rimax"].toDouble() );
+
     m_yaw_rkp_V->setValue(map["yaw_rkp"].toDouble() );
     m_yaw_rki_V->setValue(map["yaw_rki"].toDouble() );
     m_yaw_rimax_V->setValue(map["yaw_rimax"].toDouble() );
+
+    m_thr_rkp_V->setValue(map["thr_rkp"].toDouble() );
+    m_thr_rki_V->setValue(map["thr_rki"].toDouble() );
+    m_thr_rimax_V->setValue(map["thr_rimax"].toDouble() );
+
+    m_acc_rkp_V->setValue(map["acc_rkp"].toDouble() );
+    m_acc_rki_V->setValue(map["acc_rki"].toDouble() );
+    m_acc_rimax_V->setValue(map["acc_rimax"].toDouble() );
+
     m_pit_skp_V->setValue(map["pit_skp"].toDouble() );
     m_rol_skp_V->setValue(map["rol_skp"].toDouble() );
     m_yaw_skp_V->setValue(map["yaw_skp"].toDouble() );
+    m_thr_skp_V->setValue(map["yaw_skp"].toDouble() );
+    m_acc_skp_V->setValue(map["yaw_skp"].toDouble() );
 }
 
 void QPIDConfig::Setup() {
     s_pit_rkp = "Pitch Rkp: ",  s_pit_rki = "Pitch Rki: ",  s_pit_rimax = "Pitch RImax: ";
     s_rol_rkp = "Roll Rkp: ",   s_rol_rki = "Roll Rki: ",   s_rol_rimax = "Roll RImax: ";
     s_yaw_rkp = "Yaw Rkp: ",    s_yaw_rki = "Yaw Rki: ",    s_yaw_rimax = "Yaw RImax: ";
-    s_thr_rkp = "Thr Rkp",      s_thr_rki = "Thr Rki",      s_thr_rimax = "Thr rimax";
-    s_thr_akp = "Thr Akp",      s_thr_aki = "Thr Aki",      s_thr_aimax = "Thr Aimax";
-    s_pit_skp = "Pitch Skp: ",  s_rol_skp = "Roll Skp: ",   s_yaw_skp = "Yaw Skp: ",        s_thr_skp = "Thr Skp: ";
+    s_thr_rkp = "Thr Rkp",      s_thr_rki = "Thr Rki",      s_thr_rimax = "Thr Rimax";
+    s_acc_rkp = "Acc Rkp",      s_acc_rki = "Acc Rki",      s_acc_rimax = "Acc Rimax";
+    s_pit_skp = "Pitch Skp: ",  s_rol_skp = "Roll Skp: ",   s_yaw_skp = "Yaw Skp: ",        s_thr_skp = "Thr Skp: ",        s_acc_skp = "Acc Skp: ";
 
     m_pit_rkp = new QLabel(s_pit_rkp);
     m_pit_rki = new QLabel(s_pit_rki);
@@ -93,13 +108,14 @@ void QPIDConfig::Setup() {
     m_thr_rkp = new QLabel(s_thr_rkp);
     m_thr_rki = new QLabel(s_thr_rki);
     m_thr_rimax = new QLabel(s_thr_rimax);
-    m_thr_akp = new QLabel(s_thr_akp);
-    m_thr_aki = new QLabel(s_thr_aki);
-    m_thr_aimax = new QLabel(s_thr_aimax);
+    m_thr_akp = new QLabel(s_acc_rkp);
+    m_thr_aki = new QLabel(s_acc_rki);
+    m_thr_aimax = new QLabel(s_acc_rimax);
     m_pit_skp = new QLabel(s_pit_skp);
     m_rol_skp = new QLabel(s_rol_skp);
     m_yaw_skp = new QLabel(s_yaw_skp);
     m_thr_skp = new QLabel(s_thr_skp);
+    m_acc_skp = new QLabel(s_acc_skp);
 
     m_pit_rkp_V = new QDoubleSpinBox();
     m_pit_rkp_V->setRange(0, 25);
@@ -107,30 +123,35 @@ void QPIDConfig::Setup() {
     m_pit_rki_V->setRange(0, 25);
     m_pit_rimax_V = new QDoubleSpinBox();
     m_pit_rimax_V->setRange(0, 100);
+
     m_rol_rkp_V = new QDoubleSpinBox();
     m_rol_rkp_V->setRange(0, 25);
     m_rol_rki_V = new QDoubleSpinBox();
     m_rol_rki_V->setRange(0, 25);
     m_rol_rimax_V = new QDoubleSpinBox();
     m_rol_rimax_V->setRange(0, 100);
+
     m_yaw_rkp_V = new QDoubleSpinBox();
     m_yaw_rkp_V->setRange(0, 25);
     m_yaw_rki_V = new QDoubleSpinBox();
     m_yaw_rki_V->setRange(0, 25);
     m_yaw_rimax_V = new QDoubleSpinBox();
     m_yaw_rimax_V->setRange(0, 100);
+
     m_thr_rkp_V = new QDoubleSpinBox();
     m_thr_rkp_V->setRange(0, 25);
     m_thr_rki_V = new QDoubleSpinBox();
     m_thr_rki_V->setRange(0, 25);
     m_thr_rimax_V = new QDoubleSpinBox();
     m_thr_rimax_V->setRange(0, 25);
-    m_thr_akp_V = new QDoubleSpinBox();
-    m_thr_akp_V->setRange(0, 25);
-    m_thr_aki_V = new QDoubleSpinBox();
-    m_thr_aki_V->setRange(0, 25);
-    m_thr_aimax_V = new QDoubleSpinBox();
-    m_thr_aimax_V->setRange(0, 25);
+
+    m_acc_rkp_V = new QDoubleSpinBox();
+    m_acc_rkp_V->setRange(0, 25);
+    m_acc_rki_V = new QDoubleSpinBox();
+    m_acc_rki_V->setRange(0, 25);
+    m_acc_rimax_V = new QDoubleSpinBox();
+    m_acc_rimax_V->setRange(0, 25);
+
     m_pit_skp_V = new QDoubleSpinBox();
     m_pit_skp_V->setRange(0, 25);
     m_rol_skp_V = new QDoubleSpinBox();
@@ -139,6 +160,8 @@ void QPIDConfig::Setup() {
     m_yaw_skp_V->setRange(0, 25);
     m_thr_skp_V = new QDoubleSpinBox();
     m_thr_skp_V->setRange(0, 25);
+    m_acc_skp_V = new QDoubleSpinBox();
+    m_acc_skp_V->setRange(0, 25);
 
     m_pit_rkp_V->setSingleStep(0.1);
     m_pit_rki_V->setSingleStep(0.1);
@@ -152,13 +175,14 @@ void QPIDConfig::Setup() {
     m_thr_rkp_V->setSingleStep(0.1);
     m_thr_rki_V->setSingleStep(0.1);
     m_thr_rimax_V->setSingleStep(0.1);
-    m_thr_akp_V->setSingleStep(0.1);
-    m_thr_aki_V->setSingleStep(0.1);
-    m_thr_aimax_V->setSingleStep(0.1);
+    m_acc_rkp_V->setSingleStep(0.1);
+    m_acc_rki_V->setSingleStep(0.1);
+    m_acc_rimax_V->setSingleStep(0.1);
     m_pit_skp_V->setSingleStep(0.1);
     m_rol_skp_V->setSingleStep(0.1);
     m_yaw_skp_V->setSingleStep(0.1);
     m_thr_skp_V->setSingleStep(0.1);
+    m_acc_skp_V->setSingleStep(0.1);
 
     m_pit_rkp_V->setValue(0);
     m_pit_rki_V->setValue(0);
@@ -172,13 +196,14 @@ void QPIDConfig::Setup() {
     m_thr_rkp_V->setValue(0);
     m_thr_rki_V->setValue(0);
     m_thr_rimax_V->setValue(0);
-    m_thr_akp_V->setValue(0);
-    m_thr_aki_V->setValue(0);
-    m_thr_aimax_V->setValue(0);
+    m_acc_rkp_V->setValue(0);
+    m_acc_rki_V->setValue(0);
+    m_acc_rimax_V->setValue(0);
     m_pit_skp_V->setValue(0);
     m_rol_skp_V->setValue(0);
     m_yaw_skp_V->setValue(0);
     m_thr_skp_V->setValue(0);
+    m_acc_skp_V->setValue(0);
 
     QGridLayout *pLayout = new QGridLayout(this);
     pLayout->setHorizontalSpacing(8);
@@ -199,9 +224,10 @@ void QPIDConfig::Setup() {
     pLayout->addWidget(m_thr_aki, 4, 2);
     pLayout->addWidget(m_thr_aimax, 4, 4);
     pLayout->addWidget(m_pit_skp, 5, 0);
-    pLayout->addWidget(m_rol_skp, 5, 2);
-    pLayout->addWidget(m_yaw_skp, 5, 4);
-    pLayout->addWidget(m_thr_skp, 5, 6);
+    pLayout->addWidget(m_rol_skp, 6, 0);
+    pLayout->addWidget(m_yaw_skp, 7, 0);
+    pLayout->addWidget(m_thr_skp, 8, 0);
+    pLayout->addWidget(m_acc_skp, 9, 0);
 
     pLayout->addWidget(m_pit_rkp_V, 0, 1);
     pLayout->addWidget(m_pit_rki_V, 0, 3);
@@ -215,18 +241,19 @@ void QPIDConfig::Setup() {
     pLayout->addWidget(m_thr_rkp_V, 3, 1);
     pLayout->addWidget(m_thr_rki_V, 3, 3);
     pLayout->addWidget(m_thr_rimax_V, 3, 5);
-    pLayout->addWidget(m_thr_akp_V, 4, 1);
-    pLayout->addWidget(m_thr_aki_V, 4, 3);
-    pLayout->addWidget(m_thr_aimax_V, 4, 5);
+    pLayout->addWidget(m_acc_rkp_V, 4, 1);
+    pLayout->addWidget(m_acc_rki_V, 4, 3);
+    pLayout->addWidget(m_acc_rimax_V, 4, 5);
     pLayout->addWidget(m_pit_skp_V, 5, 1);
-    pLayout->addWidget(m_rol_skp_V, 5, 3);
-    pLayout->addWidget(m_yaw_skp_V, 5, 5);
-    pLayout->addWidget(m_thr_skp_V, 5, 7);
+    pLayout->addWidget(m_rol_skp_V, 6, 1);
+    pLayout->addWidget(m_yaw_skp_V, 7, 1);
+    pLayout->addWidget(m_thr_skp_V, 8, 1);
+    pLayout->addWidget(m_acc_skp_V, 9, 1);
 
     m_pButOK = new QPushButton(tr("OK") );
     m_pButCancel = new QPushButton(tr("Cancel"));
-    pLayout->addWidget(m_pButOK, 6, 6);
-    pLayout->addWidget(m_pButCancel, 6, 7);
+    pLayout->addWidget(m_pButOK, 10, 4);
+    pLayout->addWidget(m_pButCancel, 10, 5);
 
     connect(m_pButCancel, SIGNAL(pressed() ), this, SLOT(close() ) );
     connect(m_pButOK, SIGNAL(pressed() ), this, SLOT(close() ) );
@@ -247,8 +274,12 @@ void QPIDConfig::sl_sendPIDs() {
                              << ",\"rol_rkp\":" << m_rol_rkp_V->value() << ",\"rol_rki\":" << m_rol_rki_V->value() << ",\"rol_rimax\":" << m_rol_rimax_V->value()
                              << ",\"yaw_rkp\":" << m_yaw_rkp_V->value() << ",\"yaw_rki\":" << m_yaw_rki_V->value() << ",\"yaw_rimax\":" << m_yaw_rimax_V->value()
                              << ",\"thr_rkp\":" << m_thr_rkp_V->value() << ",\"thr_rki\":" << m_thr_rki_V->value() << ",\"thr_rimax\":" << m_thr_rimax_V->value()
-                             << ",\"thr_akp\":" << m_thr_akp_V->value() << ",\"thr_aki\":" << m_thr_aki_V->value() << ",\"thr_aimax\":" << m_thr_aimax_V->value()
-                             << ",\"pit_skp\":" << m_pit_skp_V->value() << ",\"rol_skp\":" << m_rol_skp_V->value() << ",\"yaw_skp\":"   << m_yaw_skp_V->value() << ",\"thr_skp\":"   << m_thr_skp_V->value() << "}";
+                             << ",\"acc_rkp\":" << m_acc_rkp_V->value() << ",\"acc_rki\":" << m_acc_rki_V->value() << ",\"acc_rimax\":" << m_acc_rimax_V->value()
+                             << ",\"pit_skp\":" << m_pit_skp_V->value()
+                             << ",\"rol_skp\":" << m_rol_skp_V->value()
+                             << ",\"yaw_skp\":" << m_yaw_skp_V->value()
+                             << ",\"thr_skp\":" << m_thr_skp_V->value()
+                             << ",\"acc_skp\":" << m_acc_skp_V->value() << "}";
 
     for(int i = 0; i < 16; i++)
         m_pUdpSock->write(com.toLocal8Bit(), com.length() );

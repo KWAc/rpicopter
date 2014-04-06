@@ -454,10 +454,10 @@ uint_fast32_t Receiver::last_parse_uartC_t32() {
   return m_iSParseTime_C;
 }
 
-void Receiver::set_update_rate_ms(const uint_fast16_t rate) {
+void Receiver::set_update_rate_ms(const uint_fast8_t rate) {
   m_iUpdateRate = rate;
 }
 
-uint_fast16_t Receiver::get_update_rate_ms() const {
+uint_fast8_t Receiver::get_update_rate_ms() const {
   return m_iUpdateRate;
 }

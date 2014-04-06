@@ -18,6 +18,7 @@ SOURCES +=  main.cpp\
             qpiddockwidget.cpp \
             qpiddialog.cpp\
             qrcwidget.cpp \
+    qabsframe.cpp
 
 HEADERS  += mainwindow.h\
             qcustomplot.h \
@@ -27,4 +28,5 @@ HEADERS  += mainwindow.h\
             qrcwidget.h \
             qlogdockwidget.h \
             qpiddockwidget.h \
-            qpiddialog.h
+            qpiddialog.h \
+    qabsframe.h

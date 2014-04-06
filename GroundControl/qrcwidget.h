@@ -6,6 +6,7 @@
 #include <QUdpSocket>
 #include <QSerialPort>
 
+#include "qabsframe.h"
 
 #define PI 3.14159265
 
@@ -48,8 +49,6 @@ public:
     int calc_chksum(char *str);
 
     QString str_makeWiFiCommand();
-    QPair<int, char*> cstr_makeWiFiCommand ();
-
     QPair<int, char*> cstr_makeRadioCommand ();
 };
 
@@ -67,25 +66,9 @@ public:
     QPair<int, char*> cstr_makeWiFiCommand ();
 };
 
-struct CUSTOM_KEY {
-    CUSTOM_KEY();
 
-    bool KEY[512];
-
-    bool& operator[](int const& index) {
-        return KEY[index];
-    }
-    const bool& operator[](int const& index) const {
-        return KEY[index];
-    }
-    
-    static int mapCustomKeyIndex(const int key);
-};
-
-
-class QRCWidget : public QFrame {
+class QRCWidget : public QAbsFrame {
 Q_OBJECT
-
 private:
     char   m_cWiFiCommand[512];
     QTimer m_keyEventTimer;
@@ -97,34 +80,21 @@ private:
     QUdpSocket  *m_pUdpSock;
     QSerialPort *m_pSerialPort;
     
-    CUSTOM_KEY m_customKeyStatus;
     DRIFT_CAL m_DRIFT;
 
-    float m_fYaw;
-    float m_fWidth;
-    float m_fHeight;
-
     void sendJSON2UDP(QString);
-    void sendJSON2UDP(QPair<int, char*> );
     void sendJSON2COM(QPair<int, char*> );
     void initGyro2UDP();
-
-    bool m_bAltitudeHold;
     void activAltihold2UDP();
     void deactAltihold2UDP();
 
     bool m_bRadioEnabled;
+    bool m_bAltitudeHold;
     
 private slots:
     void sl_customKeyPressHandler();
     void sl_customKeyReleaseHandler();
     void sl_sendRC2UDP(); // Emitted by timer; Calls sendJSON2UDP
-
-protected:
-    void paintEvent(QPaintEvent *pEvent);
-    void keyPressEvent ( QKeyEvent * event );
-    void keyReleaseEvent ( QKeyEvent * event );
-    void resizeEvent( QResizeEvent * event );
     
 public slots:
     void sl_startTimer();
@@ -132,14 +102,14 @@ public slots:
 
 signals:
     void si_throttleChanged(int);
+    void si_send2Model(QString);
 
 public:
     QRCWidget(QUdpSocket *pSock, QSerialPort *pSerialPort = NULL, QWidget *parent = NULL);
 
-    RANGE m_RANGE;
+    RANGE  m_RANGE;
     RC_COM m_COM;
 
-    void setYaw(float fVal);
     void start();
     void stop();
 };
