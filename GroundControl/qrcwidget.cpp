@@ -57,10 +57,8 @@ void QRCWidget::initGyro2UDP() {
 
     this->stop();
     qDebug() << "Try to start gyrometer calibration";
-    for(int i = 0; i < 16; i++) {
-        sendJSON2UDP(com, false);
-        emit si_send2Model(com, "option");
-    }
+    sendJSON2UDP(com, false);
+    
     this->start();
 }
 
@@ -77,9 +75,7 @@ void QRCWidget::activAltihold2UDP() {
     com.append("}");
 
     qDebug() << "Try to init altitude hold";
-    for(int i = 0; i < 16; i++) {
-        sendJSON2UDP(com, false);
-    }
+    sendJSON2UDP(com, false);
 }
 
 void QRCWidget::deactAltihold2UDP() {
@@ -95,9 +91,7 @@ void QRCWidget::deactAltihold2UDP() {
     com.append("}");
 
     qDebug() << "Try to init normal mode";
-    for(int i = 0; i < 16; i++) {
-        sendJSON2UDP(com, false);
-    }
+    sendJSON2UDP(com, false);
 }
 
 void QRCWidget::sl_customKeyPressHandler() {
