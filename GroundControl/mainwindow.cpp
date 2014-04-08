@@ -4,16 +4,28 @@
 
 
 
+inline bool checkForJSON(const QByteArray &array) {
+    if(array.size() > 8)
+        if(array.at(0) == '{' && array.at(array.size()-1) == '}')
+            return true;
+    return false;
+}
+
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     searchSerialRadio();
+    
+    m_iCurrentPingID   = 0;
+    m_iCurrentPingSent = 0;
+    m_iCurrentPingRecv = 0;
 
     m_pStatusBar     = new QStatusBar(this);
     m_pUdpSocket     = new QUdpSocket(this);
     m_pPIDConfigDial = new QPIDConfig(m_pUdpSocket);
     m_pRCWidget      = new QRCWidget(m_pUdpSocket, &m_pSerialPort, this);
-    m_pStatBarStream = new QTextStream(&m_sStatBarText);
+    m_pStatBarStream = new QTextStream(&m_sStatBarSensor);
 
     m_pThrottleBar   = new QProgressBar(this);
 
@@ -65,7 +77,7 @@ void MainWindow::prepareWidgets() {
     m_tSensorTime.start();
 
     *m_pStatBarStream << "No data from sensors received!";
-    m_pStatusBar->showMessage(m_sStatBarText);
+    m_pStatusBar->showMessage(m_sStatBarSensor);
 
     memset(m_cUdpRecvBuf, 0, sizeof(m_cUdpRecvBuf) );
     m_bUdpSockCon = false;
@@ -91,22 +103,16 @@ void MainWindow::prepareWidgets() {
     m_pRCWidget->setDisabled(true);
 }
 
-void MainWindow::sl_setThrottleBar(int value) {
-    if(value >= m_pThrottleBar->maximum() )
-        return;
-    m_pThrottleBar->setValue(value);
-}
-
 void MainWindow::connectWidgets() {
-    connect(m_pUdpSocket, SIGNAL(connected() ), this, SLOT(sl_recvCommand() ) );
-    connect(&m_udpRecvTimer, SIGNAL(timeout() ), this, SLOT(sl_recvCommand() ) );
+    connect(m_pingTimer, SIGNAL(timeout() ), this, SLOT(sl_sendPing() ) );
+    //connect(m_pUdpSocket, SIGNAL(connected() ), this, SLOT(sl_recvCommand() ) );
+    connect(m_pUdpSocket, SIGNAL(readyRead() ), this, SLOT(sl_recvCommand() ) );
+    //connect(&m_udpRecvTimer, SIGNAL(timeout() ), this, SLOT(sl_recvCommand() ) );
     connect(&m_plotTimer, SIGNAL(timeout() ), this, SLOT(sl_replotGraphs() ) );
     connect(m_pFileMSave, SIGNAL(triggered() ), this, SLOT(sl_saveLog() ) );
-
     connect(m_pOptionMPIDConf, SIGNAL(triggered() ), this, SLOT(sl_configPIDs() ) );
     connect(m_pOptionRadioEnabled, SIGNAL(toggled(bool) ) , m_pRCWidget, SLOT(sl_setRadioEnabled(bool) ) );
-    connect(m_pRCWidget, SIGNAL(si_throttleChanged(int) ), this, SLOT(sl_setThrottleBar(int) ) );
-    connect(m_pRCWidget, SIGNAL(si_send2Model(QString) ), this, SLOT(sl_updateStatusBar(QString) ) );
+    connect(m_pRCWidget, SIGNAL(si_send2Model(QString, QString) ), this, SLOT(sl_updateStatusBar(QString, QString) ) );
 }
 
 bool MainWindow::searchSerialRadio() {
@@ -196,10 +202,27 @@ void MainWindow::prepareGraphs() {
     m_pNetworkDelay->GetGraph()->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables);
 }
 
+void MainWindow::sl_sendPing() {
+    QString com = "";
+    
+    com.append("{\"type\":\"ping\",\"v\":");
+    com.append(QString::number(m_iCurrentPingID) );
+    com.append("}");
+    
+    qint64 bytes = m_pUdpSocket->write(com.toLatin1(), com.size() );
+    if(bytes) {
+      m_iCurrentPingSent = m_tSensorTime.elapsed();
+    }
+}
+
+QAbstractSocket *MainWindow::getSocket() {
+    return m_pUdpSocket;
+}
+
 void MainWindow::sl_UpdateSensorData(QPair<unsigned long, QVariantMap> sensorRead) {
     double time_s = sensorRead.first;
     QVariantMap map = sensorRead.second;
-
+/*
     #ifndef _WIN32
     QProcess ping;
     ping.start("ping", QStringList() << "-c 1" << m_sHostName);
@@ -218,6 +241,22 @@ void MainWindow::sl_UpdateSensorData(QPair<unsigned long, QVariantMap> sensorRea
         }
     }
     #endif
+*/
+    // Latency of the connection
+    if(map["type"].toString() == "pong") {
+        int iCurrentPongID = map["v"].toInt();
+        if(m_iCurrentPingID == iCurrentPongID) {
+            m_iCurrentPingRecv = m_tSensorTime.elapsed();
+            // Update the plot
+            double ping_ms = (double)(m_iCurrentPingRecv - m_iCurrentPingSent);
+            if(ping_ms >= 0) {
+                m_vNetwork_s.append(time_s);
+                m_vLatency_ms.append(ping_ms);
+                // New identifier for the next ping message
+                m_iCurrentPingID++;
+            }
+        }
+    }
 
     // Sensors read-outs
     // Compass
@@ -233,9 +272,9 @@ void MainWindow::sl_UpdateSensorData(QPair<unsigned long, QVariantMap> sensorRea
         m_vClimbrate_ms.append(map["c"].toDouble() );
         m_vTemperature_samples.append(map["s"].toDouble() );
 
-        m_sStatBarText.clear();
+        m_sStatBarSensor.clear();
         *m_pStatBarStream << "Temperature: " << map["t"].toDouble() << " Celsius;\t Air pressure: " << map["p"].toDouble() << " Pascal";
-        m_pStatusBar->showMessage(m_sStatBarText, 5000);
+        m_pStatusBar->showMessage(m_sStatBarSensor, 5000);
     }
     // GPS
     if(map["type"].toString() == "s_gps") {
@@ -268,8 +307,30 @@ void MainWindow::sl_UpdateSensorData(QPair<unsigned long, QVariantMap> sensorRea
     }
 }
 
-void MainWindow::sl_updateStatusBar(QString str) {
-    m_pStatusBar->showMessage(m_sStatBarText + "\t Current RC-JSON: " + str, 5000);
+void MainWindow::sl_updateStatusBar() {
+    m_pStatusBar->showMessage(m_sStatBarSensor + "\t Current RC-JSON: " + m_sStatBarRC + "\t Current options: " + m_sStatBarOptions, 5000);
+}
+
+void MainWindow::sl_updateStatusBar(QString str, QString type) {
+    if(type.contains("command") ) {
+      m_sStatBarRC = str;
+      
+      // Update the current throttle bar
+      QByteArray line;
+      line.append(m_sStatBarRC);
+      if(checkForJSON(line) ) {
+          qDebug() << "Parse JSON: " << line;
+          QJsonDocument JSONDoc = QJsonDocument::fromJson(line);
+          QVariantMap result = JSONDoc.toVariant().toMap();
+          int iThr = result["t"].toInt();
+          if(iThr < m_pThrottleBar->maximum() )
+            m_pThrottleBar->setValue(iThr);
+      }
+    }
+    else if(type.contains("option") ) {
+      m_sStatBarOptions = str;
+    }
+    sl_updateStatusBar();
 }
 
 void MainWindow::sl_replotGraphs() {
@@ -292,49 +353,44 @@ void MainWindow::sl_replotGraphs() {
     m_pBattery->GetGraph()->replot();
 }
 
-bool checkForJSON(const QByteArray &array) {
-    if(array.size() > 8)
-        if(array.at(0) == '{' && array.at(array.size()-1) == '}')
-            return true;
-    return false;
-}
-
 void MainWindow::sl_recvCommand() {
     if(!m_bUdpSockCon)
         return;
 
-    // if data coming, then clean last message
-    if(m_pUdpSocket->bytesAvailable() ) {
-        QByteArray line(m_cUdpRecvBuf);
-
-        if(checkForJSON(line) ) {
-            qDebug() << "Parse JSON: " << line;
-            QJsonDocument JSONDoc = QJsonDocument::fromJson(line);
-            QVariantMap result = JSONDoc.toVariant().toMap();
-
-            if(result.empty() )
-                return;
-
-            double fTimeElapsed_s = ((double)m_tSensorTime.elapsed() / 1000.f);
-            QPair<unsigned long, QVariantMap> pair(fTimeElapsed_s, result);
-            sl_UpdateSensorData(pair);
-
-            if(line != "") {
-                QString sLog = "";
-                QTextStream sSLog(&sLog); sSLog << fTimeElapsed_s << " s: " << line << '\n';
-                m_pLogger->getTextEdit()->insertPlainText(sLog);
-
-                QTextCursor c =  m_pLogger->getTextEdit()->textCursor();
-                c.movePosition(QTextCursor::End);
-                m_pLogger->getTextEdit()->setTextCursor(c);
-            }
-        }
-        memset(m_cUdpRecvBuf, 0, sizeof(m_cUdpRecvBuf) );
+    if(!m_pUdpSocket->bytesAvailable() ) {
+        return;
     }
+        
+    // if data coming, then clean last message
+    QByteArray line(m_cUdpRecvBuf);
+    if(!checkForJSON(line) || line == "") {
+        return;
+    }
+    
+    qDebug() << "Parse JSON: " << line;
+    QJsonDocument JSONDoc = QJsonDocument::fromJson(line);
+    QVariantMap result = JSONDoc.toVariant().toMap();
+
+    if(result.empty() ) {
+        return;
+    }
+
+    double fTimeElapsed_s = ((double)m_tSensorTime.elapsed() / 1000.f);
+    QPair<unsigned long, QVariantMap> pair(fTimeElapsed_s, result);
+    sl_UpdateSensorData(pair);
+    
+    QString sLog = "";
+    QTextStream sSLog(&sLog); sSLog << fTimeElapsed_s << " s: " << line << '\n';
+    m_pLogger->getTextEdit()->insertPlainText(sLog);
+
+    QTextCursor c =  m_pLogger->getTextEdit()->textCursor();
+    c.movePosition(QTextCursor::End);
+    m_pLogger->getTextEdit()->setTextCursor(c);
+    memset(m_cUdpRecvBuf, 0, sizeof(m_cUdpRecvBuf) );
 
     qint64 lineLength = m_pUdpSocket->read(m_cUdpRecvBuf, sizeof(m_cUdpRecvBuf) );
     if (lineLength > 0) {
-         //qDebug() << m_cUdpRecvBuf;
+         qDebug() << m_cUdpRecvBuf;
     }
 }
 
@@ -347,6 +403,11 @@ void MainWindow::connectToHost(const QString & hostName, quint16 port, QIODevice
         m_pUdpSocket->write(0, 0);
         qDebug("connectToHost: UDP socket connected");
         m_sHostName = hostName;
+        
+        // Update graphs and ping service only necessary if connected to UDP socket
+        //m_udpRecvTimer.start(25);
+        m_pingTimer.start(100);
+        m_plotTimer.start(1000);
     }
     else {
         qDebug() << "connectToHost - Not connected: " << m_pUdpSocket->error();
@@ -355,7 +416,4 @@ void MainWindow::connectToHost(const QString & hostName, quint16 port, QIODevice
     m_pRCWidget->sl_startTimer();
     m_pRCWidget->setDisabled(false);
     m_pRCWidget->setFocus();
-
-    m_udpRecvTimer.start(25);
-    m_plotTimer.start(1000);
 }

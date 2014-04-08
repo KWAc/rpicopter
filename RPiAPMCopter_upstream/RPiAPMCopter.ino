@@ -81,9 +81,10 @@ void setup() {
   _SCHED.add_task(&outAtti,  75);
   _SCHED.add_task(&outBaro,  1000);
   _SCHED.add_task(&outGPS,   1000);
-  _SCHED.add_task(&outComp,  2000);
-  _SCHED.add_task(&outBat,   5000);
-  _SCHED.add_task(&outPID,   5000);
+  _SCHED.add_task(&outComp,  1500);
+  _SCHED.add_task(&outBat,   1750);
+  _SCHED.add_task(&outPIDAtt,2000);
+  _SCHED.add_task(&outPIDAlt,2000);
 
   // Set baud rate when connected to RPi
   hal.uartA->begin(BAUD_RATE_A); // USB

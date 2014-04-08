@@ -12,16 +12,18 @@ void send_baro();
 void send_gps();
 void send_bat();
 void send_rc();
-void send_pids();
+void send_pids_attitude();
+void send_pids_altitude();
 
 // function, delay, multiplier of the delay
-Task outAtti(&send_atti, 3,  1);
-Task outRC  (&send_rc,   37, 1);
-Task outComp(&send_comp, 44, 1);
-Task outBaro(&send_baro, 66, 1);
-Task outGPS (&send_gps,  66, 2);
-Task outBat (&send_bat,  75, 1);
-Task outPID (&send_pids, 75, 2);
+Task outAtti   (&send_atti,          3,   1);
+Task outRC     (&send_rc,            37,  1);
+Task outComp   (&send_comp,          44,  1);
+Task outBaro   (&send_baro,          66,  1);
+Task outGPS    (&send_gps,           66,  2);
+Task outBat    (&send_bat,           75,  1);
+Task outPIDAtt (&send_pids_attitude, 133, 1);
+Task outPIDAlt (&send_pids_altitude, 133, 2);
 
 ///////////////////////////////////////////////////////////
 // LED OUT
@@ -148,7 +150,7 @@ void send_rc() {
 ///////////////////////////////////////////////////////////
 // PID configuration
 ///////////////////////////////////////////////////////////
-void send_pids() {
+void send_pids_attitude() {
   // Capture values
   float pit_rkp   = _HAL_BOARD.m_rgPIDS[PID_PIT_RATE].kP();
   float pit_rki   = _HAL_BOARD.m_rgPIDS[PID_PIT_RATE].kI();
@@ -162,6 +164,23 @@ void send_pids() {
   float yaw_rki   = _HAL_BOARD.m_rgPIDS[PID_YAW_RATE].kI();
   float yaw_rimax = _HAL_BOARD.m_rgPIDS[PID_YAW_RATE].imax();
 
+  float pit_skp   = _HAL_BOARD.m_rgPIDS[PID_PIT_STAB].kP();
+  float rol_skp   = _HAL_BOARD.m_rgPIDS[PID_ROL_STAB].kP();
+  float yaw_skp   = _HAL_BOARD.m_rgPIDS[PID_YAW_STAB].kP();
+
+  hal.console->printf("{\"type\":\"pid_cnf\","
+                      "\"pit_rkp\":%.2f,\"pit_rki\":%.2f,\"pit_rimax\":%.2f,"
+                      "\"rol_rkp\":%.2f,\"rol_rki\":%.2f,\"rol_rimax\":%.2f,"
+                      "\"yaw_rkp\":%.2f,\"yaw_rki\":%.2f,\"yaw_rimax\":%.2f,"
+                      "\"pit_skp\":%.2f,\"rol_skp\":%.2f,\"yaw_skp\":%.2f}\n",
+                      (double)pit_rkp, (double)pit_rki, (double)pit_rimax,
+                      (double)rol_rkp, (double)rol_rki, (double)rol_rimax,
+                      (double)yaw_rkp, (double)yaw_rki, (double)yaw_rimax,
+                      (double)pit_skp, (double)rol_skp, (double)yaw_skp);
+}
+
+void send_pids_altitude() {
+  // Capture values
   float thr_rkp   = _HAL_BOARD.m_rgPIDS[PID_THR_RATE].kP();
   float thr_rki   = _HAL_BOARD.m_rgPIDS[PID_THR_RATE].kI();
   float thr_rimax = _HAL_BOARD.m_rgPIDS[PID_THR_RATE].imax();
@@ -170,25 +189,16 @@ void send_pids() {
   float acc_rki   = _HAL_BOARD.m_rgPIDS[PID_ACC_RATE].kI();
   float acc_rimax = _HAL_BOARD.m_rgPIDS[PID_ACC_RATE].imax();
 
-  float pit_skp   = _HAL_BOARD.m_rgPIDS[PID_PIT_STAB].kP();
-  float rol_skp   = _HAL_BOARD.m_rgPIDS[PID_ROL_STAB].kP();
-  float yaw_skp   = _HAL_BOARD.m_rgPIDS[PID_YAW_STAB].kP();
-  float thr_skp   = _HAL_BOARD.m_rgPIDS[PID_ROL_STAB].kP();
-  float acc_skp   = _HAL_BOARD.m_rgPIDS[PID_YAW_STAB].kP();
+  float thr_skp   = _HAL_BOARD.m_rgPIDS[PID_THR_STAB].kP();
+  float acc_skp   = _HAL_BOARD.m_rgPIDS[PID_ACC_STAB].kP();
 
   hal.console->printf("{\"type\":\"pid_cnf\","
-                      "\"pit_rkp\":%.2f,\"pit_rki\":%.2f,\"pit_rimax\":%.2f,"
-                      "\"rol_rkp\":%.2f,\"rol_rki\":%.2f,\"rol_rimax\":%.2f,"
-                      "\"yaw_rkp\":%.2f,\"yaw_rki\":%.2f,\"yaw_rimax\":%.2f,"
                       "\"thr_rkp\":%.2f,\"thr_rki\":%.2f,\"thr_rimax\":%.2f,"
                       "\"acc_rkp\":%.2f,\"acc_rki\":%.2f,\"acc_rimax\":%.2f,"
-                      "\"pit_skp\":%.2f,\"rol_skp\":%.2f,\"yaw_skp\":%.2f,\"thr_skp\":%.2f,\"acc_skp\":%.2f}\n",
-                      (double)pit_rkp, (double)pit_rki, (double)pit_rimax,
-                      (double)rol_rkp, (double)rol_rki, (double)rol_rimax,
-                      (double)yaw_rkp, (double)yaw_rki, (double)yaw_rimax,
+                      "\"thr_skp\":%.2f,\"acc_skp\":%.2f}\n",
                       (double)thr_rkp, (double)thr_rki, (double)thr_rimax,
                       (double)acc_rkp, (double)acc_rki, (double)acc_rimax,
-                      (double)pit_skp, (double)rol_skp, (double)yaw_skp, (double)thr_skp, (double)acc_skp);
+                      (double)thr_skp, (double)acc_skp);
 }
 
 #endif

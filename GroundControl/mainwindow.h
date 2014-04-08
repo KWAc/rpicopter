@@ -26,7 +26,7 @@ private:
     QAction *m_pOptionRadioEnabled;
 
     QTime m_tSensorTime;
-    QTimer m_udpRecvTimer;
+    //QTimer m_udpRecvTimer;
     QTimer m_plotTimer;
 
     QString m_sHostName;
@@ -35,13 +35,19 @@ private:
     QSerialPortInfo m_serialPortInfo;
 
     bool m_bUdpSockCon;
-    
     char m_cUdpRecvBuf[256];
+    
+    QTimer m_pingTimer;
+    int m_iCurrentPingID;
+    int m_iCurrentPingSent;
+    int m_iCurrentPingRecv;
 
     QRCWidget *m_pRCWidget;
     
-    QString m_sStatBarText;
+    QString m_sStatBarSensor;
     QString m_sStatBarRC;
+    QString m_sStatBarOptions;
+
     QTextStream *m_pStatBarStream;
     QStatusBar *m_pStatusBar;
     
@@ -85,18 +91,17 @@ private slots:
     void sl_recvCommand();
     void sl_replotGraphs();
     void sl_UpdateSensorData(QPair<unsigned long, QVariantMap> map);
-    void sl_setThrottleBar(int);
 
-    void sl_updateStatusBar(QString);
+    void sl_updateStatusBar();
+    void sl_updateStatusBar(QString, QString);
+    
+    void sl_sendPing();
 
 public:
     MainWindow(QWidget *parent = 0);
     ~MainWindow();
 
-    QAbstractSocket *getSocket() {
-        return m_pUdpSocket;
-    }
-
+    QAbstractSocket *getSocket();
     void connectToHost(const QString & hostName, quint16 port, QIODevice::OpenMode openMode = QIODevice::ReadWrite | QIODevice::Text);
 };
 

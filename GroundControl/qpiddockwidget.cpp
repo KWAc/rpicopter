@@ -13,31 +13,51 @@ QPIDDockWidget::QPIDDockWidget(QWidget * parent, Qt::WindowFlags flags )  : QDoc
 }
 
 void QPIDDockWidget::sl_setPIDs(QVariantMap map) {
-    m_pit_rkp_V->setText(map["pit_rkp"].toString() );
-    m_pit_rki_V->setText(map["pit_rki"].toString() );
-    m_pit_rimax_V->setText(map["pit_rimax"].toString() );
+    if(map.contains("pit_rkp") )
+        m_pit_rkp_V->setText(map["pit_rkp"].toString() );
+    if(map.contains("pit_rki") )
+        m_pit_rki_V->setText(map["pit_rki"].toString() );
+    if(map.contains("pit_rimax") )
+        m_pit_rimax_V->setText(map["pit_rimax"].toString() );
 
-    m_rol_rkp_V->setText(map["rol_rkp"].toString() );
-    m_rol_rki_V->setText(map["rol_rki"].toString() );
-    m_rol_rimax_V->setText(map["rol_rimax"].toString() );
+    if(map.contains("rol_rkp") )
+        m_rol_rkp_V->setText(map["rol_rkp"].toString() );
+    if(map.contains("rol_rki") )
+        m_rol_rki_V->setText(map["rol_rki"].toString() );
+    if(map.contains("rol_rimax") )
+        m_rol_rimax_V->setText(map["rol_rimax"].toString() );
 
-    m_yaw_rkp_V->setText(map["yaw_rkp"].toString() );
-    m_yaw_rki_V->setText(map["yaw_rki"].toString() );
-    m_yaw_rimax_V->setText(map["yaw_rimax"].toString() );
+    if(map.contains("yaw_rkp") )
+        m_yaw_rkp_V->setText(map["yaw_rkp"].toString() );
+    if(map.contains("yaw_rki") )
+        m_yaw_rki_V->setText(map["yaw_rki"].toString() );
+    if(map.contains("yaw_rimax") )
+        m_yaw_rimax_V->setText(map["yaw_rimax"].toString() );
 
-    m_thr_rkp_V->setText(map["thr_rkp"].toString() );
-    m_thr_rki_V->setText(map["thr_rki"].toString() );
-    m_thr_rimax_V->setText(map["thr_rimax"].toString() );
+    if(map.contains("thr_rkp") )
+        m_thr_rkp_V->setText(map["thr_rkp"].toString() );
+    if(map.contains("thr_rki") )
+        m_thr_rki_V->setText(map["thr_rki"].toString() );
+    if(map.contains("thr_rimax") )
+        m_thr_rimax_V->setText(map["thr_rimax"].toString() );
 
-    m_acc_rkp_V->setText(map["acc_rkp"].toString() );
-    m_acc_rki_V->setText(map["acc_rki"].toString() );
-    m_acc_rimax_V->setText(map["acc_rimax"].toString() );
+    if(map.contains("acc_rkp") )
+        m_acc_rkp_V->setText(map["acc_rkp"].toString() );
+    if(map.contains("acc_rki") )
+        m_acc_rki_V->setText(map["acc_rki"].toString() );
+    if(map.contains("acc_rimax") )
+        m_acc_rimax_V->setText(map["acc_rimax"].toString() );
 
-    m_pit_skp_V->setText(map["pit_skp"].toString() );
-    m_rol_skp_V->setText(map["rol_skp"].toString() );
-    m_yaw_skp_V->setText(map["yaw_skp"].toString() );
-    m_yaw_skp_V->setText(map["thr_skp"].toString() );
-    m_yaw_skp_V->setText(map["acc_skp"].toString() );
+    if(map.contains("pit_skp") )
+        m_pit_skp_V->setText(map["pit_skp"].toString() );
+    if(map.contains("rol_skp") )
+        m_rol_skp_V->setText(map["rol_skp"].toString() );
+    if(map.contains("yaw_skp") )
+        m_yaw_skp_V->setText(map["yaw_skp"].toString() );
+    if(map.contains("thr_skp") )
+        m_thr_skp_V->setText(map["thr_skp"].toString() );
+    if(map.contains("acc_skp") )
+        m_acc_skp_V->setText(map["acc_skp"].toString() );
 }
 
 void QPIDDockWidget::Setup() {
@@ -48,7 +68,11 @@ void QPIDDockWidget::Setup() {
     s_yaw_rkp = "Yaw Rkp: ",    s_yaw_rki = "Yaw Rki: ",    s_yaw_rimax = "Yaw RImax: ";
     s_thr_rkp = "Thr Rkp: ",    s_thr_rki = "Thr Rki: ",    s_thr_rimax = "Thr RImax: ";
     s_acc_rkp = "Acc Rkp: ",    s_acc_rki = "Acc Rki: ",    s_acc_rimax = "Acc RImax: ";
-    s_pit_skp = "Pitch Skp: ",  s_rol_skp = "Roll Skp: ",   s_yaw_skp = "Yaw Skp: ",   s_thr_skp = "Thr Skp: ",   s_acc_skp = "Acc Skp: ";
+    s_pit_skp = "Pitch Skp: ";
+    s_rol_skp = "Roll Skp: ";
+    s_yaw_skp = "Yaw Skp: ";
+    s_thr_skp = "Thr Skp: ";
+    s_acc_skp = "Acc Skp: ";
 
     m_pit_rkp = new QLabel(s_pit_rkp);
     m_pit_rki = new QLabel(s_pit_rki);

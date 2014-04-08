@@ -61,31 +61,51 @@ void QPIDConfig::sl_setPIDs(QVariantMap map) {
     if(this->isVisible() )
         return;
 
-    m_pit_rkp_V->setValue(map["pit_rkp"].toDouble() );
-    m_pit_rki_V->setValue(map["pit_rki"].toDouble() );
-    m_pit_rimax_V->setValue(map["pit_rimax"].toDouble() );
+    if(map.contains("pit_rkp") )
+        m_pit_rkp_V->setValue(map["pit_rkp"].toDouble() );
+    if(map.contains("pit_rki") )
+        m_pit_rki_V->setValue(map["pit_rki"].toDouble() );
+    if(map.contains("pit_rimax") )
+        m_pit_rimax_V->setValue(map["pit_rimax"].toDouble() );
 
-    m_rol_rkp_V->setValue(map["rol_rkp"].toDouble() );
-    m_rol_rki_V->setValue(map["rol_rki"].toDouble() );
-    m_rol_rimax_V->setValue(map["rol_rimax"].toDouble() );
+    if(map.contains("rol_rkp") )
+        m_rol_rkp_V->setValue(map["rol_rkp"].toDouble() );
+    if(map.contains("rol_rki") )
+        m_rol_rki_V->setValue(map["rol_rki"].toDouble() );
+    if(map.contains("rol_rimax") )
+        m_rol_rimax_V->setValue(map["rol_rimax"].toDouble() );
 
-    m_yaw_rkp_V->setValue(map["yaw_rkp"].toDouble() );
-    m_yaw_rki_V->setValue(map["yaw_rki"].toDouble() );
-    m_yaw_rimax_V->setValue(map["yaw_rimax"].toDouble() );
+    if(map.contains("yaw_rkp") )
+        m_yaw_rkp_V->setValue(map["yaw_rkp"].toDouble() );
+    if(map.contains("yaw_rki") )
+        m_yaw_rki_V->setValue(map["yaw_rki"].toDouble() );
+    if(map.contains("yaw_rimax") )
+        m_yaw_rimax_V->setValue(map["yaw_rimax"].toDouble() );
 
-    m_thr_rkp_V->setValue(map["thr_rkp"].toDouble() );
-    m_thr_rki_V->setValue(map["thr_rki"].toDouble() );
-    m_thr_rimax_V->setValue(map["thr_rimax"].toDouble() );
+    if(map.contains("thr_rkp") )
+        m_thr_rkp_V->setValue(map["thr_rkp"].toDouble() );
+    if(map.contains("thr_rki") )
+        m_thr_rki_V->setValue(map["thr_rki"].toDouble() );
+    if(map.contains("thr_rimax") )
+        m_thr_rimax_V->setValue(map["thr_rimax"].toDouble() );
 
-    m_acc_rkp_V->setValue(map["acc_rkp"].toDouble() );
-    m_acc_rki_V->setValue(map["acc_rki"].toDouble() );
-    m_acc_rimax_V->setValue(map["acc_rimax"].toDouble() );
+    if(map.contains("acc_rkp") )
+        m_acc_rkp_V->setValue(map["acc_rkp"].toDouble() );
+    if(map.contains("acc_rki") )
+        m_acc_rki_V->setValue(map["acc_rki"].toDouble() );
+    if(map.contains("acc_rimax") )
+        m_acc_rimax_V->setValue(map["acc_rimax"].toDouble() );
 
-    m_pit_skp_V->setValue(map["pit_skp"].toDouble() );
-    m_rol_skp_V->setValue(map["rol_skp"].toDouble() );
-    m_yaw_skp_V->setValue(map["yaw_skp"].toDouble() );
-    m_thr_skp_V->setValue(map["yaw_skp"].toDouble() );
-    m_acc_skp_V->setValue(map["yaw_skp"].toDouble() );
+    if(map.contains("pit_skp") )
+        m_pit_skp_V->setValue(map["pit_skp"].toDouble() );
+    if(map.contains("rol_skp") )
+        m_rol_skp_V->setValue(map["rol_skp"].toDouble() );
+    if(map.contains("yaw_skp") )
+        m_yaw_skp_V->setValue(map["yaw_skp"].toDouble() );
+    if(map.contains("thr_skp") )
+        m_thr_skp_V->setValue(map["thr_skp"].toDouble() );
+    if(map.contains("acc_skp") )
+        m_acc_skp_V->setValue(map["acc_skp"].toDouble() );
 }
 
 void QPIDConfig::Setup() {
@@ -94,7 +114,11 @@ void QPIDConfig::Setup() {
     s_yaw_rkp = "Yaw Rkp: ",    s_yaw_rki = "Yaw Rki: ",    s_yaw_rimax = "Yaw RImax: ";
     s_thr_rkp = "Thr Rkp",      s_thr_rki = "Thr Rki",      s_thr_rimax = "Thr Rimax";
     s_acc_rkp = "Acc Rkp",      s_acc_rki = "Acc Rki",      s_acc_rimax = "Acc Rimax";
-    s_pit_skp = "Pitch Skp: ",  s_rol_skp = "Roll Skp: ",   s_yaw_skp = "Yaw Skp: ",        s_thr_skp = "Thr Skp: ",        s_acc_skp = "Acc Skp: ";
+    s_pit_skp = "Pitch Skp: ";
+    s_rol_skp = "Roll Skp: ";
+    s_yaw_skp = "Yaw Skp: ";
+    s_thr_skp = "Thr Skp: ";
+    s_acc_skp = "Acc Skp: ";
 
     m_pit_rkp = new QLabel(s_pit_rkp);
     m_pit_rki = new QLabel(s_pit_rki);

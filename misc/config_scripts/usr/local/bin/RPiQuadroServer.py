@@ -48,18 +48,18 @@ def init_serial(device_count = 10):
         if counter == device_count-1:
           return False, 0
         counter += 1
-      else: 
+      else:
         return True, pySerial
-    else: 
+    else:
       return True, pySerial
-  
+
 #chksum calculation
 def chksum(line):
   c = 0
   for a in line:
     c = ((c + ord(a)) << 1) % 256
   return c
-  
+
 def send_data(line):
   # calc checksum
   chk = chksum(line)
@@ -92,7 +92,7 @@ def recv_thr():
           # Print everything what is not valid json string to console
           print ("JSON format error: %s" % ser_line)
           #logging.debug("JSON format error: " + ser_line)
-        else: 
+        else:
           logging.info(ser_line)
           if client_adr != "":
             bytes = udp_sock.sendto(ser_line, client_adr)
@@ -108,7 +108,7 @@ def trnm_thr():
   try:
     while pySerial.writable():
       try:
-        # Wait for UDP packet
+        # Wait for UDP packet from ground station
         msg, client_adr = udp_sock.recvfrom(256)
       except socket.timeout:
         # Log the problem
@@ -126,44 +126,52 @@ def trnm_thr():
             THR_LOCK.acquire()
             send_data(com)
             THR_LOCK.release()
-            
+
           # Add a waypoint
           if p['type'] == 'uav':
             com = "UAV#%d,%d,%d,%d" % (p['lat_d'], p['lon_d'], p['alt_m'], p['flag_t'] )
             THR_LOCK.acquire()
             send_data(com)
             THR_LOCK.release()
-            
+
           # PID config is about to change the sensitivity of the model to changes in attitude
           if p['type'] == 'pid':
-            com = "PID#%.2f,%.2f,%.2f;%.2f,%.2f,%.2f;%.2f,%.2f,%.2f;%.2f,%.2f,%.2f;%.2f,%.2f,%.2f;%.2f,%.2f,%.2f,%.2f" % (
-              p['pit_rkp'], p['pit_rki'], p['pit_rimax'], 
-              p['rol_rkp'], p['rol_rki'], p['rol_rimax'], 
-              p['yaw_rkp'], p['yaw_rki'], p['yaw_rimax'], 
-              p['thr_rkp'], p['thr_rki'], p['thr_rimax'], 
-              p['thr_akp'], p['thr_aki'], p['thr_aimax'], 
-              p['pit_skp'], p['rol_skp'], p['yaw_skp'], p['thr_skp'] )
+            com = "PID#%.2f,%.2f,%.2f;%.2f,%.2f,%.2f;%.2f,%.2f,%.2f;%.2f,%.2f,%.2f;%.2f,%.2f,%.2f;%.2f,%.2f,%.2f,%.2f,%.2f" % (
+              p['pit_rkp'], p['pit_rki'], p['pit_rimax'],
+              p['rol_rkp'], p['rol_rki'], p['rol_rimax'],
+              p['yaw_rkp'], p['yaw_rki'], p['yaw_rimax'],
+              p['thr_rkp'], p['thr_rki'], p['thr_rimax'],
+              p['acc_rkp'], p['acc_rki'], p['acc_rimax'],
+              p['pit_skp'], p['rol_skp'], p['yaw_skp'], p['thr_skp'], p['acc_skp'] )
             THR_LOCK.acquire()
             send_data(com)
             THR_LOCK.release()
-            
+
           # This section is about correcting drifts while model is flying (e.g. due to imbalances of the model)
           if p['type'] == 'cmp':
             com = "CMP#%.2f,%.2f" % (p['r'], p['p'])
             THR_LOCK.acquire()
             send_data(com)
             THR_LOCK.release()
-            
+
           # With this section you may start the calibration of the gyro again
           if p['type'] == 'gyr':
             com = "GYR#%d" % (p['cal'])
             THR_LOCK.acquire()
             send_data(com)
             THR_LOCK.release()
+
+          # Ping service for calculating the latency of the connection
+          if p['type'] == 'ping':
+            com = "{"type":"pong","v":%d}" % (p['v'])
+            THR_LOCK.acquire()
+            if client_adr != "":
+              bytes = udp_sock.sendto(com, client_adr)
+            THR_LOCK.release()
   # Terminate process (makes restarting in the init.d part possible)
   except:
     os.kill(os.getpid(), 15)
-  
+
 # Main program for sending and receiving
 # Working with two separate threads
 def main():
