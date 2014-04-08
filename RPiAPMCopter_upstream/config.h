@@ -108,7 +108,7 @@
 #define COM_PKT_TIMEOUT      500    // in ms
 #define UART_A_TIMEOUT       100    // in ms
 
-#define PID_ARGS             5      // Nr of arguments for PID configuration
+#define PID_ARGS             6      // Nr of arguments for PID configuration
 #define PID_BUFFER_S         5
 
 #define COMP_ARGS            4      // Nr of arguments for on-flight drift compensation

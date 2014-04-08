@@ -217,7 +217,7 @@ float *Receiver::parse_pid_substr(char* buffer) {
       rgcPIDS[iPID][++iPIDcstr] = '\0';
     }
   }
-  for (int i = 0; i < PID_BUFFER_S; i++) {
+  for (int i = 0; i <= iPID; i++) {
     rgfPIDS[i] = atof(rgcPIDS[i]);
   }
   return rgfPIDS;

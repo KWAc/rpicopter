@@ -109,7 +109,7 @@ def trnm_thr():
     while pySerial.writable():
       try:
         # Wait for UDP packet from ground station
-        msg, client_adr = udp_sock.recvfrom(256)
+        msg, client_adr = udp_sock.recvfrom(512)
       except socket.timeout:
         # Log the problem
         logging.error("Read timeout on socket '{}': {}".format(adr, e))

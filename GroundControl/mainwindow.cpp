@@ -104,10 +104,8 @@ void MainWindow::prepareWidgets() {
 }
 
 void MainWindow::connectWidgets() {
-    connect(m_pingTimer, SIGNAL(timeout() ), this, SLOT(sl_sendPing() ) );
-    //connect(m_pUdpSocket, SIGNAL(connected() ), this, SLOT(sl_recvCommand() ) );
+    connect(&m_pingTimer, SIGNAL(timeout() ), this, SLOT(sl_sendPing() ) );
     connect(m_pUdpSocket, SIGNAL(readyRead() ), this, SLOT(sl_recvCommand() ) );
-    //connect(&m_udpRecvTimer, SIGNAL(timeout() ), this, SLOT(sl_recvCommand() ) );
     connect(&m_plotTimer, SIGNAL(timeout() ), this, SLOT(sl_replotGraphs() ) );
     connect(m_pFileMSave, SIGNAL(triggered() ), this, SLOT(sl_saveLog() ) );
     connect(m_pOptionMPIDConf, SIGNAL(triggered() ), this, SLOT(sl_configPIDs() ) );
@@ -212,6 +210,7 @@ void MainWindow::sl_sendPing() {
     qint64 bytes = m_pUdpSocket->write(com.toLatin1(), com.size() );
     if(bytes) {
       m_iCurrentPingSent = m_tSensorTime.elapsed();
+      m_iCurrentPingRecv = m_iCurrentPingSent;
     }
 }
 
@@ -219,7 +218,7 @@ QAbstractSocket *MainWindow::getSocket() {
     return m_pUdpSocket;
 }
 
-void MainWindow::sl_UpdateSensorData(QPair<unsigned long, QVariantMap> sensorRead) {
+void MainWindow::sl_UpdateSensorData(QPair<double, QVariantMap> sensorRead) {
     double time_s = sensorRead.first;
     QVariantMap map = sensorRead.second;
 /*
@@ -249,12 +248,24 @@ void MainWindow::sl_UpdateSensorData(QPair<unsigned long, QVariantMap> sensorRea
             m_iCurrentPingRecv = m_tSensorTime.elapsed();
             // Update the plot
             double ping_ms = (double)(m_iCurrentPingRecv - m_iCurrentPingSent);
-            if(ping_ms >= 0) {
+
+            if(ping_ms < PING_T_MS && ping_ms >= 0) {
                 m_vNetwork_s.append(time_s);
                 m_vLatency_ms.append(ping_ms);
                 // New identifier for the next ping message
                 m_iCurrentPingID++;
             }
+        }
+    }
+    else {
+        if(m_udpCurLine != "") {
+            QString sLog = "";
+            QTextStream sSLog(&sLog); sSLog << time_s << " s: " << m_udpCurLine << '\n';
+            m_pLogger->getTextEdit()->insertPlainText(sLog);
+
+            QTextCursor c =  m_pLogger->getTextEdit()->textCursor();
+            c.movePosition(QTextCursor::End);
+            m_pLogger->getTextEdit()->setTextCursor(c);
         }
     }
 
@@ -357,36 +368,26 @@ void MainWindow::sl_recvCommand() {
     if(!m_bUdpSockCon)
         return;
 
-    if(!m_pUdpSocket->bytesAvailable() ) {
-        return;
-    }
-        
     // if data coming, then clean last message
-    QByteArray line(m_cUdpRecvBuf);
-    if(!checkForJSON(line) || line == "") {
-        return;
+    if(m_pUdpSocket->bytesAvailable() ) {
+        m_udpCurLine = QByteArray(m_cUdpRecvBuf);
+
+
+        if(checkForJSON(m_udpCurLine) ) {
+            qDebug() << "Parse JSON: " << m_udpCurLine;
+            QJsonDocument JSONDoc = QJsonDocument::fromJson(m_udpCurLine);
+            QVariantMap result = JSONDoc.toVariant().toMap();
+
+            if(result.empty() )
+                return;
+
+            double fTimeElapsed_s = ((double)m_tSensorTime.elapsed() / 1000.f);
+            QPair<double, QVariantMap> pair(fTimeElapsed_s, result);
+            sl_UpdateSensorData(pair);
+        }
+
+        memset(m_cUdpRecvBuf, 0, sizeof(m_cUdpRecvBuf) );
     }
-    
-    qDebug() << "Parse JSON: " << line;
-    QJsonDocument JSONDoc = QJsonDocument::fromJson(line);
-    QVariantMap result = JSONDoc.toVariant().toMap();
-
-    if(result.empty() ) {
-        return;
-    }
-
-    double fTimeElapsed_s = ((double)m_tSensorTime.elapsed() / 1000.f);
-    QPair<unsigned long, QVariantMap> pair(fTimeElapsed_s, result);
-    sl_UpdateSensorData(pair);
-    
-    QString sLog = "";
-    QTextStream sSLog(&sLog); sSLog << fTimeElapsed_s << " s: " << line << '\n';
-    m_pLogger->getTextEdit()->insertPlainText(sLog);
-
-    QTextCursor c =  m_pLogger->getTextEdit()->textCursor();
-    c.movePosition(QTextCursor::End);
-    m_pLogger->getTextEdit()->setTextCursor(c);
-    memset(m_cUdpRecvBuf, 0, sizeof(m_cUdpRecvBuf) );
 
     qint64 lineLength = m_pUdpSocket->read(m_cUdpRecvBuf, sizeof(m_cUdpRecvBuf) );
     if (lineLength > 0) {
@@ -405,8 +406,7 @@ void MainWindow::connectToHost(const QString & hostName, quint16 port, QIODevice
         m_sHostName = hostName;
         
         // Update graphs and ping service only necessary if connected to UDP socket
-        //m_udpRecvTimer.start(25);
-        m_pingTimer.start(100);
+        m_pingTimer.start(PING_T_MS);
         m_plotTimer.start(1000);
     }
     else {

@@ -15,6 +15,8 @@
 #include "qpiddialog.h"
 
 
+#define PING_T_MS 250
+
 
 class MainWindow : public QMainWindow {
 Q_OBJECT
@@ -26,8 +28,9 @@ private:
     QAction *m_pOptionRadioEnabled;
 
     QTime m_tSensorTime;
-    //QTimer m_udpRecvTimer;
     QTimer m_plotTimer;
+
+    QByteArray m_udpCurLine;
 
     QString m_sHostName;
     QUdpSocket *m_pUdpSocket;
@@ -90,7 +93,7 @@ private slots:
 
     void sl_recvCommand();
     void sl_replotGraphs();
-    void sl_UpdateSensorData(QPair<unsigned long, QVariantMap> map);
+    void sl_UpdateSensorData(QPair<double, QVariantMap> map);
 
     void sl_updateStatusBar();
     void sl_updateStatusBar(QString, QString);

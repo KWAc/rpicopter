@@ -25,7 +25,7 @@ void QPIDConfig::sl_Activate() {
     m_thr_rimax_V->setDisabled(false);
     m_acc_rkp_V->setDisabled(false);
     m_acc_rki_V->setDisabled(false);
-    m_acc_rimax_V->setDisabled(true);
+    m_acc_rimax_V->setDisabled(false);
     m_pit_skp_V->setDisabled(false);
     m_rol_skp_V->setDisabled(false);
     m_yaw_skp_V->setDisabled(false);
@@ -146,35 +146,35 @@ void QPIDConfig::Setup() {
     m_pit_rki_V = new QDoubleSpinBox();
     m_pit_rki_V->setRange(0, 25);
     m_pit_rimax_V = new QDoubleSpinBox();
-    m_pit_rimax_V->setRange(0, 100);
+    m_pit_rimax_V->setRange(0, 250);
 
     m_rol_rkp_V = new QDoubleSpinBox();
     m_rol_rkp_V->setRange(0, 25);
     m_rol_rki_V = new QDoubleSpinBox();
     m_rol_rki_V->setRange(0, 25);
     m_rol_rimax_V = new QDoubleSpinBox();
-    m_rol_rimax_V->setRange(0, 100);
+    m_rol_rimax_V->setRange(0, 250);
 
     m_yaw_rkp_V = new QDoubleSpinBox();
     m_yaw_rkp_V->setRange(0, 25);
     m_yaw_rki_V = new QDoubleSpinBox();
     m_yaw_rki_V->setRange(0, 25);
     m_yaw_rimax_V = new QDoubleSpinBox();
-    m_yaw_rimax_V->setRange(0, 100);
+    m_yaw_rimax_V->setRange(0, 250);
 
     m_thr_rkp_V = new QDoubleSpinBox();
     m_thr_rkp_V->setRange(0, 25);
     m_thr_rki_V = new QDoubleSpinBox();
     m_thr_rki_V->setRange(0, 25);
     m_thr_rimax_V = new QDoubleSpinBox();
-    m_thr_rimax_V->setRange(0, 25);
+    m_thr_rimax_V->setRange(0, 250);
 
     m_acc_rkp_V = new QDoubleSpinBox();
     m_acc_rkp_V->setRange(0, 25);
     m_acc_rki_V = new QDoubleSpinBox();
     m_acc_rki_V->setRange(0, 25);
     m_acc_rimax_V = new QDoubleSpinBox();
-    m_acc_rimax_V->setRange(0, 25);
+    m_acc_rimax_V->setRange(0, 250);
 
     m_pit_skp_V = new QDoubleSpinBox();
     m_pit_skp_V->setRange(0, 25);
@@ -189,19 +189,24 @@ void QPIDConfig::Setup() {
 
     m_pit_rkp_V->setSingleStep(0.1);
     m_pit_rki_V->setSingleStep(0.1);
-    m_pit_rimax_V->setSingleStep(0.1);
+    m_pit_rimax_V->setSingleStep(1);
+
     m_rol_rkp_V->setSingleStep(0.1);
     m_rol_rki_V->setSingleStep(0.1);
-    m_rol_rimax_V->setSingleStep(0.1);
+    m_rol_rimax_V->setSingleStep(1);
+
     m_yaw_rkp_V->setSingleStep(0.1);
     m_yaw_rki_V->setSingleStep(0.1);
-    m_yaw_rimax_V->setSingleStep(0.1);
+    m_yaw_rimax_V->setSingleStep(1);
+
     m_thr_rkp_V->setSingleStep(0.1);
     m_thr_rki_V->setSingleStep(0.1);
-    m_thr_rimax_V->setSingleStep(0.1);
+    m_thr_rimax_V->setSingleStep(1);
+
     m_acc_rkp_V->setSingleStep(0.1);
     m_acc_rki_V->setSingleStep(0.1);
-    m_acc_rimax_V->setSingleStep(0.1);
+    m_acc_rimax_V->setSingleStep(1);
+
     m_pit_skp_V->setSingleStep(0.1);
     m_rol_skp_V->setSingleStep(0.1);
     m_yaw_skp_V->setSingleStep(0.1);
@@ -305,7 +310,6 @@ void QPIDConfig::sl_sendPIDs() {
                              << ",\"thr_skp\":" << m_thr_skp_V->value()
                              << ",\"acc_skp\":" << m_acc_skp_V->value() << "}";
 
-    for(int i = 0; i < 16; i++)
-        m_pUdpSock->write(com.toLocal8Bit(), com.length() );
+    m_pUdpSock->write(com.toLocal8Bit(), com.length() );
     qDebug() << com;
 }
