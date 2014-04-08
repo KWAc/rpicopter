@@ -163,11 +163,10 @@ def trnm_thr():
 
           # Ping service for calculating the latency of the connection
           if p['type'] == 'ping':
-            com = "{"type":"pong","v":%d}" % (p['v'])
-            THR_LOCK.acquire()
+            com = '{"type":"pong","v":%d}' % (p['v'])
             if client_adr != "":
               bytes = udp_sock.sendto(com, client_adr)
-            THR_LOCK.release()
+
   # Terminate process (makes restarting in the init.d part possible)
   except:
     os.kill(os.getpid(), 15)
