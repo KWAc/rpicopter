@@ -55,11 +55,11 @@ float UAVNav::dist_2_greenw_m(const float fLat_deg, const float fLon_deg) const 
 }
 
 float UAVNav::calc_error_deg() {
-  float fLatHome_deg = (float)m_pHalBoard->m_pInertNav->get_latitude() / M_AP_INT2FLOAT_DEG;
-  float fLonHome_deg = (float)m_pHalBoard->m_pInertNav->get_longitude() / M_AP_INT2FLOAT_DEG;
+  float fLatHome_deg = static_cast<float>(m_pHalBoard->m_pInertNav->get_latitude() ) / M_AP_INT2FLOAT_DEG;
+  float fLonHome_deg = static_cast<float>(m_pHalBoard->m_pInertNav->get_longitude() ) / M_AP_INT2FLOAT_DEG;
 
-  float fLatTarg_deg = (float)m_pReceiver->m_Waypoint.latitude / M_AP_INT2FLOAT_DEG;
-  float fLonTarg_deg = (float)m_pReceiver->m_Waypoint.longitude / M_AP_INT2FLOAT_DEG;
+  float fLatTarg_deg = static_cast<float>(m_pReceiver->m_Waypoint.latitude) / M_AP_INT2FLOAT_DEG;
+  float fLonTarg_deg = static_cast<float>(m_pReceiver->m_Waypoint.longitude) / M_AP_INT2FLOAT_DEG;
 
   float fXHome = dist_2_greenw_m(fLatHome_deg, fLonHome_deg);
   float fYHome = dist_2_equat_m(fLatHome_deg);
@@ -73,7 +73,7 @@ float UAVNav::calc_error_deg() {
 int_fast16_t UAVNav::calc_yaw() {
   // Calculate the time since last call
   uint_fast32_t t32CurTimer = m_pHalBoard->m_pHAL->scheduler->millis();
-  float dT = (float)(t32CurTimer - m_t32YawTimer) / 1000.f;
+  float dT = static_cast<float>((t32CurTimer - m_t32YawTimer) ) / 1000.f;
   m_t32YawTimer = t32CurTimer;
 
   // Update position data and calculate the errors
@@ -90,7 +90,11 @@ int_fast16_t UAVNav::calc_yaw() {
 
   #if DEBUG_OUT
   m_pHalBoard->m_pHAL->console->printf("Navigation - Comp: %.3f, Err: %.3f, CTRL: %.3f, ZERO: %.3f, Yaw: %d\n", 
-                                        m_pHalBoard->get_comp_deg(), fError_deg, fCtrl, fZero, (int_fast16_t)m_fTargetYaw_deg);
+                                       m_pHalBoard->get_comp_deg(), 
+                                       fError_deg, 
+                                       fCtrl, 
+                                       fZero, 
+                                       static_cast<int_fast16_t>(m_fTargetYaw_deg) );
   #endif
 
   if(fError_deg > 1.f) {
@@ -98,9 +102,11 @@ int_fast16_t UAVNav::calc_yaw() {
     m_pReceiver->m_rgChannelsRC[RC_PIT] = 0;
   }
   // Anneal to correct yaw
-  return (int_fast16_t)m_fTargetYaw_deg;
+  return static_cast<int_fast16_t>(m_fTargetYaw_deg);
 }
 
 int_fast16_t UAVNav::calc_pitch() {
+  // TODO Implement me
 
+  return m_fTargetPit_deg;
 }

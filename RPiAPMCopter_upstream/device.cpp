@@ -48,7 +48,7 @@ void Device::update_attitude() {
 
   // Calculate time (in s) passed
   uint_fast32_t t32CurrentTime = m_pHAL->scheduler->millis();
-  float dT = (float)(t32CurrentTime - m_t32Inertial) / 1000.f;
+  float dT = static_cast<float>((t32CurrentTime - m_t32Inertial) ) / 1000.f;
   m_t32Inertial = t32CurrentTime;
 
   // Calculate attitude from relative gyrometer changes
@@ -435,7 +435,7 @@ GPSData Device::read_gps() {
       m_ContGPS.heading_y   = (*m_pGPS)->velocity_vector().y;
       m_ContGPS.heading_z   = (*m_pGPS)->velocity_vector().z;
 
-      m_ContGPS.gcourse_cd  = (int)(*m_pGPS)->ground_course_cd / 100;
+      m_ContGPS.gcourse_cd  = static_cast<int>((*m_pGPS)->ground_course_cd) / 100;
       m_ContGPS.status_fix  = (*m_pGPS)->fix;
       m_ContGPS.satelites   = (*m_pGPS)->num_sats;
       m_ContGPS.time_week   = (*m_pGPS)->time_week;
@@ -538,10 +538,11 @@ Vector3f Device::calibrate_inertial() {
       offset = read_accl_deg();
 
       m_pHAL->console->printf("Gyroscope calibration - Offsets are roll:%f, pitch:%f.\n",
-                              (double)offset.y, (double)offset.x);
+                              static_cast<double>(offset.y), 
+                              static_cast<double>(offset.x) );
 
-      fInertPitOffs += offset.x / (float)ATTITUDE_SAMPLE_CNT;
-      fInertRolOffs += offset.y / (float)ATTITUDE_SAMPLE_CNT;
+      fInertPitOffs += offset.x / static_cast<float>(ATTITUDE_SAMPLE_CNT);
+      fInertRolOffs += offset.y / static_cast<float>(ATTITUDE_SAMPLE_CNT);
 
       // Check whether the data set is useable
       float cur_sample = sqrt(pow2_f(offset.x) + pow2_f(offset.y) );
@@ -554,7 +555,7 @@ Vector3f Device::calibrate_inertial() {
 
     // Calc standard deviation
     for(uint_fast8_t i = 0; i < ATTITUDE_SAMPLE_CNT; i++) {
-      samples_dev += pow2_f(samples_acc[i] - samples_avg) / (float)ATTITUDE_SAMPLE_CNT;
+      samples_dev += pow2_f(samples_acc[i] - samples_avg) / static_cast<float>(ATTITUDE_SAMPLE_CNT);
     }
     samples_dev = sqrt(samples_dev);
     // If std dev is low: exit loop
@@ -569,7 +570,10 @@ Vector3f Device::calibrate_inertial() {
 
   //leds_off();   // switch off leds
   m_pHAL->console->printf("Gyroscope calibrated - Offsets are roll:%f, pitch:%f.\nAverage euclidian distance:%f, standard deviation:%f\n",
-                          (double)m_fInertRolOffs, (double)m_fInertPitOffs, (double)samples_avg, (double)samples_dev);
+                          static_cast<double>(m_fInertRolOffs), 
+                          static_cast<double>(m_fInertPitOffs), 
+                          static_cast<double>(samples_avg), 
+                          static_cast<double>(samples_dev) );
   return offset;
 }
 
@@ -582,12 +586,12 @@ float Device::get_altitude_cm(Device *pDev, bool &bOK) {
   float fAltitude_cm = 0.f;
   // Barometer and GPS usable
   if(pDev->m_pInertNav->altitude_ok() ) {
-    fAltitude_cm = (float)pDev->m_pInertNav->get_altitude();
+    fAltitude_cm = static_cast<float>(pDev->m_pInertNav->get_altitude() );
     bOK = true;
   }
 #ifdef SONAR_TYPE
   // Use the range finder for smaller altitudes
-  float iAltitudeRF_cm = (float)pDev->get_rf_cm();
+  float iAltitudeRF_cm = static_cast<float>(pDev->get_rf_cm() );
   if(iAltitudeRF_cm <= 600) {
     fAltitude_cm = iAltitudeRF_cm;
   }

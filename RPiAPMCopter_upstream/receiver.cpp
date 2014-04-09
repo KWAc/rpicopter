@@ -30,7 +30,7 @@ uint_fast8_t Receiver::calc_chksum(char *str) {
 bool Receiver::verf_chksum(char *str, char *chk) {
   uint_fast8_t  nc  = calc_chksum(str);
   long chkl = strtol(chk, NULL, 16);  // supplied chksum to long
-  if(chkl == (long)nc) {              // compare
+  if(chkl == static_cast<long>(nc) ) {              // compare
     return true;
   }
   return false;
@@ -217,7 +217,7 @@ float *Receiver::parse_pid_substr(char* buffer) {
       rgcPIDS[iPID][++iPIDcstr] = '\0';
     }
   }
-  for (int i = 0; i <= iPID; i++) {
+  for (size_t i = 0; i <= iPID; i++) {
     rgfPIDS[i] = atof(rgcPIDS[i]);
   }
   return rgfPIDS;
@@ -290,11 +290,11 @@ bool Receiver::parse_pid_conf(char* buffer) {
  * Everything fits into 7 bytes
  */
 bool Receiver::parse_radio(char *buffer) {
-  int_fast16_t thr = 1000 + ((uint_fast8_t)buffer[0] * 100) + (uint_fast8_t)buffer[1]; // 1000 - 1900
-  int_fast16_t pit = (uint_fast8_t)buffer[2] - 127;                               // -45° - 45°
-  int_fast16_t rol = (uint_fast8_t)buffer[3] - 127;                               // -45° - 45°
-  int_fast16_t yaw = (uint_fast8_t)buffer[5] * ((uint_fast8_t)buffer[4] - 127);        // -180° - 180°
-  int_fast16_t chk = (uint_fast8_t)buffer[6];                                     // checksum
+  int_fast16_t thr = 1000 + (static_cast<uint_fast8_t>(buffer[0]) * 100) + (uint_fast8_t)buffer[1]; // 1000 - 1900
+  int_fast16_t pit = static_cast<uint_fast8_t>(buffer[2]) - 127;                               // -45° - 45°
+  int_fast16_t rol = static_cast<uint_fast8_t>(buffer[3]) - 127;                               // -45° - 45°
+  int_fast16_t yaw = static_cast<uint_fast8_t>(buffer[5]) * (static_cast<uint_fast8_t>(buffer[4]) - 127);        // -180° - 180°
+  int_fast16_t chk = static_cast<uint_fast8_t>(buffer[6]);                                     // checksum
 
   // Calculate checksum
   uint_fast8_t checksum = 0;
@@ -331,7 +331,7 @@ bool Receiver::read_uartA(uint_fast16_t bytesAvail) {
 
   bool bRet = false;
   for(; bytesAvail > 0; bytesAvail--) {
-    char c = (char)m_pHalBoard->m_pHAL->console->read();// read next byte
+    char c = static_cast<char>(m_pHalBoard->m_pHAL->console->read() );// read next byte
     if(c == '\n') {                                     // new line reached - process cmd
       m_cBuffer[offset] = '\0';                         // null terminator
       bRet = parse(m_cBuffer);
@@ -360,8 +360,8 @@ bool Receiver::read_uartC(uint_fast16_t bytesAvail) {
       memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;   // reset everything
       return false;                                           // and break loop
     }
-    char c = (char)m_pHalBoard->m_pHAL->uartC->read();        // read next byte
-    if(c == (char)254) {                                      // this control char is not used for any other symbol
+    char c = static_cast<char>(m_pHalBoard->m_pHAL->uartC->read() );        // read next byte
+    if(c == static_cast<char>(254) ) {                                      // this control char is not used for any other symbol
       m_cBuffer[offset] = '\0';                               // null terminator at 8th position
       if(offset != RADIO_MAX_OFFS) {                          // theoretically a broken message can still be shorter than it should be
         memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0; //so break here if something was wrong

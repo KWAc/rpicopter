@@ -203,7 +203,7 @@ void Exception::reduce_thr(float fTime) {
   
   // Calculate how much to reduce throttle
   float fTConst = (THR_MOD_STEP_S * (fTime / fStepC) );
-  int_fast16_t fThr = m_rgChannelsRC[RC_THR] - (int_fast16_t)fTConst;
+  int_fast16_t fThr = m_rgChannelsRC[RC_THR] - static_cast<int_fast16_t>(fTConst);
 
   #if DEBUG_OUT
   m_pHalBoard->m_pHAL->console->printf("Reduce throttle - fStepC: %f, fThr: %d\n", fStepC, fThr);

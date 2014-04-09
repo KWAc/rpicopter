@@ -13,11 +13,11 @@
 // A helper function:
 // Saving the current controls from the remote control into references
 ////////////////////////////////////////////////////////////////////////
-inline void set_channels(const Receiver *pRecvr, int_fast16_t &pit, int_fast16_t &rol, int_fast16_t &yaw, int_fast16_t &thr) {
-  rol = pRecvr->m_rgChannelsRC[RC_ROL];
-  pit = pRecvr->m_rgChannelsRC[RC_PIT];
-  thr = pRecvr->m_rgChannelsRC[RC_THR] > RC_THR_80P ? RC_THR_80P : pRecvr->m_rgChannelsRC[2];
-  yaw = pRecvr->m_rgChannelsRC[RC_YAW];
+inline void set_channels(const Receiver *pRecvr, float &pit, float &rol, float &yaw, float &thr) {
+  rol = static_cast<float>(pRecvr->m_rgChannelsRC[RC_ROL]);
+  pit = static_cast<float>(pRecvr->m_rgChannelsRC[RC_PIT]);
+  thr = static_cast<float>(pRecvr->m_rgChannelsRC[RC_THR] > RC_THR_80P ? RC_THR_80P : pRecvr->m_rgChannelsRC[2]);
+  yaw = static_cast<float>(pRecvr->m_rgChannelsRC[RC_YAW]);
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -114,7 +114,7 @@ void M4XFrame::calc_altitude_hold() {
 
   // Return estimated altitude by GPS and barometer
   bool bOK_H, bOK_G;
-  float fTargAlti_cm  = (float)m_pReceiver->m_Waypoint.altitude_cm;
+  float fTargAlti_cm  = static_cast<float>(m_pReceiver->m_Waypoint.altitude_cm);
   float fCurrAlti_cm  = Device::get_altitude_cm(m_pHalBoard, bOK_H);
   float fClmbRate_cms = m_pHalBoard->m_pInertNav->get_velocity_z();
   // Get the acceleration in g
@@ -175,7 +175,7 @@ void M4XFrame::calc_attitude_hold() {
   m_pExeption->handle();
 
   // Variables to store remote control commands plus "rcalt" for the desired altitude in cm
-  int_fast16_t rcpit, rcrol, rcyaw, rcthr;
+  float rcpit, rcrol, rcyaw, rcthr;
   set_channels(m_pReceiver, rcpit, rcrol, rcyaw, rcthr);
 
   // Update sensor information
@@ -186,8 +186,8 @@ void M4XFrame::calc_attitude_hold() {
   // Throttle raised, turn on stabilisation.
   if(rcthr > RC_THR_ACRO) {
     // Stabilise PIDS
-    float pit_stab_output = constrain_float(m_pHalBoard->m_rgPIDS[PID_PIT_STAB].get_pid((float)rcpit - vAtti.x, 1), -250, 250);
-    float rol_stab_output = constrain_float(m_pHalBoard->m_rgPIDS[PID_ROL_STAB].get_pid((float)rcrol - vAtti.y, 1), -250, 250);
+    float pit_stab_output = constrain_float(m_pHalBoard->m_rgPIDS[PID_PIT_STAB].get_pid(rcpit - vAtti.x, 1), -250, 250);
+    float rol_stab_output = constrain_float(m_pHalBoard->m_rgPIDS[PID_ROL_STAB].get_pid(rcrol - vAtti.y, 1), -250, 250);
     float yaw_stab_output = constrain_float(m_pHalBoard->m_rgPIDS[PID_YAW_STAB].get_pid(wrap180_f(targ_yaw - vAtti.z), 1), -360, 360);
 
     // is pilot asking for yaw change - if so feed directly to rate pid (overwriting yaw stab output)
@@ -197,9 +197,9 @@ void M4XFrame::calc_attitude_hold() {
     }
 
     // rate PIDS
-    int_fast16_t pit_output = (int_fast16_t)constrain_float(m_pHalBoard->m_rgPIDS[PID_PIT_RATE].get_pid(pit_stab_output - vGyro.x, 1), -500, 500);
-    int_fast16_t rol_output = (int_fast16_t)constrain_float(m_pHalBoard->m_rgPIDS[PID_ROL_RATE].get_pid(rol_stab_output - vGyro.y, 1), -500, 500);
-    int_fast16_t yaw_output = (int_fast16_t)constrain_float(m_pHalBoard->m_rgPIDS[PID_YAW_RATE].get_pid(yaw_stab_output - vGyro.z, 1), -500, 500);
+    int_fast16_t pit_output = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->m_rgPIDS[PID_PIT_RATE].get_pid(pit_stab_output - vGyro.x, 1), -500, 500) );
+    int_fast16_t rol_output = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->m_rgPIDS[PID_ROL_RATE].get_pid(rol_stab_output - vGyro.y, 1), -500, 500) );
+    int_fast16_t yaw_output = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->m_rgPIDS[PID_YAW_RATE].get_pid(yaw_stab_output - vGyro.z, 1), -500, 500) );
 
     // Calculate the speed of the motors
     int_fast16_t iFL = rcthr + rol_output + pit_output - yaw_output;

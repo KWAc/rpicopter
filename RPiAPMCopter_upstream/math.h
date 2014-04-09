@@ -5,7 +5,7 @@
 
 
 inline double progress_f(uint_fast8_t iStep, uint_fast8_t iMax) {
-  return (double)iStep * 100.f / (double)iMax;
+  return static_cast<double>(iStep) * 100.f / static_cast<double>(iMax);
 }
 
 inline int add_flag(int flag, int mask) {
