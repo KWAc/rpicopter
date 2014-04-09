@@ -8,6 +8,7 @@ CUSTOM_KEY::CUSTOM_KEY() {
 QAbsFrame::QAbsFrame(QWidget *parent) : QFrame(parent)
 {
     m_fWidth = m_fHeight = this->m_fWidth < this->m_fHeight ? this->width() : this->height();
+    m_fYaw = 0.f;
 }
 
 void QAbsFrame::setYaw(float fVal) {

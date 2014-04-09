@@ -61,6 +61,8 @@ RANGE::RANGE() {
 
 RC_COM::RC_COM() {
     ROL = 0; PIT = 0; YAW = 0; THR = 1100;
+    memset(m_cRadioCommand, 0, sizeof(m_cRadioCommand) );
+    memset(m_cWiFiCommand, 0, sizeof(m_cWiFiCommand) );
 }
 
 QString RC_COM::str_makeWiFiCommand() {
@@ -106,6 +108,7 @@ QPair<int, char*> RC_COM::cstr_makeRadioCommand() {
 
 DRIFT_CAL::DRIFT_CAL() {
     ROL = 0; PIT = 0;
+    memset(m_cWiFiCommand, 0, sizeof(m_cWiFiCommand) );
 }
 
 QString DRIFT_CAL::str_makeWiFiCommand() {

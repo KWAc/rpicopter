@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include <QJsonDocument>
 #include <QStringRef>
+#include <cassert>
 
 
 
@@ -12,9 +13,11 @@ inline bool checkForJSON(const QByteArray &array) {
 }
 
 
-MainWindow::MainWindow(QWidget *parent)
+MainWindow::MainWindow(QSettings *pConf, QWidget *parent)
     : QMainWindow(parent)
 {
+    m_pConf = pConf;
+
     searchSerialRadio();
     
     m_iCurrentPingID   = 0;
@@ -52,6 +55,8 @@ MainWindow::MainWindow(QWidget *parent)
 }
 
 void MainWindow::prepareMenus() {
+    assert(m_pConf != NULL);
+
     // Prepare menu bars
     m_pFileM = new QMenu(tr("File"), this);
     m_pOptionM = new QMenu(tr("Options"), this);
@@ -63,7 +68,12 @@ void MainWindow::prepareMenus() {
     m_pOptionMPIDConf   = new QAction(tr("Configurate PIDs"), m_pOptionM);
     m_pOptionRadioEnabled = new QAction(tr("Enable radio"), m_pOptionM);
     m_pOptionRadioEnabled->setCheckable(true);
-    m_pOptionRadioEnabled->setChecked(true);
+
+    // Use config file to decide wheter to use the radio or not
+    bool bEnableRadio = m_pConf->value("UseRadio", true).toBool();
+    m_pOptionRadioEnabled->setChecked(bEnableRadio);
+    if(!m_pConf->contains("UseRadio") )
+      m_pConf->setValue("UseRadio", bEnableRadio);
 
     // Add action to menu
     m_pFileM->addAction(m_pFileMSave);
@@ -109,8 +119,14 @@ void MainWindow::connectWidgets() {
     connect(&m_plotTimer, SIGNAL(timeout() ), this, SLOT(sl_replotGraphs() ) );
     connect(m_pFileMSave, SIGNAL(triggered() ), this, SLOT(sl_saveLog() ) );
     connect(m_pOptionMPIDConf, SIGNAL(triggered() ), this, SLOT(sl_configPIDs() ) );
-    connect(m_pOptionRadioEnabled, SIGNAL(toggled(bool) ) , m_pRCWidget, SLOT(sl_setRadioEnabled(bool) ) );
+    connect(m_pOptionRadioEnabled, SIGNAL(toggled(bool) ) , this, SLOT(sl_radioToggleChanged(bool) ) );
     connect(m_pRCWidget, SIGNAL(si_send2Model(QString, QString) ), this, SLOT(sl_updateStatusBar(QString, QString) ) );
+}
+
+void MainWindow::sl_radioToggleChanged(bool state) {
+    assert(m_pConf != NULL);
+    m_pConf->setValue("UseRadio", state);
+    m_pRCWidget->sl_setRadioEnabled(state);
 }
 
 bool MainWindow::searchSerialRadio() {

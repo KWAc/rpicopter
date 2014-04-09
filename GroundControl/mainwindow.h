@@ -6,6 +6,7 @@
 #include <QIODevice>
 #include <QSerialPort>
 #include <QSerialPortInfo>
+#include <QSettings>
 
 #include "qplotdockwidget.h"
 #include "qattitudedockwidget.h"
@@ -20,7 +21,9 @@
 
 class MainWindow : public QMainWindow {
 Q_OBJECT
-private: 
+private:
+    QSettings *m_pConf;
+
     QMenu *m_pFileM;
     QMenu *m_pOptionM;
     QAction *m_pFileMSave;
@@ -99,9 +102,10 @@ private slots:
     void sl_updateStatusBar(QString, QString);
     
     void sl_sendPing();
+    void sl_radioToggleChanged(bool);
 
 public:
-    MainWindow(QWidget *parent = 0);
+    MainWindow(QSettings *pConf, QWidget *parent = 0);
     ~MainWindow();
 
     QAbstractSocket *getSocket();

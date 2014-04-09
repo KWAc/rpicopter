@@ -1,5 +1,4 @@
 #include "qpiddockwidget.h"
-#include <qjson/parser.h>
 #include <QtWidgets>
 
 
