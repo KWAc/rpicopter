@@ -14,6 +14,7 @@
 #include "qlogdockwidget.h"
 #include "qpiddockwidget.h"
 #include "qpiddialog.h"
+#include "qmaps.h"
 
 
 #define PING_T_MS 250
@@ -29,13 +30,13 @@ private:
     QAction *m_pFileMSave;
     QAction *m_pOptionMPIDConf;
     QAction *m_pOptionRadioEnabled;
+    QAction *m_pOptionTrackingEnabled;
+    QAction *m_pOptionPing;
+    QAction *m_pOptionHost;
 
     QTime m_tSensorTime;
     QTimer m_plotTimer;
 
-    QByteArray m_udpCurLine;
-
-    QString m_sHostName;
     QUdpSocket *m_pUdpSocket;
     QSerialPort m_pSerialPort;
     QSerialPortInfo m_serialPortInfo;
@@ -47,8 +48,6 @@ private:
     int m_iCurrentPingID;
     int m_iCurrentPingSent;
     int m_iCurrentPingRecv;
-
-    QRCWidget *m_pRCWidget;
     
     QString m_sStatBarSensor;
     QString m_sStatBarRC;
@@ -57,12 +56,15 @@ private:
     QTextStream *m_pStatBarStream;
     QStatusBar *m_pStatusBar;
     
-    QGroupBox *m_pMainWidget;
-    QProgressBar *m_pThrottleBar;
-    QHBoxLayout *m_pMainLayout;
+    Maps *m_pGMaps;
+    QTabWidget *m_pMainTab;
+    QRCWidget *m_pRCWidget;
+    QProgressBar *m_pRCThrottle;
 
-    QPIDDockWidget *m_pPIDConfig;
+    QByteArray m_udpCurLine;
+
     QLogDockWidget *m_pLogger;
+    QPIDDockWidget *m_pPIDConfig;
     QAttitudeDockWidget *m_pAttitude;
     QPlotDockWidget *m_pBattery;
     QPlotDockWidget *m_pBarometer;
@@ -92,7 +94,6 @@ private:
 
 private slots:
     void sl_saveLog();
-    void sl_configPIDs();
 
     void sl_recvCommand();
     void sl_replotGraphs();
@@ -103,6 +104,13 @@ private slots:
     
     void sl_sendPing();
     void sl_radioToggleChanged(bool);
+    void sl_trackingToggleChanged(bool);
+
+    void sl_changeTab(int);
+
+    void sl_configPIDs();
+    void sl_configPing();
+    void sl_configHost();
 
 public:
     MainWindow(QSettings *pConf, QWidget *parent = 0);

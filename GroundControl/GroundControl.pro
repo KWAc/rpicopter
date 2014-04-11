@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT          += serialport core gui network printsupport
+QT          += serialport core gui network printsupport webkitwidgets
 
 greaterThan(QT_MAJOR_VERSION, 5): QT += widgets
 
@@ -19,7 +19,8 @@ SOURCES +=  main.cpp\
             qpiddialog.cpp\
             qrcwidget.cpp \
             absframe.cpp \
-            container.cpp
+            container.cpp\
+            qmaps.cpp
 
 HEADERS  += mainwindow.h\
             qcustomplot.h \
@@ -31,4 +32,5 @@ HEADERS  += mainwindow.h\
             qpiddockwidget.h \
             qpiddialog.h \
             absframe.h \
-            container.h
+            container.h \
+            qmaps.h

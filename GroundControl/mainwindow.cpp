@@ -30,7 +30,8 @@ MainWindow::MainWindow(QSettings *pConf, QWidget *parent)
     m_pRCWidget      = new QRCWidget(m_pUdpSocket, &m_pSerialPort, this);
     m_pStatBarStream = new QTextStream(&m_sStatBarSensor);
 
-    m_pThrottleBar   = new QProgressBar(this);
+    m_pRCThrottle    = new QProgressBar(this);
+    m_pGMaps         = new Maps(this);
 
     m_pPIDConfig     = new QPIDDockWidget("PID Configuration");
     m_pLogger        = new QLogDockWidget("Logger");
@@ -38,6 +39,13 @@ MainWindow::MainWindow(QSettings *pConf, QWidget *parent)
     m_pBattery       = new QPlotDockWidget("Battery Monitor", 2);
     m_pBarometer     = new QPlotDockWidget("Barometer Monitor", 3);
     m_pNetworkDelay  = new QPlotDockWidget("Network (WiFi) Monitor", 1);
+
+    m_pPIDConfig->setFeatures(QDockWidget::DockWidgetMovable);
+    m_pLogger->setFeatures(QDockWidget::DockWidgetMovable);
+    m_pAttitude->setFeatures(QDockWidget::DockWidgetMovable);
+    m_pBattery->setFeatures(QDockWidget::DockWidgetMovable);
+    m_pBarometer->setFeatures(QDockWidget::DockWidgetMovable);
+    m_pNetworkDelay->setFeatures(QDockWidget::DockWidgetMovable);
 
     this->addDockWidget(Qt::BottomDockWidgetArea, m_pAttitude);
     this->addDockWidget(Qt::BottomDockWidgetArea, m_pPIDConfig);
@@ -68,19 +76,75 @@ void MainWindow::prepareMenus() {
     m_pOptionMPIDConf   = new QAction(tr("Configurate PIDs"), m_pOptionM);
     m_pOptionRadioEnabled = new QAction(tr("Enable radio"), m_pOptionM);
     m_pOptionRadioEnabled->setCheckable(true);
+    m_pOptionTrackingEnabled = new QAction(tr("Enable tracking"), m_pOptionM);
+    m_pOptionTrackingEnabled->setCheckable(true);
+    m_pOptionPing       = new QAction(tr("Configurate ping timing"), m_pFileM);
+    m_pOptionHost       = new QAction(tr("Configurate network"), m_pFileM);
 
-    // Use config file to decide wheter to use the radio or not
     bool bEnableRadio = m_pConf->value("UseRadio", true).toBool();
     m_pOptionRadioEnabled->setChecked(bEnableRadio);
-    if(!m_pConf->contains("UseRadio") )
-      m_pConf->setValue("UseRadio", bEnableRadio);
+    m_pConf->setValue("UseRadio", bEnableRadio);
+
+    bool bEnableTracking = m_pConf->value("GPSTracking", true).toBool();
+    m_pOptionTrackingEnabled->setChecked(bEnableTracking);
+    m_pConf->setValue("GPSTracking", bEnableTracking);
 
     // Add action to menu
     m_pFileM->addAction(m_pFileMSave);
 
     m_pOptionM->addAction(m_pOptionMPIDConf);
+    m_pOptionM->addAction(m_pOptionPing);
+    m_pOptionM->addAction(m_pOptionHost);
     m_pOptionM->addSeparator();
     m_pOptionM->addAction(m_pOptionRadioEnabled);
+    m_pOptionM->addAction(m_pOptionTrackingEnabled);
+
+    connect(m_pFileMSave, SIGNAL(triggered() ), this, SLOT(sl_saveLog() ) );
+    connect(m_pOptionMPIDConf, SIGNAL(triggered() ), this, SLOT(sl_configPIDs() ) );
+    connect(m_pOptionPing, SIGNAL(triggered() ), this, SLOT(sl_configPing() ) );
+    connect(m_pOptionHost, SIGNAL(triggered() ), this, SLOT(sl_configHost() ) );
+
+    connect(m_pOptionRadioEnabled, SIGNAL(toggled(bool) ) , this, SLOT(sl_radioToggleChanged(bool) ) );
+    connect(m_pOptionTrackingEnabled, SIGNAL(toggled(bool) ), this, SLOT(sl_trackingToggleChanged(bool) ) );
+}
+
+void MainWindow::sl_trackingToggleChanged(bool state) {
+    m_pConf->setValue("GPSTracking", state);
+    // Remove the quad in the center of the map if tracking is disabled
+    if(!state) {
+        m_pGMaps->sl_clearQuad();
+    }
+}
+
+void MainWindow::sl_configHost() {
+    bool ok;
+
+    QString sHost =  m_pConf->value("HostIP", "192.168.42.1").toString() + ":" + m_pConf->value("HostPort", 7000).toString();
+    QString text = QInputDialog::getText(this, tr("Configurate client"),
+                                         tr("Host adress (IP and port):"), QLineEdit::Normal,
+                                         sHost, &ok);
+    if(ok && !text.isEmpty()) {
+        QStringList host = text.split(":");
+        if(host.size() == 2) {
+            connectToHost(host.at(0), host.at(1).toInt() );
+            m_pConf->setValue("HostIP", host.at(0));
+            m_pConf->setValue("HostPort", host.at(1));
+            qDebug() << "HostIP: " << host.at(0) << "HostPort: " << host.at(1);
+        }
+        else {
+            qDebug() << "Host adress syntax not valid.";
+        }
+    }
+}
+
+void MainWindow::sl_configPing() {
+    bool ok;
+    int t_ms = QInputDialog::getInt(this, tr("Enter Ping in ms"),
+                                    tr("Time:"), m_pConf->value("Ping_ms", PING_T_MS).toInt(), 1, 1000, 1, &ok);
+    if (ok) {
+        m_pingTimer.start(t_ms);
+        m_pConf->setValue("Ping_ms", t_ms);
+    }
 }
 
 void MainWindow::prepareWidgets() {
@@ -91,25 +155,25 @@ void MainWindow::prepareWidgets() {
 
     memset(m_cUdpRecvBuf, 0, sizeof(m_cUdpRecvBuf) );
     m_bUdpSockCon = false;
-    m_sHostName = "";
 
+    m_pRCThrottle->setOrientation(Qt::Vertical);
+    m_pRCThrottle->setMinimum(m_pRCWidget->m_RANGE.THR_MIN);
+    m_pRCThrottle->setMaximum(m_pRCWidget->m_RANGE.THR_80P);
+    m_pRCThrottle->setTextVisible(true);
+    //m_pRCThrottle->setTextDirection();
+    
+    QHBoxLayout *pRCLayout = new QHBoxLayout(this);
+    pRCLayout->addWidget(m_pRCWidget);
+    pRCLayout->addWidget(m_pRCThrottle);
+    
+    QGroupBox *pRCGroup = new QGroupBox(this);
+    pRCGroup->setLayout(pRCLayout);
 
-    m_pThrottleBar->setOrientation(Qt::Vertical);
-    m_pThrottleBar->setMinimum(m_pRCWidget->m_RANGE.THR_MIN);
-    m_pThrottleBar->setMaximum(m_pRCWidget->m_RANGE.THR_80P);
-    m_pThrottleBar->setTextVisible(true);
-    //m_pThrottleBar->setTextDirection();
-
-    m_pMainLayout = new QHBoxLayout(this);
-
-    m_pMainLayout->addWidget(m_pRCWidget);
-    m_pMainLayout->addWidget(m_pThrottleBar);
-
-    m_pMainWidget = new QGroupBox(this);
-    m_pMainWidget->setLayout(m_pMainLayout);
-
-    this->setCentralWidget(m_pMainWidget);
-
+    m_pMainTab = new QTabWidget(this);
+    setCentralWidget(m_pMainTab);
+    m_pMainTab->addTab(pRCGroup, "Model control");
+    m_pMainTab->addTab(m_pGMaps, "Route planner");
+    
     m_pRCWidget->setDisabled(true);
 }
 
@@ -117,10 +181,28 @@ void MainWindow::connectWidgets() {
     connect(&m_pingTimer, SIGNAL(timeout() ), this, SLOT(sl_sendPing() ) );
     connect(m_pUdpSocket, SIGNAL(readyRead() ), this, SLOT(sl_recvCommand() ) );
     connect(&m_plotTimer, SIGNAL(timeout() ), this, SLOT(sl_replotGraphs() ) );
-    connect(m_pFileMSave, SIGNAL(triggered() ), this, SLOT(sl_saveLog() ) );
-    connect(m_pOptionMPIDConf, SIGNAL(triggered() ), this, SLOT(sl_configPIDs() ) );
-    connect(m_pOptionRadioEnabled, SIGNAL(toggled(bool) ) , this, SLOT(sl_radioToggleChanged(bool) ) );
     connect(m_pRCWidget, SIGNAL(si_send2Model(QString, QString) ), this, SLOT(sl_updateStatusBar(QString, QString) ) );
+    connect(m_pMainTab, SIGNAL(currentChanged(int) ), this, SLOT(sl_changeTab(int) ) );
+}
+
+void MainWindow::sl_changeTab(int index) {
+    // Hide all remote control widget if the tab is changed
+    // to another category
+    if(index) {
+        m_pAttitude->hide();
+        m_pPIDConfig->hide();
+        m_pNetworkDelay->hide();
+        m_pBattery->hide();
+        m_pBarometer->hide();
+    }
+    // RC-Tab
+    else {
+        m_pAttitude->show();
+        m_pPIDConfig->show();
+        m_pNetworkDelay->show();
+        m_pBattery->show();
+        m_pBarometer->show();
+    }
 }
 
 void MainWindow::sl_radioToggleChanged(bool state) {
@@ -235,28 +317,11 @@ QAbstractSocket *MainWindow::getSocket() {
 }
 
 void MainWindow::sl_UpdateSensorData(QPair<double, QVariantMap> sensorRead) {
+    static float fHeading = 0.f;
+
     double time_s = sensorRead.first;
     QVariantMap map = sensorRead.second;
-/*
-    #ifndef _WIN32
-    QProcess ping;
-    ping.start("ping", QStringList() << "-c 1" << m_sHostName);
-    if(ping.waitForFinished(250) ) {
-        while(ping.canReadLine()) {
-            QString line = ping.readLine();
-            if(line.contains("time=")) {
-                int iStart = line.indexOf("time=") + 5;
-                int iStop = line.indexOf(" ms");
-                QStringRef latency(&line, iStart, iStop-iStart);
 
-                m_vNetwork_s.append(time_s);
-                m_vLatency_ms.append(QString(latency.toLocal8Bit()).toDouble());
-                break;
-            }
-        }
-    }
-    #endif
-*/
     // Latency of the connection
     if(map["type"].toString() == "pong") {
         int iCurrentPongID = map["v"].toInt();
@@ -288,7 +353,7 @@ void MainWindow::sl_UpdateSensorData(QPair<double, QVariantMap> sensorRead) {
     // Sensors read-outs
     // Compass
     if(map["type"].toString() == "s_cmp") {
-
+        fHeading = map["h"].toDouble();
     }
     // Barometer
     if(map["type"].toString() == "s_bar") {
@@ -305,7 +370,12 @@ void MainWindow::sl_UpdateSensorData(QPair<double, QVariantMap> sensorRead) {
     }
     // GPS
     if(map["type"].toString() == "s_gps") {
-
+        if(!m_pOptionTrackingEnabled->isChecked() ) {
+            return;
+        }
+        float fLat = map["lat"].toDouble();
+        float fLon = map["lon"].toDouble();
+        m_pGMaps->sl_setQuad(fLat, fLon, fHeading);
     }
     // Battery
     if(map["type"].toString() == "s_bat") {
@@ -350,8 +420,8 @@ void MainWindow::sl_updateStatusBar(QString str, QString type) {
           QJsonDocument JSONDoc = QJsonDocument::fromJson(line);
           QVariantMap result = JSONDoc.toVariant().toMap();
           int iThr = result["t"].toInt();
-          if(iThr < m_pThrottleBar->maximum() )
-            m_pThrottleBar->setValue(iThr);
+          if(iThr < m_pRCThrottle->maximum() )
+            m_pRCThrottle->setValue(iThr);
       }
     }
     else if(type.contains("option") ) {
@@ -412,6 +482,10 @@ void MainWindow::sl_recvCommand() {
 }
 
 void MainWindow::connectToHost(const QString & hostName, quint16 port, QIODevice::OpenMode openMode) {
+    if(m_pUdpSocket->state() == QUdpSocket::ConnectedState) {
+        m_pUdpSocket->close();
+    }
+
     m_pUdpSocket->setSocketOption(QAbstractSocket::LowDelayOption, 1);
     m_pUdpSocket->connectToHost(hostName, port, openMode);
     m_bUdpSockCon = m_pUdpSocket->waitForConnected(1000);
@@ -419,10 +493,11 @@ void MainWindow::connectToHost(const QString & hostName, quint16 port, QIODevice
     if(m_pUdpSocket->state() == QUdpSocket::ConnectedState) {
         m_pUdpSocket->write(0, 0);
         qDebug("connectToHost: UDP socket connected");
-        m_sHostName = hostName;
         
         // Update graphs and ping service only necessary if connected to UDP socket
-        m_pingTimer.start(PING_T_MS);
+        int ping_ms = m_pConf->value("Ping_ms", PING_T_MS).toInt();
+        m_pConf->setValue("Ping_ms", ping_ms);
+        m_pingTimer.start(ping_ms);
         m_plotTimer.start(1000);
     }
     else {

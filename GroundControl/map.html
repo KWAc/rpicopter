@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <style type="text/css">
+      html { height: 100% }
+      body { height: 100%; margin: 0; padding: 0 }
+      #map_canvas { height: 100% }
+      .gm-sm {
+        display: none !important;
+      }
+    </style>
+    <script type="text/javascript"
+      src="http://maps.googleapis.com/maps/api/js?key=AIzaSyAhHA7X6utgT0E-jpVHjuq4viNfm8Rn8vs&sensor=false">
+    </script>
+    <script type="text/javascript">
+      var map;
+      var flightRoute = [];
+      var flightMarker = [];
+      var quadPosition = [];
+            
+      function initialize() {
+        var myOptions = {
+          center: new google.maps.LatLng(-34.397, 150.644),
+          zoom: 8,
+          disableDoubleClickZoom: true,
+          mapTypeId: google.maps.MapTypeId.ROADMAP,
+          panControl: true
+        };
+        map = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
+        
+        google.maps.event.addListener(map, 'click', function(event) {
+          addMarker(event.latLng);
+        });
+        
+        fixInfoWindow();
+      }
+
+      function fixInfoWindow() {
+          //Here we redefine set() method.
+          //If it is called for map option, we hide InfoWindow, if "noSupress" option isnt true.
+          //As Google doesn't know about this option, its InfoWindows will not be opened.
+          var set = google.maps.InfoWindow.prototype.set;
+          google.maps.InfoWindow.prototype.set = function (key, val) {
+              if (key === 'map') {
+                  if (!this.get('noSupress')) {
+                      console.log('This InfoWindow is supressed. To enable it, set "noSupress" option to true');
+                      return;
+                  }
+              }
+              set.apply(this, arguments);
+          }
+      }
+      
+      function panToQuad() {
+        var position;
+        for (var i = 0; i < quadPosition.length; i++) {
+          position = quadPosition[i].getPosition();
+        }
+        map.panTo(position);
+      }
+      
+      function setQuad(location, rota) {
+        var FWArrow = {
+          path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+          scale: 10,
+          rotation: rota
+        };
+        
+        clearQuad();
+        
+        var quadMarker = new google.maps.Marker({
+          position: location,
+          map: map,
+          icon: FWArrow
+        });
+        quadPosition.push(quadMarker);
+        
+        map.panTo(location);
+      }
+      
+      function clearQuad() {
+        for (var i = 0; i < quadPosition.length; i++) {
+          quadPosition[i].setMap(null);
+        }
+        quadPosition = [];
+      }
+      
+      // Add a marker to the map and push to the array.
+      function addMarker(location) {
+        var marker = new google.maps.Marker({
+            position: location,
+            map: map,
+            draggable:true
+        });
+        
+        var LatLng = marker.getPosition();
+        var sLatLng = "Latitude:    " + marker.getPosition().lat().toString() + 
+                      "\nLongitude: " + marker.getPosition().lng().toString();
+        marker.setTitle(sLatLng);
+        
+        google.maps.event.addListener(marker, 'drag', function() {
+            drawRoute();
+        });
+        flightMarker.push(marker);
+        drawRoute();
+      }
+      
+      // Add a marker to the map and push to the array.
+      function clearMarker() {
+        deleteRoute();
+        for (var i = 0; i < flightMarker.length; i++) {
+          flightMarker[i].setMap(null);
+        }
+        flightMarker = [];
+      }
+      
+      function drawRoute() {
+        var route = [];
+        for (var i = 0; i < flightMarker.length; i++) {
+          route.push(flightMarker[i].getPosition() );
+        }
+        // Render the current path
+        var path = new google.maps.Polyline({
+          path: route,
+          strokeColor: "#FF0000",
+          strokeOpacity: 1.0,
+          strokeWeight: 2
+        });
+        // Delete old path
+        deleteRoute();
+        // Save new path
+        path.setMap(map);
+        flightRoute.push(path);
+      }
+
+      function deleteRoute() {
+        for (var i = 0; i < flightRoute.length; i++) {
+          flightRoute[i].setMap(null);
+        }
+      }
+      
+    </script>
+  </head>
+  <body onload="initialize()">
+    <div id="map_canvas" style="width:100%; height:100%"></div>
+  </body>
+</html>
