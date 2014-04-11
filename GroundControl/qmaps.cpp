@@ -20,6 +20,7 @@ void Maps::setupUI()
     QPushButton *btnDown = new QPushButton( "Down", this );
 
     QPushButton *btnRemoveRoute = new QPushButton( "Remove route", this );
+    QPushButton *btnSubmitRoute = new QPushButton( "Submit route", this );
 
     QLabel *latitude = new QLabel("Latitude: ");
     QLabel *longitude = new QLabel("Longitude: ");
@@ -34,6 +35,7 @@ void Maps::setupUI()
     connect( btnUp, SIGNAL(clicked()), this, SLOT(sl_goUp()) );
     connect( btnDown, SIGNAL(clicked()), this, SLOT(sl_goDown()) );
     connect( btnRemoveRoute, SIGNAL(clicked()), this, SLOT(sl_clearRoute()) );
+    connect( btnSubmitRoute, SIGNAL(clicked()), this, SLOT(sl_submitRoute()) );
     connect( m_pLat, SIGNAL(valueChanged(double)), this, SLOT(sl_moveToDxDy(double)) );
     connect( m_pLon, SIGNAL(valueChanged(double)), this, SLOT(sl_moveToDxDy(double)) );
 
@@ -48,6 +50,7 @@ void Maps::setupUI()
     layout->addWidget( m_pLon, 7, 2, 1, 2 );
 
     layout->addWidget( btnRemoveRoute, 8, 1 );
+    layout->addWidget( btnSubmitRoute, 9, 1 );
 
     //
     // Embedded webpage
@@ -63,6 +66,6 @@ void Maps::setupUI()
     QUrl url = QUrl::fromLocalFile( fileName );
     mView->load( url );
 
-    layout->addWidget( mView, 1, 6, 8, 1 );
+    layout->addWidget( mView, 1, 6, 9, 1 );
     layout->setColumnStretch(6, 1);
 }

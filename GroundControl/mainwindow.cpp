@@ -475,7 +475,7 @@ void MainWindow::sl_updateStatusBar(QString str, QString type) {
       QByteArray line;
       line.append(m_sStatBarRC);
       if(checkForJSON(line) ) {
-          qDebug() << "Parse JSON: " << line;
+          //qDebug() << "Parse JSON: " << line;
           QJsonDocument JSONDoc = QJsonDocument::fromJson(line);
           QVariantMap result = JSONDoc.toVariant().toMap();
           int iThr = result["t"].toInt();

@@ -104,6 +104,17 @@
         });
         flightMarker.push(marker);
         drawRoute();
+        
+        return flightMarker;
+      }
+      
+      function getMarkers() {
+        var latlng = []
+        for (var i = 0; i < flightMarker.length; i++) {
+          var sPos = flightMarker[i].getPosition().lat().toString() + ":" + flightMarker[i].getPosition().lng().toString();
+          latlng.push(sPos);
+        }
+        return latlng;
       }
       
       // Add a marker to the map and push to the array.

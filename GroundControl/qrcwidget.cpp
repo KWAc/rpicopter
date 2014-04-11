@@ -268,7 +268,7 @@ void QRCWidget::sendJSON2UDP(QString sCom, bool isCommand) {
         return;
 
     if (sCom.size() > 0) {
-        qDebug() << "WiFi: " << sCom;
+        //qDebug() << "WiFi: " << sCom;
         m_pUdpSock->write(sCom.toLatin1(), sCom.size() );
         if(isCommand) {
             emit si_send2Model(sCom, "command");
