@@ -28,6 +28,7 @@ private:
     QMenu *m_pFileM;
     QMenu *m_pOptionM;
     QAction *m_pFileMSave;
+    QAction *m_pFileMLoad;
     QAction *m_pOptionMPIDConf;
     QAction *m_pOptionRadioEnabled;
     QAction *m_pOptionTrackingEnabled;
@@ -94,6 +95,7 @@ private:
 
 private slots:
     void sl_saveLog();
+    void sl_loadLog();
 
     void sl_recvCommand();
     void sl_replotGraphs();

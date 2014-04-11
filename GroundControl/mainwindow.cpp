@@ -73,6 +73,7 @@ void MainWindow::prepareMenus() {
 
     // Define actions
     m_pFileMSave        = new QAction(tr("Save Log"), m_pFileM);
+    m_pFileMLoad        = new QAction(tr("Load Log"), m_pFileM);
     m_pOptionMPIDConf   = new QAction(tr("Configurate PIDs"), m_pOptionM);
     m_pOptionRadioEnabled = new QAction(tr("Enable radio"), m_pOptionM);
     m_pOptionRadioEnabled->setCheckable(true);
@@ -91,6 +92,7 @@ void MainWindow::prepareMenus() {
 
     // Add action to menu
     m_pFileM->addAction(m_pFileMSave);
+    m_pFileM->addAction(m_pFileMLoad);
 
     m_pOptionM->addAction(m_pOptionMPIDConf);
     m_pOptionM->addAction(m_pOptionPing);
@@ -100,6 +102,8 @@ void MainWindow::prepareMenus() {
     m_pOptionM->addAction(m_pOptionTrackingEnabled);
 
     connect(m_pFileMSave, SIGNAL(triggered() ), this, SLOT(sl_saveLog() ) );
+    connect(m_pFileMLoad, SIGNAL(triggered() ), this, SLOT(sl_loadLog() ) );
+
     connect(m_pOptionMPIDConf, SIGNAL(triggered() ), this, SLOT(sl_configPIDs() ) );
     connect(m_pOptionPing, SIGNAL(triggered() ), this, SLOT(sl_configPing() ) );
     connect(m_pOptionHost, SIGNAL(triggered() ), this, SLOT(sl_configHost() ) );
@@ -246,6 +250,61 @@ void MainWindow::sl_saveLog() {
     out << m_pLogger->getTextEdit()->toPlainText();
 
     file.close();
+}
+
+void MainWindow::sl_loadLog() {
+    QString sFileName = QFileDialog::getOpenFileName(this, tr("Open sensor log file"),
+                                                     QString(), tr("txt (*.txt *.log *.json)"));
+    QFile file( sFileName );
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+             return;
+
+    QTextStream in(&file);
+    QString text = "";
+    QString line = "";
+    bool bLoadText = true;
+    do {
+        line = in.readLine();
+        text += line + "\n";
+        qDebug() << "Read from file: " << line;
+
+        // Remove white spaces
+        line.replace( " ", "" );
+
+        QStringList sCurRead = line.split(':');
+
+        if(sCurRead.size() != 2) {
+            qDebug() << "Not valid read";
+            bLoadText = false;
+            continue;
+        }
+
+        // Time
+        QString sTime = sCurRead.at(0);
+        sTime.replace( "s", "" );
+        double fTime_s = sTime.toDouble();
+
+        // JSON
+        QByteArray cJSON = sCurRead.at(1).toUtf8();
+        if(!checkForJSON(cJSON) ) {
+            qDebug() << "Not valid JSON: " << cJSON;
+            bLoadText = false;
+            continue;
+        }
+
+        QJsonDocument JSONDoc = QJsonDocument::fromJson(cJSON);
+        QVariantMap varSensor = JSONDoc.toVariant().toMap();
+
+        // Update sensor widgets
+        QPair<double, QVariantMap> pair(fTime_s, varSensor);
+        sl_UpdateSensorData(pair);
+
+    } while (!line.isNull());
+
+    // Load text into logger
+    if(bLoadText) {
+        m_pLogger->getTextEdit()->setPlainText(text);
+    }
 }
 
 void MainWindow::sl_configPIDs() {
