@@ -266,7 +266,7 @@ void QRCWidget::sl_customKeyReleaseHandler() {
 void QRCWidget::sendJSON2UDP(QString sCom, bool isCommand) {
     if(!m_pUdpSock)
         return;
-
+/*
     if (sCom.size() > 0) {
         //qDebug() << "WiFi: " << sCom;
         m_pUdpSock->write(sCom.toLatin1(), sCom.size() );
@@ -277,6 +277,7 @@ void QRCWidget::sendJSON2UDP(QString sCom, bool isCommand) {
             emit si_send2Model(sCom, "option");
         }
     }
+*/
 }
 
 void QRCWidget::sendJSON2COM(QPair<int, char*> pair, bool isCommand) {

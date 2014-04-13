@@ -35,6 +35,7 @@ private:
     QAction *m_pOptionPing;
     QAction *m_pOptionHost;
 
+    double m_fSLTime_s;
     QTime m_tSensorTime;
     QTimer m_plotTimer;
 
@@ -43,7 +44,6 @@ private:
     QSerialPortInfo m_serialPortInfo;
 
     bool m_bUdpSockCon;
-    char m_cUdpRecvBuf[256];
     
     QTimer m_pingTimer;
     int m_iCurrentPingID;

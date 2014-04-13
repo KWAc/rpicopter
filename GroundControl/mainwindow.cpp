@@ -4,15 +4,6 @@
 #include <cassert>
 
 
-
-inline bool checkForJSON(const QByteArray &array) {
-    if(array.size() > 8)
-        if(array.at(0) == '{' && array.at(array.size()-1) == '}')
-            return true;
-    return false;
-}
-
-
 MainWindow::MainWindow(QSettings *pConf, QWidget *parent)
     : QMainWindow(parent)
 {
@@ -23,6 +14,7 @@ MainWindow::MainWindow(QSettings *pConf, QWidget *parent)
     m_iCurrentPingID   = 0;
     m_iCurrentPingSent = 0;
     m_iCurrentPingRecv = 0;
+    m_fSLTime_s        = 0.f;
 
     m_pStatusBar     = new QStatusBar(this);
     m_pUdpSocket     = new QUdpSocket(this);
@@ -157,7 +149,6 @@ void MainWindow::prepareWidgets() {
     *m_pStatBarStream << "No data from sensors received!";
     m_pStatusBar->showMessage(m_sStatBarSensor);
 
-    memset(m_cUdpRecvBuf, 0, sizeof(m_cUdpRecvBuf) );
     m_bUdpSockCon = false;
 
     m_pRCThrottle->setOrientation(Qt::Vertical);
@@ -252,7 +243,7 @@ void MainWindow::sl_saveLog() {
     file.close();
 }
 
-void MainWindow::sl_loadLog() {
+void MainWindow::sl_loadLog() {    
     QString sFileName = QFileDialog::getOpenFileName(this, tr("Open sensor log file"),
                                                      QString(), tr("txt (*.txt *.log *.json)"));
     QFile file( sFileName );
@@ -273,32 +264,28 @@ void MainWindow::sl_loadLog() {
 
         QStringList sCurRead = line.split(':');
 
-        if(sCurRead.size() != 2) {
+        if(sCurRead.size() < 2) {
             qDebug() << "Not valid read";
             bLoadText = false;
             continue;
-        }
-
+        }        
         // Time
         QString sTime = sCurRead.at(0);
         sTime.replace( "s", "" );
-        double fTime_s = sTime.toDouble();
+        m_fSLTime_s = sTime.toDouble();
 
         // JSON
-        QByteArray cJSON = sCurRead.at(1).toUtf8();
-        if(!checkForJSON(cJSON) ) {
-            qDebug() << "Not valid JSON: " << cJSON;
-            bLoadText = false;
-            continue;
-        }
+        sTime += "s:";
+        line.replace( sTime, "" );
+        QByteArray cJSON = line.toUtf8();
+        qDebug() << "Pure JSON: " << cJSON;
 
         QJsonDocument JSONDoc = QJsonDocument::fromJson(cJSON);
         QVariantMap varSensor = JSONDoc.toVariant().toMap();
 
         // Update sensor widgets
-        QPair<double, QVariantMap> pair(fTime_s, varSensor);
+        QPair<double, QVariantMap> pair(m_fSLTime_s, varSensor);
         sl_UpdateSensorData(pair);
-
     } while (!line.isNull());
 
     // Load text into logger
@@ -397,6 +384,7 @@ void MainWindow::sl_UpdateSensorData(QPair<double, QVariantMap> sensorRead) {
             }
         }
     }
+    // If not a ping/pong JSON than add to the logger
     else {
         if(m_udpCurLine != "") {
             QString sLog = "";
@@ -474,14 +462,13 @@ void MainWindow::sl_updateStatusBar(QString str, QString type) {
       // Update the current throttle bar
       QByteArray line;
       line.append(m_sStatBarRC);
-      if(checkForJSON(line) ) {
-          //qDebug() << "Parse JSON: " << line;
-          QJsonDocument JSONDoc = QJsonDocument::fromJson(line);
-          QVariantMap result = JSONDoc.toVariant().toMap();
-          int iThr = result["t"].toInt();
-          if(iThr < m_pRCThrottle->maximum() )
-            m_pRCThrottle->setValue(iThr);
-      }
+
+      //qDebug() << "Parse JSON: " << line;
+      QJsonDocument JSONDoc = QJsonDocument::fromJson(line);
+      QVariantMap result = JSONDoc.toVariant().toMap();
+      int iThr = result["t"].toInt();
+      if(iThr < m_pRCThrottle->maximum() )
+        m_pRCThrottle->setValue(iThr);
     }
     else if(type.contains("option") ) {
       m_sStatBarOptions = str;
@@ -513,31 +500,22 @@ void MainWindow::sl_recvCommand() {
     if(!m_bUdpSockCon)
         return;
 
-    // if data coming, then clean last message
-    if(m_pUdpSocket->bytesAvailable() ) {
-        m_udpCurLine = QByteArray(m_cUdpRecvBuf);
-
-
-        if(checkForJSON(m_udpCurLine) ) {
-            qDebug() << "Parse JSON: " << m_udpCurLine;
-            QJsonDocument JSONDoc = QJsonDocument::fromJson(m_udpCurLine);
-            QVariantMap result = JSONDoc.toVariant().toMap();
-
-            if(result.empty() )
-                return;
-
-            double fTimeElapsed_s = ((double)m_tSensorTime.elapsed() / 1000.f);
-            QPair<double, QVariantMap> pair(fTimeElapsed_s, result);
-            sl_UpdateSensorData(pair);
-        }
-
-        memset(m_cUdpRecvBuf, 0, sizeof(m_cUdpRecvBuf) );
+    if(!m_pUdpSocket->bytesAvailable() ) {
+        return;
     }
 
-    qint64 lineLength = m_pUdpSocket->read(m_cUdpRecvBuf, sizeof(m_cUdpRecvBuf) );
-    if (lineLength > 0) {
-         qDebug() << m_cUdpRecvBuf;
+    char buffer[512];
+    qint64 lineLength = m_pUdpSocket->read(buffer, sizeof(buffer) );
+    m_udpCurLine = QByteArray(buffer, lineLength);
+    QJsonDocument JSONDoc = QJsonDocument::fromJson(m_udpCurLine);
+    QVariantMap result = JSONDoc.toVariant().toMap();
+
+    if(result.empty() ) {
+        return;
     }
+
+    double fTimeElapsed_s = ((double)m_tSensorTime.elapsed() / 1000.f) + m_fSLTime_s;
+    sl_UpdateSensorData(QPair<double, QVariantMap>(fTimeElapsed_s, result) );
 }
 
 void MainWindow::connectToHost(const QString & hostName, quint16 port, QIODevice::OpenMode openMode) {

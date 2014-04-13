@@ -25,6 +25,7 @@ do_start() {
     --user $USER --group $USER \
     -b --make-pidfile \
     --chuid $USER \
+    --nicelevel -20 \
     --exec $DAEMON $ARGS
   log_end_msg $?
 }
