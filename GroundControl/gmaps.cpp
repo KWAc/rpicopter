@@ -1,4 +1,4 @@
-#include "qmaps.h"
+#include "gmaps.h"
 
 
 Maps::Maps(QWidget *parent)

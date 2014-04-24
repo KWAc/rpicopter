@@ -82,7 +82,7 @@ void Device::update_attitude() {
 }
 
 Device::Device( const AP_HAL::HAL *pHAL,
-                AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, GPS **pGPS, BattMonitor *pBat, RangeFinder *pRF, AP_AHRS_DCM *pAHRS, AP_InertialNav *pInertNav )
+                AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, AP_GPS *pGPS, BattMonitor *pBat, RangeFinder *pRF, AP_AHRS_DCM *pAHRS, AP_InertialNav *pInertNav )
 {
   m_iAltitude_cm      = 0;
 
@@ -230,7 +230,7 @@ void Device::init_barometer() {
 }
 
 void Device::update_inav() {
-  if(!(*m_pGPS)) {
+  if(!m_pGPS) {
     return;
   }
 
@@ -247,15 +247,15 @@ void Device::update_inav() {
 void Device::init_pids() {
   // Rate PIDs
   m_rgPIDS[PID_PIT_RATE].kP(0.50);
-  m_rgPIDS[PID_PIT_RATE].kI(0.45);
+  m_rgPIDS[PID_PIT_RATE].kI(0.65);
   m_rgPIDS[PID_PIT_RATE].imax(50);
 
   m_rgPIDS[PID_ROL_RATE].kP(0.50);
-  m_rgPIDS[PID_ROL_RATE].kI(0.45);
+  m_rgPIDS[PID_ROL_RATE].kI(0.65);
   m_rgPIDS[PID_ROL_RATE].imax(50);
 
-  m_rgPIDS[PID_YAW_RATE].kP(1.25);
-  m_rgPIDS[PID_YAW_RATE].kI(0.35);
+  m_rgPIDS[PID_YAW_RATE].kP(0.50);
+  m_rgPIDS[PID_YAW_RATE].kI(0.65);
   m_rgPIDS[PID_YAW_RATE].imax(50);
 
   m_rgPIDS[PID_THR_RATE].kP(0.75);  // For altitude hold
@@ -317,7 +317,8 @@ void Device::init_inertial() {
 }
 
 void Device::init_gps() {
-  (*m_pGPS)->init(m_pHAL->uartB, GPS::GPS_ENGINE_AIRBORNE_4G, NULL);
+  // Init the GPS without logging
+  m_pGPS->init(NULL);
   // Initialise the LEDs
   board_led.init();
 }
@@ -413,39 +414,29 @@ float Device::read_comp_deg() {
 }
 
 GPSData Device::read_gps() {
-  if(!(*m_pGPS)) {
+  if(!m_pGPS) {
     return m_ContGPS;
   }
 
-  (*m_pGPS)->update();
-  if((*m_pGPS)->new_data) {
-    if((*m_pGPS)->fix) {
-      m_ContGPS.latitude    = (*m_pGPS)->latitude;
-      m_ContGPS.longitude   = (*m_pGPS)->longitude;
-      m_ContGPS.altitude_cm = (*m_pGPS)->altitude_cm;
+  m_pGPS->update();
+  m_ContGPS.status = static_cast<uint_fast32_t>(m_pGPS->status() );
+  
+  if(m_ContGPS.status > AP_GPS::NO_FIX) {
+    m_ContGPS.latitude    = m_pGPS->location().lat;
+    m_ContGPS.longitude   = m_pGPS->location().lng;
+    m_ContGPS.altitude_cm = m_pGPS->location().alt;
 
-      m_ContGPS.gspeed_cms  = (*m_pGPS)->ground_speed_cm;
-      m_ContGPS.espeed_cms  = (*m_pGPS)->velocity_east();
-      m_ContGPS.nspeed_cms  = (*m_pGPS)->velocity_north();
-      m_ContGPS.dspeed_cms  = (*m_pGPS)->velocity_down();
+    m_ContGPS.gspeed_cms  = m_pGPS->ground_speed_cm();
 
-      // The fucking avr_g++ does NOT support dynamic C++ with class like objects in structs declared as static :(
-      // Hate this permittivity
-      m_ContGPS.heading_x   = (*m_pGPS)->velocity_vector().x;
-      m_ContGPS.heading_y   = (*m_pGPS)->velocity_vector().y;
-      m_ContGPS.heading_z   = (*m_pGPS)->velocity_vector().z;
-
-      m_ContGPS.gcourse_cd  = static_cast<int>((*m_pGPS)->ground_course_cd) / 100;
-      m_ContGPS.status_fix  = (*m_pGPS)->fix;
-      m_ContGPS.satelites   = (*m_pGPS)->num_sats;
-      m_ContGPS.time_week   = (*m_pGPS)->time_week;
-      m_ContGPS.time_week_s = (*m_pGPS)->time_week_ms / 1000.0;
-    } else {
-      m_pHAL->console->println("read_gps(): GPS not healthy\n");
-      m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, GPS_F) );
-    }
-    (*m_pGPS)->new_data = false;
+    m_ContGPS.gcourse_cd  = m_pGPS->ground_course_cd();
+    m_ContGPS.satelites   = m_pGPS->num_sats();
+    m_ContGPS.time_week   = m_pGPS->time_week();
+    m_ContGPS.time_week_s = m_pGPS->time_week_ms() / 1000.0;
+  } else {
+    m_pHAL->console->println("read_gps(): GPS not healthy\n");
+    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, GPS_F) );
   }
+
   return m_ContGPS;
 }
 

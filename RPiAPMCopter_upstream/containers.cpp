@@ -10,24 +10,18 @@ BaroData::BaroData() {
 }
 
 GPSData::GPSData() {
+  satelites   = 0;
+  status      = 0;
+
   latitude    = 0;
   longitude   = 0;
   altitude_cm = 0;
 
   gspeed_cms  = 0;
-  espeed_cms  = 0;
-  nspeed_cms  = 0;
-  dspeed_cms  = 0;
-
-  heading_x   = 0;
-  heading_y   = 0;
-  heading_z   = 0;
 
   gcourse_cd  = 0;
-  satelites   = 0;
-  status_fix  = 0;
   time_week   = 0;
-  time_week_s = 0;
+  time_week_s = 0.f;
 }
 
 GPSPosition::GPSPosition() {

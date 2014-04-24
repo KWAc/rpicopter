@@ -17,7 +17,7 @@ class AP_InertialNav;
 class AP_AHRS_DCM;
 class Compass;
 class AP_Baro;
-class GPS;
+class AP_GPS;
 class AP_GPS_Auto;
 class BattMonitor;
 class RangeFinder;
@@ -82,7 +82,7 @@ public:
   // Barometer
   AP_Baro            *m_pBaro;
   // GPS
-  GPS                **m_pGPS;
+  AP_GPS             *m_pGPS;
   // battery monitor
   BattMonitor        *m_pBat;
   // Sonar
@@ -93,7 +93,7 @@ public:
 public:
   // Accepts pointers to abstract base classes to handle different sensor types
   Device( const AP_HAL::HAL *,
-          AP_InertialSensor *, Compass *, AP_Baro *, GPS **, BattMonitor *, RangeFinder *, AP_AHRS_DCM *, AP_InertialNav *);
+          AP_InertialSensor *, Compass *, AP_Baro *, AP_GPS *, BattMonitor *, RangeFinder *, AP_AHRS_DCM *, AP_InertialNav *);
 
   Vector3f calibrate_inertial();
 

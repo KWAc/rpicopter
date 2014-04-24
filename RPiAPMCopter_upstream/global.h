@@ -22,16 +22,14 @@ const AP_HAL::HAL&         hal = AP_HAL_BOARD_DRIVER;
 /* TODO: Maybe add for support other ArduPilot hardware (APM1, PX4, ..) */
 AP_InertialSensor_MPU6000  _INERT;                                                            // MPU6050 accel/gyro chip
 AP_Compass_HMC5843         _COMP;                                                             // Magnetometer aka compass
-AP_Baro_MS5611             _BARO(&AP_Baro_MS5611::spi);                                       // Barometer
+AP_Baro_MS5611             _BARO      (&AP_Baro_MS5611::spi);                                       // Barometer
 BattMonitor                _BAT;                                                              // battery monitor
 AP_RangeFinder_MaxsonarXL  _SON(hal.analogin->channel(3), new ModeFilterInt16_Size5(2) );     // Sonar
 
-GPS*                       _GPS;                                                              // GPS
-AP_GPS_Auto                _AUTO_GPS(&_GPS);
+AP_GPS                     _GPS;                                                              // GPS
 GPS_Glitch                 _GPS_GLITCH(_GPS);
-
-AP_AHRS_DCM                _AHRS(_INERT, _BARO, _GPS);
-AP_InertialNav             _INERT_NAV(_AHRS, _BARO, _GPS, _GPS_GLITCH);
+AP_AHRS_DCM                _AHRS      (_INERT, _BARO, _GPS);
+AP_InertialNav             _INERT_NAV (_AHRS, _BARO, _GPS_GLITCH);
 
 ///////////////////////////////////////////////////////////
 // Abstracted hardware abstraction classes :D

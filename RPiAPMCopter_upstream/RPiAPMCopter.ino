@@ -72,9 +72,6 @@ void inav_loop() {
 }
 
 void setup() {
-  // Totally necessary
-  _GPS = &_AUTO_GPS;
-
   // Prepare scheduler for the main loop ..
   _SCHED.add_task(&taskINAV, 0);  // Inertial, GPS, Compass, Barometer sensor fusions (slow) ==> running at 50 Hz
   // .. and the sensor output functions

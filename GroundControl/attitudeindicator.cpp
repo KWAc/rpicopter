@@ -1,6 +1,6 @@
 #include <QtWidgets>
 #include <QDebug>
-#include "qattitudeindicator.h"
+#include "attitudeindicator.h"
 
 
 qreal defaultsRollRotate[numbRollLine]= {270.0,30.0,15.0,15.0,10.0,10.0,10.0,10.0,10.0,10.0,15.0,15.0,30.0};

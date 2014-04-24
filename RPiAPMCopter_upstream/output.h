@@ -82,29 +82,23 @@ void send_baro() {
 // gps
 ///////////////////////////////////////////////////////////
 void send_gps() {
-  if(!(*_HAL_BOARD.m_pGPS)->fix) {
+  // Has fix?
+  if(!_HAL_BOARD.m_pGPS->status() > 1) {
     return;
   }
 
   GPSData gps = _HAL_BOARD.get_gps();
-  hal.console->printf("{\"type\":\"s_gps\",\"lat\":%.1f,\"lon\":%.1f,\"a_cm\":%ld,\"g_cms\":%.1f,\"e_cms\":%.1f,\"n_cms\":%.1f,\"d_cms\":%.1f,\"h_x\":%.1f,\"h_y\":%.1f,\"h_z\":%.1f,\"g_cd\":%ld,\"sat\":%d,\"tw\":%d,\"tw_s\":%ld}\n",
-                      (static_cast<double>(gps.latitude) )  / 10000000.f,
-                      (static_cast<double>(gps.longitude) ) / 10000000.f,
+  hal.console->printf("{\"type\":\"s_gps\",\"lat_dege7\":%ld,\"lon_dege7\":%ld,\"a_cm\":%ld,\"g_cms\":%ld,\"g_cd\":%ld,\"sat\":%d,\"tw\":%d,\"tw_s\":%.2f}\n",
+                      gps.latitude,
+                      gps.longitude,
                       gps.altitude_cm,
-
-                      static_cast<double>(gps.gspeed_cms),
-                      static_cast<double>(gps.espeed_cms),
-                      static_cast<double>(gps.nspeed_cms),
-                      static_cast<double>(gps.dspeed_cms),
-
-                      static_cast<double>(gps.heading_x),
-                      static_cast<double>(gps.heading_y),
-                      static_cast<double>(gps.heading_z),
-
+                      
+                      gps.gspeed_cms,
+                      
                       gps.gcourse_cd,
                       gps.satelites,
                       gps.time_week,
-                      gps.time_week_s);
+                      static_cast<double>(gps.time_week_s) );
 }
 ///////////////////////////////////////////////////////////
 // battery monitor

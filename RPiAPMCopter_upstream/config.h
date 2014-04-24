@@ -105,14 +105,14 @@
 #define RADIO_MAX_OFFS       7      // Maximum length of command message via radio without stop bit
 #define APM_IOCHAN_CNT 	     8
 
-#define COM_PKT_TIMEOUT      500    // in ms
-#define UART_A_TIMEOUT       100    // in ms
+#define COM_PKT_TIMEOUT      750    // Time-out in ms; If the time-out is triggered the quadcopter will go down
+#define UART_A_TIMEOUT       250    // Time-out of the console serial port in ms; If time-out is triggered the firmware tries to receive packets via the 3DR radio on uartC
 
 #define PID_ARGS             6      // Nr of arguments for PID configuration
 #define PID_BUFFER_S         5
 
-#define COMP_ARGS            4      // Nr of arguments for on-flight drift compensation
-#define GPSP_ARGS            4      // Nr of arguments for GPSPosition structure
+#define COMP_ARGS            4      // Nr. of arguments for on-flight drift compensation
+#define GPSP_ARGS            4      // Nr. of arguments for GPSPosition structure
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Device module

@@ -1,4 +1,4 @@
-#include "qpiddialog.h"
+#include "piddialog.h"
 
 
 QPIDConfig::QPIDConfig(QUdpSocket *pSock, QWidget *parent) : QWidget(parent) {

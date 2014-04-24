@@ -1,4 +1,4 @@
-#include "qpiddockwidget.h"
+#include "piddockwidget.h"
 #include <QtWidgets>
 
 

@@ -8,13 +8,13 @@
 #include <QSerialPortInfo>
 #include <QSettings>
 
-#include "qplotdockwidget.h"
-#include "qattitudedockwidget.h"
-#include "qrcwidget.h"
-#include "qlogdockwidget.h"
-#include "qpiddockwidget.h"
-#include "qpiddialog.h"
-#include "qmaps.h"
+#include "plotdockwidget.h"
+#include "attitudedockwidget.h"
+#include "rcwidget.h"
+#include "logdockwidget.h"
+#include "piddockwidget.h"
+#include "piddialog.h"
+#include "gmaps.h"
 
 
 #define PING_T_MS 250

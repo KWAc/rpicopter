@@ -18,24 +18,18 @@ struct BaroData {
 
 // gps data container
 struct GPSData {
+  uint_fast8_t  satelites;
+  int_fast16_t  status;
+
   int_fast32_t  latitude;     // in degrees * 10,000,000
   int_fast32_t  longitude;    // in degrees * 10,000,000
   int_fast32_t  altitude_cm;  // altitude in cm
-
-  int_fast16_t  gspeed_cms;   // ground speed in cm/sec
-  int_fast16_t  espeed_cms;   // velocity east
-  int_fast16_t  nspeed_cms;   // velocity north
-  int_fast16_t  dspeed_cms;   // velocity down
-
-  float         heading_x;
-  float         heading_y;
-  float         heading_z;
-
+  
+  uint_fast32_t gspeed_cms;   // ground speed in cm/sec
+  
   int_fast32_t  gcourse_cd;   // ground course in degree
-  uint_fast8_t  satelites;
-  int_fast16_t  status_fix;
   uint_fast16_t time_week;
-  uint_fast32_t time_week_s;
+  float  time_week_s;
 
   GPSData();
 };

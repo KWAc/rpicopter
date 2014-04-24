@@ -1,0 +1,21 @@
+auto lo
+
+iface lo inet loopback
+iface eth0 inet dhcp
+
+# WiFi Setup
+#auto wlan0
+#allow-hotplug wlan0
+
+# Static adress for usage as access point
+iface wlan0 inet static
+#wireless-power off
+address 192.168.42.1
+netmask 255.255.255.0
+
+# Old Config
+#iface wlan0 inet manual
+#wpa-roam /etc/wpa_supplicant/wpa_supplicant.conf
+#iface default inet dhcp
+
+up iptables-restore < /etc/iptables.ipv4.nat

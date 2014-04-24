@@ -3,7 +3,7 @@
 
 #include <QtWidgets>
 #include <QtWebKitWidgets>
-#include <QGeoCoordinate>
+
 
 typedef QPair<double, double> PointF;
 typedef QList<PointF> RouteF;
@@ -50,6 +50,7 @@ public slots:
     }
 
     void sl_submitRoute() {
+        qDebug() << "Submit route ..";
         getWaypoints();
     }
 

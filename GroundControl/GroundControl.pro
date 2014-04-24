@@ -14,23 +14,23 @@ TEMPLATE =  app
 SOURCES +=  main.cpp\
             mainwindow.cpp \
             qcustomplot.cpp \
-            qattitudeindicator.cpp \
-            qpiddockwidget.cpp \
-            qpiddialog.cpp\
-            qrcwidget.cpp \
+            attitudeindicator.cpp \
+            piddockwidget.cpp \
+            piddialog.cpp\
+            rcwidget.cpp \
             absframe.cpp \
             container.cpp\
-            qmaps.cpp
+            gmaps.cpp
 
 HEADERS  += mainwindow.h\
             qcustomplot.h \
-            qplotdockwidget.h \
-            qattitudeindicator.h \
-            qattitudedockwidget.h \
-            qrcwidget.h \
-            qlogdockwidget.h \
-            qpiddockwidget.h \
-            qpiddialog.h \
+            plotdockwidget.h \
+            attitudeindicator.h \
+            attitudedockwidget.h \
+            rcwidget.h \
+            logdockwidget.h \
+            piddockwidget.h \
+            piddialog.h \
             absframe.h \
             container.h \
-            qmaps.h
+            gmaps.h
