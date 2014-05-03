@@ -246,35 +246,35 @@ void Device::update_inav() {
 
 void Device::init_pids() {
   // Rate PIDs
-  m_rgPIDS[PID_PIT_RATE].kP(0.25);
-  m_rgPIDS[PID_PIT_RATE].kI(0.1);
-  m_rgPIDS[PID_PIT_RATE].kD(0.0025);
+  m_rgPIDS[PID_PIT_RATE].kP(0.55);
+  m_rgPIDS[PID_PIT_RATE].kI(0.15);
+  m_rgPIDS[PID_PIT_RATE].kD(0.01);
   m_rgPIDS[PID_PIT_RATE].imax(50);
 
-  m_rgPIDS[PID_ROL_RATE].kP(0.25);
-  m_rgPIDS[PID_ROL_RATE].kI(0.1);
-  m_rgPIDS[PID_ROL_RATE].kD(0.0025);
+  m_rgPIDS[PID_ROL_RATE].kP(0.55);
+  m_rgPIDS[PID_ROL_RATE].kI(0.15);
+  m_rgPIDS[PID_ROL_RATE].kD(0.01);
   m_rgPIDS[PID_ROL_RATE].imax(50);
 
-  m_rgPIDS[PID_YAW_RATE].kP(0.50);
-  m_rgPIDS[PID_YAW_RATE].kI(0.1);
-  m_rgPIDS[PID_YAW_RATE].kD(0);
+  m_rgPIDS[PID_YAW_RATE].kP(0.55);
+  m_rgPIDS[PID_YAW_RATE].kI(0.25);
+  m_rgPIDS[PID_YAW_RATE].kD(0.0f);
   m_rgPIDS[PID_YAW_RATE].imax(50);
 
   m_rgPIDS[PID_THR_RATE].kP(0.75);  // For altitude hold
   m_rgPIDS[PID_THR_RATE].kI(0.25);  // For altitude hold
-  m_rgPIDS[PID_THR_RATE].kD(0);
+  m_rgPIDS[PID_THR_RATE].kD(0.0f);  // For altitude hold
   m_rgPIDS[PID_THR_RATE].imax(100); // For altitude hold
 
   m_rgPIDS[PID_ACC_RATE].kP(1.50);  // For altitude hold
   m_rgPIDS[PID_ACC_RATE].kI(0.75);  // For altitude hold
-  m_rgPIDS[PID_ACC_RATE].kD(0);
+  m_rgPIDS[PID_ACC_RATE].kD(0.0f);  // For altitude hold
   m_rgPIDS[PID_ACC_RATE].imax(100); // For altitude hold
 
   // STAB PIDs
-  m_rgPIDS[PID_PIT_STAB].kP(5.50);
-  m_rgPIDS[PID_ROL_STAB].kP(5.50);
-  m_rgPIDS[PID_YAW_STAB].kP(5.50);
+  m_rgPIDS[PID_PIT_STAB].kP(3.65);
+  m_rgPIDS[PID_ROL_STAB].kP(3.65);
+  m_rgPIDS[PID_YAW_STAB].kP(3.65);
   m_rgPIDS[PID_THR_STAB].kP(5.50);  // For altitude hold
   m_rgPIDS[PID_ACC_STAB].kP(15.50); // For altitude hold
 }
