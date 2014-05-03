@@ -136,13 +136,13 @@ def trnm_thr():
 
           # PID config is about to change the sensitivity of the model to changes in attitude
           if p['type'] == 'pid':
-            com = "PID#%.2f,%.2f,%.2f;%.2f,%.2f,%.2f;%.2f,%.2f,%.2f;%.2f,%.2f,%.2f;%.2f,%.2f,%.2f;%.2f,%.2f,%.2f,%.2f,%.2f" % (
-              p['pit_rkp'], p['pit_rki'], p['pit_rimax'],
-              p['rol_rkp'], p['rol_rki'], p['rol_rimax'],
-              p['yaw_rkp'], p['yaw_rki'], p['yaw_rimax'],
-              p['thr_rkp'], p['thr_rki'], p['thr_rimax'],
-              p['acc_rkp'], p['acc_rki'], p['acc_rimax'],
-              p['pit_skp'], p['rol_skp'], p['yaw_skp'], p['thr_skp'], p['acc_skp'] )
+            com = "PID#%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.2f,%.2f,%.2f" % (
+              p['p_rkp'], p['p_rki'], p['p_rkd'], p['p_rimax'],
+              p['r_rkp'], p['r_rki'], p['r_rkd'], p['r_rimax'],
+              p['y_rkp'], p['y_rki'], p['y_rkd'], p['y_rimax'],
+              p['t_rkp'], p['t_rki'], p['t_rkd'], p['t_rimax'],
+              p['a_rkp'], p['a_rki'], p['a_rkd'], p['a_rimax'],
+              p['p_skp'], p['r_skp'], p['y_skp'], p['t_skp'], p['a_skp'] )
             THR_LOCK.acquire()
             send_data(com)
             THR_LOCK.release()

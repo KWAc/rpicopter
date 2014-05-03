@@ -129,14 +129,17 @@ void send_pids_attitude() {
   // Capture values
   float pit_rkp   = _HAL_BOARD.m_rgPIDS[PID_PIT_RATE].kP();
   float pit_rki   = _HAL_BOARD.m_rgPIDS[PID_PIT_RATE].kI();
+  float pit_rkd   = _HAL_BOARD.m_rgPIDS[PID_PIT_RATE].kD();
   float pit_rimax = _HAL_BOARD.m_rgPIDS[PID_PIT_RATE].imax();
 
   float rol_rkp   = _HAL_BOARD.m_rgPIDS[PID_ROL_RATE].kP();
   float rol_rki   = _HAL_BOARD.m_rgPIDS[PID_ROL_RATE].kI();
+  float rol_rkd   = _HAL_BOARD.m_rgPIDS[PID_ROL_RATE].kD();
   float rol_rimax = _HAL_BOARD.m_rgPIDS[PID_ROL_RATE].imax();
 
   float yaw_rkp   = _HAL_BOARD.m_rgPIDS[PID_YAW_RATE].kP();
   float yaw_rki   = _HAL_BOARD.m_rgPIDS[PID_YAW_RATE].kI();
+  float yaw_rkd   = _HAL_BOARD.m_rgPIDS[PID_YAW_RATE].kD();
   float yaw_rimax = _HAL_BOARD.m_rgPIDS[PID_YAW_RATE].imax();
 
   float pit_skp   = _HAL_BOARD.m_rgPIDS[PID_PIT_STAB].kP();
@@ -144,13 +147,13 @@ void send_pids_attitude() {
   float yaw_skp   = _HAL_BOARD.m_rgPIDS[PID_YAW_STAB].kP();
 
   hal.console->printf("{\"type\":\"pid_cnf\","
-                      "\"pit_rkp\":%.2f,\"pit_rki\":%.2f,\"pit_rimax\":%.2f,"
-                      "\"rol_rkp\":%.2f,\"rol_rki\":%.2f,\"rol_rimax\":%.2f,"
-                      "\"yaw_rkp\":%.2f,\"yaw_rki\":%.2f,\"yaw_rimax\":%.2f,"
-                      "\"pit_skp\":%.2f,\"rol_skp\":%.2f,\"yaw_skp\":%.2f}\n",
-                      static_cast<double>(pit_rkp), static_cast<double>(pit_rki), static_cast<double>(pit_rimax),
-                      static_cast<double>(rol_rkp), static_cast<double>(rol_rki), static_cast<double>(rol_rimax),
-                      static_cast<double>(yaw_rkp), static_cast<double>(yaw_rki), static_cast<double>(yaw_rimax),
+                      "\"p_rkp\":%.2f,\"p_rki\":%.2f,\"p_rkd\":%.4f,\"p_rimax\":%.2f,"
+                      "\"r_rkp\":%.2f,\"r_rki\":%.2f,\"r_rkd\":%.4f,\"r_rimax\":%.2f,"
+                      "\"y_rkp\":%.2f,\"y_rki\":%.2f,\"y_rkd\":%.4f,\"y_rimax\":%.2f,"
+                      "\"p_skp\":%.2f,\"r_skp\":%.2f,\"y_skp\":%.4f}\n",
+                      static_cast<double>(pit_rkp), static_cast<double>(pit_rki), static_cast<double>(pit_rkd), static_cast<double>(pit_rimax),
+                      static_cast<double>(rol_rkp), static_cast<double>(rol_rki), static_cast<double>(rol_rkd), static_cast<double>(rol_rimax),
+                      static_cast<double>(yaw_rkp), static_cast<double>(yaw_rki), static_cast<double>(yaw_rkd), static_cast<double>(yaw_rimax),
                       static_cast<double>(pit_skp), static_cast<double>(rol_skp), static_cast<double>(yaw_skp) );
 }
 
@@ -158,21 +161,23 @@ void send_pids_altitude() {
   // Capture values
   float thr_rkp   = _HAL_BOARD.m_rgPIDS[PID_THR_RATE].kP();
   float thr_rki   = _HAL_BOARD.m_rgPIDS[PID_THR_RATE].kI();
+  float thr_rkd   = _HAL_BOARD.m_rgPIDS[PID_THR_RATE].kD();
   float thr_rimax = _HAL_BOARD.m_rgPIDS[PID_THR_RATE].imax();
 
   float acc_rkp   = _HAL_BOARD.m_rgPIDS[PID_ACC_RATE].kP();
   float acc_rki   = _HAL_BOARD.m_rgPIDS[PID_ACC_RATE].kI();
+  float acc_rkd   = _HAL_BOARD.m_rgPIDS[PID_ACC_RATE].kD();
   float acc_rimax = _HAL_BOARD.m_rgPIDS[PID_ACC_RATE].imax();
 
   float thr_skp   = _HAL_BOARD.m_rgPIDS[PID_THR_STAB].kP();
   float acc_skp   = _HAL_BOARD.m_rgPIDS[PID_ACC_STAB].kP();
 
   hal.console->printf("{\"type\":\"pid_cnf\","
-                      "\"thr_rkp\":%.2f,\"thr_rki\":%.2f,\"thr_rimax\":%.2f,"
-                      "\"acc_rkp\":%.2f,\"acc_rki\":%.2f,\"acc_rimax\":%.2f,"
-                      "\"thr_skp\":%.2f,\"acc_skp\":%.2f}\n",
-                      static_cast<double>(thr_rkp), static_cast<double>(thr_rki), static_cast<double>(thr_rimax),
-                      static_cast<double>(acc_rkp), static_cast<double>(acc_rki), static_cast<double>(acc_rimax),
+                      "\"t_rkp\":%.2f,\"t_rki\":%.2f,\"t_rkd\":%.4f,\"t_rimax\":%.2f,"
+                      "\"a_rkp\":%.2f,\"a_rki\":%.2f,\"a_rkd\":%.4f,\"a_rimax\":%.2f,"
+                      "\"t_skp\":%.2f,\"a_skp\":%.2f}\n",
+                      static_cast<double>(thr_rkp), static_cast<double>(thr_rki), static_cast<double>(thr_rkd), static_cast<double>(thr_rimax),
+                      static_cast<double>(acc_rkp), static_cast<double>(acc_rki), static_cast<double>(acc_rkd), static_cast<double>(acc_rimax),
                       static_cast<double>(thr_skp), static_cast<double>(acc_skp) );
 }
 

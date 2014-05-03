@@ -249,27 +249,32 @@ bool Receiver::parse_pid_conf(char* buffer) {
       case 0:
         m_pHalBoard->m_rgPIDS[PID_PIT_RATE].kP(pids[0]);
         m_pHalBoard->m_rgPIDS[PID_PIT_RATE].kI(pids[1]);
-        m_pHalBoard->m_rgPIDS[PID_PIT_RATE].imax(pids[2]);
+        m_pHalBoard->m_rgPIDS[PID_PIT_RATE].kD(pids[2]);
+        m_pHalBoard->m_rgPIDS[PID_PIT_RATE].imax(pids[3]);
         break;
       case 1:
         m_pHalBoard->m_rgPIDS[PID_ROL_RATE].kP(pids[0]);
         m_pHalBoard->m_rgPIDS[PID_ROL_RATE].kI(pids[1]);
-        m_pHalBoard->m_rgPIDS[PID_ROL_RATE].imax(pids[2]);
+        m_pHalBoard->m_rgPIDS[PID_ROL_RATE].kD(pids[2]);
+        m_pHalBoard->m_rgPIDS[PID_ROL_RATE].imax(pids[3]);
         break;
       case 2:
         m_pHalBoard->m_rgPIDS[PID_YAW_RATE].kP(pids[0]);
         m_pHalBoard->m_rgPIDS[PID_YAW_RATE].kI(pids[1]);
-        m_pHalBoard->m_rgPIDS[PID_YAW_RATE].imax(pids[2]);
+        m_pHalBoard->m_rgPIDS[PID_YAW_RATE].kD(pids[2]);
+        m_pHalBoard->m_rgPIDS[PID_YAW_RATE].imax(pids[3]);
         break;
       case 3:
         m_pHalBoard->m_rgPIDS[PID_THR_RATE].kP(pids[0]);
         m_pHalBoard->m_rgPIDS[PID_THR_RATE].kI(pids[1]);
-        m_pHalBoard->m_rgPIDS[PID_THR_RATE].imax(pids[2]);
+        m_pHalBoard->m_rgPIDS[PID_THR_RATE].kD(pids[2]);
+        m_pHalBoard->m_rgPIDS[PID_THR_RATE].imax(pids[3]);
         break;
       case 4:
         m_pHalBoard->m_rgPIDS[PID_ACC_RATE].kP(pids[0]);
         m_pHalBoard->m_rgPIDS[PID_ACC_RATE].kI(pids[1]);
-        m_pHalBoard->m_rgPIDS[PID_ACC_RATE].imax(pids[2]);
+        m_pHalBoard->m_rgPIDS[PID_ACC_RATE].kD(pids[2]);
+        m_pHalBoard->m_rgPIDS[PID_ACC_RATE].imax(pids[3]);
         break;
       case 5:
         m_pHalBoard->m_rgPIDS[PID_PIT_STAB].kP(pids[0]);
