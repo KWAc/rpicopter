@@ -353,7 +353,7 @@ bool Receiver::read_uartA(uint_fast16_t bytesAvail) {
   bool bRet = false;
   for(; bytesAvail > 0; bytesAvail--) {
     char c = static_cast<char>(m_pHalBoard->m_pHAL->console->read() );// read next byte
-    if(c == '\n') {                                     // new line reached - process cmd
+    if(c == '\n' || c == char(254) ) {                  // new line or special termination signature (■): Process cmd
       m_cBuffer[offset] = '\0';                         // null terminator
       bRet = parse(m_cBuffer);
       if(bRet) {
