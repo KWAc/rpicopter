@@ -95,8 +95,6 @@ public:
   Device( const AP_HAL::HAL *,
           AP_InertialSensor *, Compass *, AP_Baro *, AP_GPS *, BattMonitor *, RangeFinder *, AP_AHRS_DCM *, AP_InertialNav *);
 
-  Vector3f calibrate_inertial();
-
   void init_barometer();
   void init_pids();
   void init_compass();

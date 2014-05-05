@@ -317,7 +317,6 @@ void Device::init_inertial() {
   m_pInert->init_accel();
 
   // Calibrate the inertial
-  calibrate_inertial();
   m_t32Inertial = m_pHAL->scheduler->millis();
 }
 
@@ -438,7 +437,7 @@ GPSData Device::read_gps() {
     m_ContGPS.time_week   = m_pGPS->time_week();
     m_ContGPS.time_week_s = m_pGPS->time_week_ms() / 1000.0;
   } else {
-    m_pHAL->console->println("read_gps(): GPS not healthy\n");
+    //m_pHAL->console->println("read_gps(): GPS not healthy\n");
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, GPS_F) );
   }
 
@@ -496,81 +495,6 @@ GPSData Device::get_gps() {
 
 BattData Device::get_bat() {
   return m_ContBat;
-}
-
-/*
- * Find the offset from total equilibrium.
- * Because the vehicle is never totally horizontally,
- * we will measure the discrepancy to compensate unequal motor thrust at start.
- */
-Vector3f Device::calibrate_inertial() {
-  Vector3f offset;
-  float samples_acc[ATTITUDE_SAMPLE_CNT];
-  float samples_avg = 0;
-  float samples_dev = 0;
-
-  m_fInertRolOffs = 0;
-  m_fInertPitOffs = 0;
-
-  m_fInertPitCor = 0;
-  m_fInertRolCor = 0;
-
-  float fInertRolOffs = 0;
-  float fInertPitOffs = 0;
-
-  // initially switch on LEDs
-  //leds_on(); bool led = true;
-
-  while(true) {
-    samples_avg = 0;
-    samples_dev = 0;
-
-    fInertRolOffs = 0;
-    fInertPitOffs = 0;
-
-    // Take 10 samples in less than one second
-    for(uint_fast8_t i = 0; i < ATTITUDE_SAMPLE_CNT; i++) {
-      m_pInert->update();
-      offset = read_accl_deg();
-
-      m_pHAL->console->printf("Gyroscope calibration - Offsets are roll:%f, pitch:%f.\n",
-                              static_cast<double>(offset.y), 
-                              static_cast<double>(offset.x) );
-
-      fInertPitOffs += offset.x / static_cast<float>(ATTITUDE_SAMPLE_CNT);
-      fInertRolOffs += offset.y / static_cast<float>(ATTITUDE_SAMPLE_CNT);
-
-      // Check whether the data set is useable
-      float cur_sample = sqrt(pow2_f(offset.x) + pow2_f(offset.y) );
-      samples_acc[i] = cur_sample;
-      samples_avg += cur_sample / ATTITUDE_SAMPLE_CNT;
-
-      //flash_leds(led); led = !led;  // Let LEDs blink
-      m_pHAL->scheduler->delay(50);     // Wait 50ms
-    }
-
-    // Calc standard deviation
-    for(uint_fast8_t i = 0; i < ATTITUDE_SAMPLE_CNT; i++) {
-      samples_dev += pow2_f(samples_acc[i] - samples_avg) / static_cast<float>(ATTITUDE_SAMPLE_CNT);
-    }
-    samples_dev = sqrt(samples_dev);
-    // If std dev is low: exit loop
-    if(samples_dev < samples_avg / 2.f) {
-      break;
-    }
-  }
-
-  // Save offsets
-  m_fInertPitOffs = offset.x = fInertPitOffs;
-  m_fInertRolOffs = offset.y = fInertRolOffs;
-
-  //leds_off();   // switch off leds
-  m_pHAL->console->printf("Gyroscope calibrated - Offsets are roll:%f, pitch:%f.\nAverage euclidian distance:%f, standard deviation:%f\n",
-                          static_cast<double>(m_fInertRolOffs), 
-                          static_cast<double>(m_fInertPitOffs), 
-                          static_cast<double>(samples_avg), 
-                          static_cast<double>(samples_dev) );
-  return offset;
 }
 
 float Device::get_altitude_cm(Device *pDev, bool &bOK) {

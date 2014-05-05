@@ -1,3 +1,5 @@
+#include <AP_InertialSensor.h> // for user interactant
+
 #include "receiver.h"
 #include "device.h"
 #include "BattMonitor.h"
@@ -144,6 +146,20 @@ bool Receiver::parse_waypoint(char *buffer) {
   return bRet;
 }
 
+void Receiver::run_calibration() {
+  float roll_trim, pitch_trim;
+  while(m_pHalBoard->m_pHAL->console->available() ) {
+    m_pHalBoard->m_pHAL->console->read();
+  }
+
+#if !defined( __AVR_ATmega1280__ )
+  AP_InertialSensor_UserInteractStream interact(m_pHalBoard->m_pHAL->console);
+  m_pHalBoard->m_pInert->calibrate_accel(&interact, roll_trim, pitch_trim);
+#else
+	m_pHalBoard->m_pHAL->console->println_P(PSTR("calibrate_accel not available on 1280"));
+#endif
+}
+
 bool Receiver::parse_gyr_cal(char* buffer) {
   // If motors run: Do nothing!
   if(m_rgChannelsRC == NULL || m_pHalBoard == NULL) {
@@ -156,14 +172,14 @@ bool Receiver::parse_gyr_cal(char* buffer) {
   char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
   char *chk = strtok(NULL, "*");                    // chk = chksum
 
-  if(verf_chksum(str, chk) ) {                    // if chksum OK
+  if(verf_chksum(str, chk) ) {                      // if chksum OK
     char *cstr = strtok (buffer, ",");
     bool bcalib = (bool)atoi(cstr);
 
     // only if quadro is _not_ armed
     if(bcalib) {
       // This functions checks whether model is ready for a calibration
-      m_pHalBoard->calibrate_inertial();
+      run_calibration();
     }
   }
   return true;

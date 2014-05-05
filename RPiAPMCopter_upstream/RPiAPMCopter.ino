@@ -112,7 +112,7 @@ void setup() {
 
   // GPS initializing
   hal.console->printf("%.1f%%: Init GPS", progress_f(6, 9) );
-  _HAL_BOARD.init_gps();
+  //_HAL_BOARD.init_gps();
 
   // battery monitor initializing
   hal.console->printf("\n%.1f%%: Init battery monitor\n", progress_f(7, 9) );

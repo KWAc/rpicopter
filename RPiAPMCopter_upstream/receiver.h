@@ -34,6 +34,9 @@ private:
   bool    verf_chksum     (char *str, char *chk);
   float*  parse_pid_substr(char *);
 
+  // Inertial calibration
+  void run_calibration();
+  
 protected:
   bool    parse_ctrl_com  (char *);
   bool    parse_radio     (char *); // Very compact to fit into 8 bytes, stop byte and checksum byte inclusive
