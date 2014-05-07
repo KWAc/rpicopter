@@ -86,9 +86,6 @@ Device::Device( const AP_HAL::HAL *pHAL,
 {
   m_iAltitude_cm      = 0;
 
-  m_fInertRolOffs     = 0.f;
-  m_fInertPitOffs     = 0.f;
-
   m_fInertRolCor      = 0.f;
   m_fInertPitCor      = 0.f;
 
@@ -376,9 +373,9 @@ Vector3f Device::read_accl_deg() {
   // Calculate roll and pitch in degrees from the filtered acceleration readouts (attitude)
   float fpYZ = sqrt(pow2_f(m_vAccel_deg.y) + pow2_f(m_vAccel_deg.z) );
   // Pitch
-  m_vAccel_deg.x = ToDeg(atan2(m_vAccel_deg.x, fpYZ) ) - m_fInertPitOffs;
+  m_vAccel_deg.x = ToDeg(atan2(m_vAccel_deg.x, fpYZ) );
   // Roll
-  m_vAccel_deg.y = ToDeg(atan2(-m_vAccel_deg.y, -m_vAccel_deg.z) ) - m_fInertRolOffs;
+  m_vAccel_deg.y = ToDeg(atan2(-m_vAccel_deg.y, -m_vAccel_deg.z) );
 
   return m_vAccel_deg;
 }

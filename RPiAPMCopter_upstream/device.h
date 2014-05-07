@@ -42,10 +42,6 @@ private:
   Vector3f m_vAccelPG_cmss; // acceleration readout
   Vector3f m_vAccelMG_cmss; // acceleration readout minus G constant (~9.81)
 
-  // Set by inertial calibration
-  float m_fInertRolOffs;
-  float m_fInertPitOffs;
-
 protected:
   float        m_fCmpH; // Compass heading
   float        m_fGpsH; // GPS heading
@@ -67,9 +63,6 @@ protected:
   Vector3f  read_gyro_deg();        // converts sensor relative readout to absolute attitude in degrees and saves in m_vGyro_deg
   Vector3f  read_accl_deg();       // converts sensor relative readout to absolute attitude and saves in m_vAccel_deg
 
-  // Attitude heading reference system
-  AP_AHRS_DCM        *m_pAHRS;
-
 public:
   // PID configuration and remote contro
   PID m_rgPIDS[NR_OF_PIDS];
@@ -89,7 +82,9 @@ public:
   RangeFinder        *m_pRF;
   // Inertial Navigation
   AP_InertialNav     *m_pInertNav;
-
+  // Attitude heading reference system
+  AP_AHRS_DCM        *m_pAHRS;
+  
 public:
   // Accepts pointers to abstract base classes to handle different sensor types
   Device( const AP_HAL::HAL *,

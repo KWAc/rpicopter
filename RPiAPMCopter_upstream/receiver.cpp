@@ -1,4 +1,5 @@
 #include <AP_InertialSensor.h> // for user interactant
+#include <AP_AHRS.h>
 
 #include "receiver.h"
 #include "device.h"
@@ -155,6 +156,8 @@ void Receiver::run_calibration() {
 #if !defined( __AVR_ATmega1280__ )
   AP_InertialSensor_UserInteractStream interact(m_pHalBoard->m_pHAL->console);
   m_pHalBoard->m_pInert->calibrate_accel(&interact, roll_trim, pitch_trim);
+  // Adjust AHRS
+  m_pHalBoard->m_pAHRS->set_trim(Vector3f(roll_trim, pitch_trim, 0) );
 #else
 	m_pHalBoard->m_pHAL->console->println_P(PSTR("calibrate_accel not available on 1280"));
 #endif

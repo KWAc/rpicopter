@@ -129,8 +129,6 @@
 
 #define SONAR_SCALING        5
 
-#define ATTITUDE_SAMPLE_CNT  10     // Inertial calibration sample count
-
 #define COMP_ANNEAL_SLOPE    1.0f   // Slope modifier of the annealing function
 #define COMP_FUSION_RATE     0.75f  // Sensor fusion rate: higher => faster annealing
 

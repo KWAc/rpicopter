@@ -49,6 +49,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Declarations
 ////////////////////////////////////////////////////////////////////////////////
+inline void load_settings();
+
 inline void main_loop();
 inline void inav_loop();
 Task taskINAV(&inav_loop, INAV_T_MS, 1);
@@ -71,6 +73,17 @@ void inav_loop() {
 #endif
 }
 
+void load_settings() {
+  if (!_COMP._learn.load() ) { }
+  // change the default for the AHRS_GPS_GAIN for ArduCopter
+  // if it hasn't been set by the user
+  if (!_AHRS.gps_gain.load() ) { }
+  // Setup different AHRS gains for ArduCopter than the default
+  // but allow users to override in their config
+  if (!_AHRS._kp.load() ) { }
+  if (!_AHRS._kp_yaw.load() ) { }
+}
+
 void setup() {
   // Prepare scheduler for the main loop ..
   _SCHED.add_task(&taskINAV, 0);  // Inertial, GPS, Compass, Barometer sensor fusions (slow) ==> running at 50 Hz
@@ -90,39 +103,43 @@ void setup() {
   hal.console->printf("Setup device ..\n");
 
   // Enable the motors and set at 490Hz update
-  hal.console->printf("%.1f%%: Set ESC refresh rate to 490 Hz\n", progress_f(1, 9) );
+  hal.console->printf("%.1f%%: Set ESC refresh rate to 490 Hz\n", progress_f(1, 10) );
   for(uint_fast16_t i = 0; i < 8; i++) {
     hal.rcout->enable_ch(i);
   }
   hal.rcout->set_freq(0xFF, 490);
 
   // PID Configuration
-  hal.console->printf("%.1f%%: Set PID configuration\n", progress_f(2, 9) );
+  hal.console->printf("%.1f%%: Set PID configuration\n", progress_f(2, 10) );
   _HAL_BOARD.init_pids();
 
-  hal.console->printf("%.1f%%: Init barometer\n", progress_f(3, 9) );
+  // Load settings from EEPROM
+  hal.console->printf("%.1f%%: Load settings from EEPROM\n", progress_f(3, 10) );
+  //load_settings();
+  
+  hal.console->printf("%.1f%%: Init barometer\n", progress_f(4, 10) );
   _HAL_BOARD.init_barometer();
 
-  hal.console->printf("%.1f%%: Init inertial sensor\n", progress_f(4, 9) );
+  hal.console->printf("%.1f%%: Init inertial sensor\n", progress_f(5, 10) );
   _HAL_BOARD.init_inertial();
 
   // Compass initializing
-  hal.console->printf("%.1f%%: Init compass: ", progress_f(5, 9) );
+  hal.console->printf("%.1f%%: Init compass: ", progress_f(6, 10) );
   _HAL_BOARD.init_compass();
 
   // GPS initializing
-  hal.console->printf("%.1f%%: Init GPS", progress_f(6, 9) );
+  hal.console->printf("%.1f%%: Init GPS", progress_f(7, 10) );
   //_HAL_BOARD.init_gps();
 
   // battery monitor initializing
-  hal.console->printf("\n%.1f%%: Init battery monitor\n", progress_f(7, 9) );
+  hal.console->printf("\n%.1f%%: Init battery monitor\n", progress_f(8, 10) );
   _HAL_BOARD.init_batterymon();
 
   // battery monitor initializing
-  hal.console->printf("\n%.1f%%: Init range finder\n", progress_f(8, 9) );
+  hal.console->printf("\n%.1f%%: Init range finder\n", progress_f(9, 10) );
   _HAL_BOARD.init_rf();
 
-  hal.console->printf("\n%.1f%%: Init inertial navigation\n", progress_f(9, 9) );
+  hal.console->printf("\n%.1f%%: Init inertial navigation\n", progress_f(10, 10) );
   _HAL_BOARD.init_inertial_nav();
 }
 
