@@ -22,6 +22,7 @@ QRCWidget::QRCWidget(QUdpSocket *pSock, QSerialPort *pSerialPort, QWidget *paren
     m_fTimeConstRed = (float)m_iUpdateTime/150.f;
     m_fTimeConstEnh = (float)m_iUpdateTime/75.f;
 
+    connect(&m_caliEventTimer, SIGNAL(timeout() ), this, SLOT(sl_customKeyPressHandler() ) );
 
     connect(&m_keyEventTimer, SIGNAL(timeout() ), this, SLOT(sl_customKeyPressHandler() ) );
     connect(&m_keyEventTimer, SIGNAL(timeout() ), this, SLOT(sl_customKeyReleaseHandler() ) );
@@ -50,16 +51,44 @@ void QRCWidget::initGyro2UDP() {
         return;
     }
 
+    // Calibration will go over 6 edges of the board
+    static int iStep = 6;
+    static bool bInit = false;
+    
     QString com = "";
     com.append("{\"type\":\"gyr\",\"cal\":"); 
     com.append(QString::number(true) ); 
     com.append("}");
-
-    this->stop();
-    qDebug() << "Try to start gyrometer calibration";
-    sendJSON2UDP(com, false);
     
-    this->start();
+    QString usr = "";
+    usr.append("{\"type\":\"user_interactant\"}"); ;
+    
+    // Init calibration
+    if(iStep >= 6) {
+        this->stop();
+        qDebug() << "Try to start gyrometer calibration";
+        sendJSON2UDP(com, false);
+        
+        m_caliTime.start();
+        m_caliEventTimer.start(10);
+        bInit = true;
+        return;
+    }
+    // Run through user interactant
+    if(bInit) {
+        if(m_caliTime.elapsed() < 250) {
+            return;
+        }
+        sendJSON2UDP(usr, false);
+        if(!iStep--) {
+            iStep = 6;
+            bInit = false;
+            m_caliEventTimer.stop();
+            this->start();
+        }
+    }
+    
+    m_caliTime.restart();
 }
 
 void QRCWidget::activAltihold2UDP() {

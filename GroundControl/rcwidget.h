@@ -15,6 +15,9 @@ Q_OBJECT
 private:
     char   m_cWiFiCommand[512];
     QTimer m_keyEventTimer;
+    QTimer m_caliEventTimer;
+    QTime  m_caliTime;
+
 
     float m_fTimeConstEnh;
     float m_fTimeConstRed;

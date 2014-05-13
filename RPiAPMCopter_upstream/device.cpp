@@ -311,7 +311,7 @@ void Device::init_compass() {
 void Device::init_inertial() {
   // Turn on MPU6050 - quad must be kept still as gyros will calibrate
   m_pInert->init(AP_InertialSensor::COLD_START, AP_InertialSensor::RATE_100HZ);
-  m_pInert->init_accel();
+  //m_pInert->init_accel();
 
   // Calibrate the inertial
   m_t32Inertial = m_pHAL->scheduler->millis();

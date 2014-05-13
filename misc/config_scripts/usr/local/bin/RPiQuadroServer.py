@@ -60,11 +60,11 @@ def chksum(line):
     c = ((c + ord(a)) << 1) % 256
   return c
 
-def send_data(line):
+def send_data(type, line):
   # calc checksum
   chk = chksum(line)
   # concatenate msg and chksum
-  output = "%s*%x\r\n" % (line, chk)
+  output = "%s%s*%x\r\n" % (type, line, chk)
   try:
     bytes = pySerial.write(output)
   except serial.SerialTimeoutException as e:
@@ -73,7 +73,7 @@ def send_data(line):
     # Flush input buffer, if there is still some unprocessed data left
     # Otherwise the APM 2.5 control boards stucks after some command
     pySerial.flushInput()  # Delete what is still inside the buffer
-
+    
 # These functions shall run in separate threads
 # recv_thr() is used to catch sensor data
 def recv_thr():
@@ -89,9 +89,12 @@ def recv_thr():
         try:
           p = json.loads(ser_line)
         except (ValueError, KeyError, TypeError):
-          # Print everything what is not valid json string to console
+          # Print everything what is not a valid JSON string to console
           print ("JSON format error: %s" % ser_line)
-          #logging.debug("JSON format error: " + ser_line)
+          # Send the string to the client after is was flagged
+          nojson_line = '{"type":"NOJSON","data":"%s"}' % ser_line
+          if client_adr != "":
+            bytes = udp_sock.sendto(nojson_line, client_adr)
         else:
           logging.info(ser_line)
           if client_adr != "":
@@ -122,21 +125,21 @@ def trnm_thr():
         else:
           # remote control is about controlling the model (thrust and attitude)
           if p['type'] == 'rc':
-            com = "RC#%d,%d,%d,%d" % (p['r'], p['p'], p['t'], p['y'])
+            com = "%d,%d,%d,%d" % (p['r'], p['p'], p['t'], p['y'])
             THR_LOCK.acquire()
-            send_data(com)
+            send_data("RC#", com)
             THR_LOCK.release()
 
           # Add a waypoint
           if p['type'] == 'uav':
-            com = "UAV#%d,%d,%d,%d" % (p['lat_d'], p['lon_d'], p['alt_m'], p['flag_t'] )
+            com = "%d,%d,%d,%d" % (p['lat_d'], p['lon_d'], p['alt_m'], p['flag_t'] )
             THR_LOCK.acquire()
-            send_data(com)
+            send_data("UAV#", com)
             THR_LOCK.release()
 
           # PID config is about to change the sensitivity of the model to changes in attitude
           if p['type'] == 'pid':
-            com = "PID#%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.2f,%.2f,%.2f" % (
+            com = "%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.2f,%.2f,%.2f" % (
               p['p_rkp'], p['p_rki'], p['p_rkd'], p['p_rimax'],
               p['r_rkp'], p['r_rki'], p['r_rkd'], p['r_rimax'],
               p['y_rkp'], p['y_rki'], p['y_rkd'], p['y_rimax'],
@@ -144,21 +147,21 @@ def trnm_thr():
               p['a_rkp'], p['a_rki'], p['a_rkd'], p['a_rimax'],
               p['p_skp'], p['r_skp'], p['y_skp'], p['t_skp'], p['a_skp'] )
             THR_LOCK.acquire()
-            send_data(com)
+            send_data("PID#", com)
             THR_LOCK.release()
 
           # This section is about correcting drifts while model is flying (e.g. due to imbalances of the model)
           if p['type'] == 'cmp':
-            com = "CMP#%.2f,%.2f" % (p['r'], p['p'])
+            com = "%.2f,%.2f" % (p['r'], p['p'])
             THR_LOCK.acquire()
-            send_data(com)
+            send_data("CMP#", com)
             THR_LOCK.release()
 
           # With this section you may start the calibration of the gyro again
           if p['type'] == 'gyr':
-            com = "GYR#%d" % (p['cal'])
+            com = "%d" % (p['cal'])
             THR_LOCK.acquire()
-            send_data(com)
+            send_data("GYR#", com)
             THR_LOCK.release()
 
           # Ping service for calculating the latency of the connection
@@ -166,6 +169,13 @@ def trnm_thr():
             com = '{"type":"pong","v":%d}' % (p['v'])
             if client_adr != "":
               bytes = udp_sock.sendto(com, client_adr)
+              
+          # User interactant for gyrometer calibration
+          if p['type'] == 'user_interactant':
+            THR_LOCK.acquire()
+            bytes = pySerial.write("x") # write a char into the serial device
+            pySerial.flushInput()
+            THR_LOCK.release()
 
   # Terminate process (makes restarting in the init.d part possible)
   except:

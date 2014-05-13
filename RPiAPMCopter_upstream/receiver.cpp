@@ -170,21 +170,20 @@ bool Receiver::parse_gyr_cal(char* buffer) {
   } else if (m_rgChannelsRC[2] > RC_THR_MIN) {
     return false;
   }
-
   // process cmd
   char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
   char *chk = strtok(NULL, "*");                    // chk = chksum
-
-  if(verf_chksum(str, chk) ) {                      // if chksum OK
-    char *cstr = strtok (buffer, ",");
-    bool bcalib = (bool)atoi(cstr);
-
+  
+  if(verf_chksum(str, chk) ) {
+    // process cmd
+    bool bcalib = (bool)atoi(str);
     // only if quadro is _not_ armed
     if(bcalib) {
       // This functions checks whether model is ready for a calibration
       run_calibration();
     }
   }
+
   return true;
 }
 
@@ -196,13 +195,11 @@ bool Receiver::parse_bat_type(char* buffer) {
     return false;
   }
   // process cmd
-  char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
-  char *chk = strtok(NULL, "*");                    // chk = chksum
+  char *str = strtok(buffer, "*");                // str
+  char *chk = strtok(NULL, "*");                  // chk = chksum
 
   if(verf_chksum(str, chk) ) {                    // if chksum OK
-    char *cstr = strtok (buffer, ",");
-    int type = atoi(cstr);
-
+    int type = atoi(str);
     m_pHalBoard->m_pBat->setup_source(type);
   }
   return true;
@@ -314,11 +311,11 @@ bool Receiver::parse_pid_conf(char* buffer) {
  * Everything fits into 7 bytes
  */
 bool Receiver::parse_radio(char *buffer) {
-  int_fast16_t thr = 1000 + (static_cast<uint_fast8_t>(buffer[0]) * 100) + (uint_fast8_t)buffer[1]; // 1000 - 1900
-  int_fast16_t pit = static_cast<uint_fast8_t>(buffer[2]) - 127;                               // -45° - 45°
-  int_fast16_t rol = static_cast<uint_fast8_t>(buffer[3]) - 127;                               // -45° - 45°
-  int_fast16_t yaw = static_cast<uint_fast8_t>(buffer[5]) * (static_cast<uint_fast8_t>(buffer[4]) - 127);        // -180° - 180°
-  int_fast16_t chk = static_cast<uint_fast8_t>(buffer[6]);                                     // checksum
+  int_fast16_t thr = 1000 + (static_cast<int_fast16_t>(buffer[0]) * 100) + (int_fast16_t)buffer[1]; // 1000 - 1900
+  int_fast16_t pit = static_cast<int_fast16_t>(buffer[2]) - 127;                               // -45° - 45°
+  int_fast16_t rol = static_cast<int_fast16_t>(buffer[3]) - 127;                               // -45° - 45°
+  int_fast16_t yaw = static_cast<int_fast16_t>(buffer[5]) * (static_cast<int_fast16_t>(buffer[4]) - 127);        // -180° - 180°
+  uint_fast8_t chk = static_cast<uint_fast8_t>(buffer[6]);                                     // checksum
 
   // Calculate checksum
   uint_fast8_t checksum = 0;
@@ -356,7 +353,7 @@ bool Receiver::read_uartA(uint_fast16_t bytesAvail) {
   bool bRet = false;
   for(; bytesAvail > 0; bytesAvail--) {
     char c = static_cast<char>(m_pHalBoard->m_pHAL->console->read() );// read next byte
-    if(c == '\n' || c == char(254) ) {                  // new line or special termination signature (■): Process cmd
+    if(c == '\n' /*|| c == 'z'*/) {                     // new line or special termination signature (z): Process cmd
       m_cBuffer[offset] = '\0';                         // null terminator
       bRet = parse(m_cBuffer);
       if(bRet) {
@@ -478,6 +475,7 @@ uint_fast32_t Receiver::last_parse_uartC_t32() {
   return m_iSParseTime_C;
 }
 
+#if CONFIG_HAL_BOARD == HAL_BOARD_APM2
 void Receiver::set_update_rate_ms(const uint_fast8_t rate) {
   m_iUpdateRate = rate;
 }
@@ -485,3 +483,4 @@ void Receiver::set_update_rate_ms(const uint_fast8_t rate) {
 uint_fast8_t Receiver::get_update_rate_ms() const {
   return m_iUpdateRate;
 }
+#endif
