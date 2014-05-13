@@ -123,16 +123,18 @@ void QRCWidget::deactAltihold2UDP() {
     sendJSON2UDP(com, false);
 }
 
+void QRCWidget::sl_setAttitudeCorr(float fRoll, float fPitch) {
+    m_DRIFT.PIT = fPitch;
+    m_DRIFT.ROL = fRoll;
+    sendJSON2UDP(m_DRIFT.str_makeWiFiCommand(), false);
+}
+
 void QRCWidget::sl_customKeyPressHandler() {
     if(m_customKeyStatus[CUSTOM_KEY::mapCustomKeyIndex(Qt::Key_Backspace)] == true) {
         m_COM.PIT = 0;
         m_COM.ROL = 0;
         m_COM.YAW = 0;
         m_COM.THR = m_RANGE.THR_MIN;
-
-        m_DRIFT.ROL = 0; 
-        m_DRIFT.PIT = 0;
-
         sendJSON2UDP(m_DRIFT.str_makeWiFiCommand(), false);
     }
 
@@ -231,24 +233,32 @@ void QRCWidget::sl_customKeyPressHandler() {
     if(m_customKeyStatus[CUSTOM_KEY::mapCustomKeyIndex(Qt::Key_8)] == true) {
         m_DRIFT.PIT -= 0.05 * m_fTimeConstEnh;
         sendJSON2UDP(m_DRIFT.str_makeWiFiCommand(), false);
+        
+        emit si_attitudeCorrChanged(m_DRIFT.ROL, m_DRIFT.PIT);
         qDebug() << "Drift correction: Pitch=" << m_DRIFT.str_makeWiFiCommand();
     }
     // Quadro moves backwards
     if(m_customKeyStatus[CUSTOM_KEY::mapCustomKeyIndex(Qt::Key_2)] == true) {
         m_DRIFT.PIT += 0.05 * m_fTimeConstEnh;
         sendJSON2UDP(m_DRIFT.str_makeWiFiCommand(), false);
+        
+        emit si_attitudeCorrChanged(m_DRIFT.ROL, m_DRIFT.PIT);
         qDebug() << "Drift correction: Pitch=" << m_DRIFT.str_makeWiFiCommand();
     }
     // Quadro moves to the left
     if(m_customKeyStatus[CUSTOM_KEY::mapCustomKeyIndex(Qt::Key_4)] == true) {
         m_DRIFT.ROL -= 0.05 * m_fTimeConstEnh;
         sendJSON2UDP(m_DRIFT.str_makeWiFiCommand(), false);
+        
+        emit si_attitudeCorrChanged(m_DRIFT.ROL, m_DRIFT.PIT);
         qDebug() << "Drift correction: Roll=" << m_DRIFT.str_makeWiFiCommand();
     }
     // // Quadro moves to the right
     if(m_customKeyStatus[CUSTOM_KEY::mapCustomKeyIndex(Qt::Key_6)] == true) {
         m_DRIFT.ROL += 0.05 * m_fTimeConstEnh;
         sendJSON2UDP(m_DRIFT.str_makeWiFiCommand(), false);
+        
+        emit si_attitudeCorrChanged(m_DRIFT.ROL, m_DRIFT.PIT);
         qDebug() << "Drift correction: Roll=" << m_DRIFT.str_makeWiFiCommand();
     }
 

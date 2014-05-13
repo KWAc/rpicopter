@@ -45,8 +45,11 @@ public slots:
     void sl_startTimer();
     void sl_setRadioEnabled(bool state);
 
+    void sl_setAttitudeCorr(float fRoll, float fPitch);
+    
 signals:
     void si_send2Model(QString, QString);
+    void si_attitudeCorrChanged(float roll, float pitch);
 
 public:
     QRCWidget(QUdpSocket *pSock, QSerialPort *pSerialPort = NULL, QWidget *parent = NULL);

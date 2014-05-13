@@ -58,9 +58,9 @@ void send_comp() {
 ///////////////////////////////////////////////////////////
 void send_atti() {
   hal.console->printf("{\"type\":\"s_att\",\"r\":%.1f,\"p\":%.1f,\"y\":%.1f}\n",
-  static_cast<double>(_HAL_BOARD.get_atti_raw_deg().y), 
-  static_cast<double>(_HAL_BOARD.get_atti_raw_deg().x), 
-  static_cast<double>(_HAL_BOARD.get_atti_raw_deg().z) );
+  static_cast<double>(_HAL_BOARD.get_atti_cor_deg().y), 
+  static_cast<double>(_HAL_BOARD.get_atti_cor_deg().x), 
+  static_cast<double>(_HAL_BOARD.get_atti_cor_deg().z) );
 }
 ///////////////////////////////////////////////////////////
 // barometer

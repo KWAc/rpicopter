@@ -143,6 +143,20 @@ void MainWindow::sl_configPing() {
     }
 }
 
+void MainWindow::sl_saveAttitudeCorr(float roll, float pitch) {
+    m_pConf->setValue("roll_corr", roll);
+    m_pConf->setValue("pitch_corr", pitch);
+}
+
+void MainWindow::sl_loadAttitudeCorr() {
+    float fRoll = m_pConf->value("roll_corr", 0.f).toFloat();
+    float fPitch = m_pConf->value("pitch_corr", 0.f).toFloat();
+    
+    if(m_pRCWidget) {
+        m_pRCWidget->sl_setAttitudeCorr(fRoll, fPitch);
+    }
+}
+
 void MainWindow::prepareWidgets() {
     m_tSensorTime.start();
 
@@ -176,7 +190,10 @@ void MainWindow::connectWidgets() {
     connect(&m_pingTimer, SIGNAL(timeout() ), this, SLOT(sl_sendPing() ) );
     connect(m_pUdpSocket, SIGNAL(readyRead() ), this, SLOT(sl_recvCommand() ) );
     connect(&m_plotTimer, SIGNAL(timeout() ), this, SLOT(sl_replotGraphs() ) );
+    
     connect(m_pRCWidget, SIGNAL(si_send2Model(QString, QString) ), this, SLOT(sl_updateStatusBar(QString, QString) ) );
+    connect(m_pRCWidget, SIGNAL(si_attitudeCorrChanged(float, float) ), this, SLOT(sl_saveAttitudeCorr(float, float) ) );
+    
     connect(m_pMainTab, SIGNAL(currentChanged(int) ), this, SLOT(sl_changeTab(int) ) );
 }
 
@@ -286,7 +303,7 @@ void MainWindow::sl_loadLog() {
         // Update sensor widgets
         QPair<double, QVariantMap> pair(m_fSLTime_s, varSensor);
         sl_UpdateSensorData(pair);
-    } while (!line.isNull());
+    } while (!line.isNull() );
 
     // Load text into logger
     if(bLoadText) {
@@ -536,6 +553,9 @@ void MainWindow::connectToHost(const QString & hostName, quint16 port, QIODevice
         m_pConf->setValue("Ping_ms", ping_ms);
         m_pingTimer.start(ping_ms);
         m_plotTimer.start(1000);
+        
+        // If connected, load and configurate attitude of the model
+        sl_loadAttitudeCorr();
     }
     else {
         qDebug() << "connectToHost - Not connected: " << m_pUdpSocket->error();

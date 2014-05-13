@@ -113,6 +113,9 @@ private slots:
     void sl_configPIDs();
     void sl_configPing();
     void sl_configHost();
+    
+    void sl_saveAttitudeCorr(float roll, float pitch);
+    void sl_loadAttitudeCorr();
 
 public:
     MainWindow(QSettings *pConf, QWidget *parent = 0);
