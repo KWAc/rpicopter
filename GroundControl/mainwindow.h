@@ -15,6 +15,7 @@
 #include "piddockwidget.h"
 #include "piddialog.h"
 #include "gmaps.h"
+#include "trimprofile.h"
 
 
 #define PING_T_MS 250
@@ -34,6 +35,7 @@ private:
     QAction *m_pOptionTrackingEnabled;
     QAction *m_pOptionPing;
     QAction *m_pOptionHost;
+    QAction *m_pOptionProfiles;
 
     double m_fSLTime_s;
     QTime m_tSensorTime;
@@ -60,6 +62,7 @@ private:
     Maps *m_pGMaps;
     QTabWidget *m_pMainTab;
     QRCWidget *m_pRCWidget;
+    TrimProfile *m_pTrimProfiles;
     QProgressBar *m_pRCThrottle;
 
     QByteArray m_udpCurLine;
@@ -113,9 +116,8 @@ private slots:
     void sl_configPIDs();
     void sl_configPing();
     void sl_configHost();
-    
-    void sl_saveAttitudeCorr(float roll, float pitch);
-    void sl_loadAttitudeCorr();
+
+    void sl_configProfiles();
 
 public:
     MainWindow(QSettings *pConf, QWidget *parent = 0);

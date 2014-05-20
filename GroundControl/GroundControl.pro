@@ -20,7 +20,8 @@ SOURCES +=  main.cpp\
             rcwidget.cpp \
             absframe.cpp \
             container.cpp\
-            gmaps.cpp
+            gmaps.cpp \
+    trimprofile.cpp
 
 HEADERS  += mainwindow.h\
             qcustomplot.h \
@@ -33,4 +34,5 @@ HEADERS  += mainwindow.h\
             piddialog.h \
             absframe.h \
             container.h \
-            gmaps.h
+            gmaps.h \
+    trimprofile.h

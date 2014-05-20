@@ -16,8 +16,13 @@ private:
     char   m_cWiFiCommand[512];
     QTimer m_keyEventTimer;
     QTimer m_caliEventTimer;
+
+    QTimer m_trimTimer;
     QTime  m_caliTime;
 
+    bool   m_bThrottleHold;
+    QTime  m_tThrottleEnh;
+    QTime  m_tThrottleRed;
 
     float m_fTimeConstEnh;
     float m_fTimeConstRed;
@@ -38,6 +43,8 @@ private:
 private slots:
     void sl_customKeyPressHandler();
     void sl_customKeyReleaseHandler();
+
+    void sl_sendTrim2UDP();
     
     void sl_sendRC2UDP(); // Emitted by timer; Calls sendJSON2UDP
     

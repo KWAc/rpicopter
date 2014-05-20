@@ -10,6 +10,8 @@ QRCWidget::QRCWidget(QUdpSocket *pSock, QSerialPort *pSerialPort, QWidget *paren
     assert(pSock != NULL);
     m_pUdpSock = pSock;
 
+    m_bThrottleHold = false;
+
     m_pSerialPort = pSerialPort;
 
     this->setMinimumSize(480, 480);
@@ -27,13 +29,17 @@ QRCWidget::QRCWidget(QUdpSocket *pSock, QSerialPort *pSerialPort, QWidget *paren
     connect(&m_keyEventTimer, SIGNAL(timeout() ), this, SLOT(sl_customKeyPressHandler() ) );
     connect(&m_keyEventTimer, SIGNAL(timeout() ), this, SLOT(sl_customKeyReleaseHandler() ) );
     connect(&m_keyEventTimer, SIGNAL(timeout() ), this, SLOT(sl_sendRC2UDP() ) );
+
+    connect(&m_trimTimer, SIGNAL(timeout() ), this, SLOT(sl_sendTrim2UDP() ) );
 }
 
 void QRCWidget::start() {
+    m_trimTimer.start(1000);
     m_keyEventTimer.start(m_iUpdateTime);
 }
 
 void QRCWidget::stop() {
+    m_trimTimer.stop();
     m_keyEventTimer.stop();
 }
 
@@ -262,21 +268,40 @@ void QRCWidget::sl_customKeyPressHandler() {
         qDebug() << "Drift correction: Roll=" << m_DRIFT.str_makeWiFiCommand();
     }
 
-    float fStep = 2.5;
+    float fStep = 1.35;
+    float fAccelTime_ms = 50.f;
     if(m_customKeyStatus[CUSTOM_KEY::mapCustomKeyIndex(Qt::Key_Up)] == true) {
-        //qDebug() << "Up";
+        m_tThrottleRed.restart();
+        if(!m_bThrottleHold) {
+            m_tThrottleEnh.restart();
+            m_bThrottleHold = true;
+        }
+        float fMod = (float)m_tThrottleEnh.elapsed() / fAccelTime_ms;
+        //qDebug() << "Enh: " << fMod;
+
         if(m_COM.THR + fStep <= m_RANGE.THR_80P)
-            m_COM.THR += fStep * m_fTimeConstEnh;
+            m_COM.THR += fStep * m_fTimeConstEnh * (1.0 + fMod);
         else m_COM.THR = m_RANGE.THR_80P;
     }
     if(m_customKeyStatus[CUSTOM_KEY::mapCustomKeyIndex(Qt::Key_Down)] == true) {
-        //qDebug() << "Down";
+        m_tThrottleEnh.restart();
+        if(!m_bThrottleHold) {
+            m_tThrottleRed.restart();
+            m_bThrottleHold = true;
+        }
+        float fMod = (float)m_tThrottleRed.elapsed() / fAccelTime_ms;
+        //qDebug() << "Red:" << fMod;
+
         if(m_COM.THR - fStep >= m_RANGE.THR_MIN)
-            m_COM.THR -= fStep * m_fTimeConstEnh;
+            m_COM.THR -= fStep * m_fTimeConstEnh * (1.0 + fMod);
         else m_COM.THR = m_RANGE.THR_MIN;
     }
 
     update();
+}
+
+void QRCWidget::sl_sendTrim2UDP() {
+    sendJSON2UDP(m_DRIFT.str_makeWiFiCommand(), false);
 }
 
 void QRCWidget::sl_customKeyReleaseHandler() {
@@ -297,6 +322,13 @@ void QRCWidget::sl_customKeyReleaseHandler() {
             deactAltihold2UDP();
             m_bAltitudeHold = false;
         }
+    }
+
+    if(!m_customKeyStatus[CUSTOM_KEY::mapCustomKeyIndex(Qt::Key_Up)] == true) {
+        m_tThrottleEnh.restart();
+    }
+    if(!m_customKeyStatus[CUSTOM_KEY::mapCustomKeyIndex(Qt::Key_Down)] == true) {
+        m_tThrottleRed.restart();
     }
 
     update();

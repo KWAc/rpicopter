@@ -52,6 +52,8 @@ MainWindow::MainWindow(QSettings *pConf, QWidget *parent)
     prepareGraphs();
     prepareWidgets();
     connectWidgets();
+
+    m_pTrimProfiles->loadConfig();
 }
 
 void MainWindow::prepareMenus() {
@@ -73,6 +75,7 @@ void MainWindow::prepareMenus() {
     m_pOptionTrackingEnabled->setCheckable(true);
     m_pOptionPing       = new QAction(tr("Configurate ping timing"), m_pFileM);
     m_pOptionHost       = new QAction(tr("Configurate network"), m_pFileM);
+    m_pOptionProfiles   = new QAction(tr("Trim profiles"), m_pOptionM);
 
     bool bEnableRadio = m_pConf->value("UseRadio", true).toBool();
     m_pOptionRadioEnabled->setChecked(bEnableRadio);
@@ -86,6 +89,7 @@ void MainWindow::prepareMenus() {
     m_pFileM->addAction(m_pFileMSave);
     m_pFileM->addAction(m_pFileMLoad);
 
+    m_pOptionM->addAction(m_pOptionProfiles);
     m_pOptionM->addAction(m_pOptionMPIDConf);
     m_pOptionM->addAction(m_pOptionPing);
     m_pOptionM->addAction(m_pOptionHost);
@@ -102,6 +106,12 @@ void MainWindow::prepareMenus() {
 
     connect(m_pOptionRadioEnabled, SIGNAL(toggled(bool) ) , this, SLOT(sl_radioToggleChanged(bool) ) );
     connect(m_pOptionTrackingEnabled, SIGNAL(toggled(bool) ), this, SLOT(sl_trackingToggleChanged(bool) ) );
+
+    connect(m_pOptionProfiles, SIGNAL(triggered() ), this, SLOT(sl_configProfiles() ) );
+}
+
+void MainWindow::sl_configProfiles() {
+    m_pTrimProfiles->show();
 }
 
 void MainWindow::sl_trackingToggleChanged(bool state) {
@@ -143,20 +153,6 @@ void MainWindow::sl_configPing() {
     }
 }
 
-void MainWindow::sl_saveAttitudeCorr(float roll, float pitch) {
-    m_pConf->setValue("roll_corr", roll);
-    m_pConf->setValue("pitch_corr", pitch);
-}
-
-void MainWindow::sl_loadAttitudeCorr() {
-    float fRoll = m_pConf->value("roll_corr", 0.f).toFloat();
-    float fPitch = m_pConf->value("pitch_corr", 0.f).toFloat();
-    
-    if(m_pRCWidget) {
-        m_pRCWidget->sl_setAttitudeCorr(fRoll, fPitch);
-    }
-}
-
 void MainWindow::prepareWidgets() {
     m_tSensorTime.start();
 
@@ -165,15 +161,18 @@ void MainWindow::prepareWidgets() {
 
     m_bUdpSockCon = false;
 
+    m_pTrimProfiles = new TrimProfile(m_pConf);
+
     m_pRCThrottle->setOrientation(Qt::Vertical);
     m_pRCThrottle->setMinimum(m_pRCWidget->m_RANGE.THR_MIN);
     m_pRCThrottle->setMaximum(m_pRCWidget->m_RANGE.THR_80P);
     m_pRCThrottle->setTextVisible(true);
     //m_pRCThrottle->setTextDirection();
     
-    QHBoxLayout *pRCLayout = new QHBoxLayout(this);
-    pRCLayout->addWidget(m_pRCWidget);
-    pRCLayout->addWidget(m_pRCThrottle);
+    QGridLayout *pRCLayout = new QGridLayout;
+    //pRCLayout->addWidget(m_pTrimProfiles, 0, 0);
+    pRCLayout->addWidget(m_pRCWidget, 0, 0);
+    pRCLayout->addWidget(m_pRCThrottle, 0, 1);
     
     QGroupBox *pRCGroup = new QGroupBox(this);
     pRCGroup->setLayout(pRCLayout);
@@ -192,9 +191,10 @@ void MainWindow::connectWidgets() {
     connect(&m_plotTimer, SIGNAL(timeout() ), this, SLOT(sl_replotGraphs() ) );
     
     connect(m_pRCWidget, SIGNAL(si_send2Model(QString, QString) ), this, SLOT(sl_updateStatusBar(QString, QString) ) );
-    connect(m_pRCWidget, SIGNAL(si_attitudeCorrChanged(float, float) ), this, SLOT(sl_saveAttitudeCorr(float, float) ) );
+    connect(m_pRCWidget, SIGNAL(si_attitudeCorrChanged(float, float) ), m_pTrimProfiles, SLOT(sl_updateTrim(float, float) ) );
     
     connect(m_pMainTab, SIGNAL(currentChanged(int) ), this, SLOT(sl_changeTab(int) ) );
+    connect(m_pTrimProfiles, SIGNAL(si_trimChanged(float, float) ), m_pRCWidget, SLOT(sl_setAttitudeCorr(float, float) ) );
 }
 
 void MainWindow::sl_changeTab(int index) {
@@ -553,9 +553,6 @@ void MainWindow::connectToHost(const QString & hostName, quint16 port, QIODevice
         m_pConf->setValue("Ping_ms", ping_ms);
         m_pingTimer.start(ping_ms);
         m_plotTimer.start(1000);
-        
-        // If connected, load and configurate attitude of the model
-        sl_loadAttitudeCorr();
     }
     else {
         qDebug() << "connectToHost - Not connected: " << m_pUdpSocket->error();
