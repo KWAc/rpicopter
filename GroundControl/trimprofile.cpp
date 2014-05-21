@@ -9,6 +9,7 @@ TrimProfile::TrimProfile(QSettings *pConf, QWidget *parent) : QWidget(parent) {
 
 void TrimProfile::setupUI() {
     this->setMinimumWidth(340);
+    this->setWindowTitle("Trim profile manager");
 
     QPushButton *pButCreateNewProfile = new QPushButton("New");
     QPushButton *pButDeleteCurProfile = new QPushButton("Delete");

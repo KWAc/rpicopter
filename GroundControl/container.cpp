@@ -2,31 +2,31 @@
 
 
 void RANGE::setF1 () {
-    ROL_MIN = -10;
-    ROL_MAX = 10;
+    ROL_MIN = -15;
+    ROL_MAX = 15;
 
-    PIT_MIN = -10;
-    PIT_MAX = 10;
+    PIT_MIN = -15;
+    PIT_MAX = 15;
 
-    YAW_MIN = -45;
-    YAW_MAX = 45;
+    YAW_MIN = -60;
+    YAW_MAX = 60;
 }
 void RANGE::setF2 () {
-    ROL_MIN = -20;
-    ROL_MAX = 20;
+    ROL_MIN = -25;
+    ROL_MAX = 25;
 
-    PIT_MIN = -20;
-    PIT_MAX = 20;
+    PIT_MIN = -25;
+    PIT_MAX = 25;
 
     YAW_MIN = -90;
     YAW_MAX = 90;
 }
 void RANGE::setF3 () {
-    ROL_MIN = -30;
-    ROL_MAX = 30;
+    ROL_MIN = -35;
+    ROL_MAX = 35;
 
-    PIT_MIN = -30;
-    PIT_MAX = 30;
+    PIT_MIN = -35;
+    PIT_MAX = 35;
 
     YAW_MIN = -135;
     YAW_MAX = 135;
@@ -43,18 +43,10 @@ void RANGE::setF4 () {
 }
 
 RANGE::RANGE() {
-    ROL_MIN = -10;
-    ROL_MAX = 10;
-
-    PIT_MIN = -10;
-    PIT_MAX = 10;
-
-    YAW_MIN = -45;
-    YAW_MAX = 45;
+    setF1();
 
     THR_MIN = 1100;
     THR_MAX = 1900;
-
     THR_80P = 1650;
 }
 

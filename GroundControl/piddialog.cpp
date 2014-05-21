@@ -371,8 +371,8 @@ void QPIDConfig::Setup() {
 
     m_pButOK = new QPushButton(tr("OK") );
     m_pButCancel = new QPushButton(tr("Cancel"));
-    pLayout->addWidget(m_pButOK, 10, 4);
-    pLayout->addWidget(m_pButCancel, 10, 5);
+    pLayout->addWidget(m_pButOK, 10, 6);
+    pLayout->addWidget(m_pButCancel, 10, 7);
 
     connect(m_pButCancel, SIGNAL(pressed() ), this, SLOT(close() ) );
     connect(m_pButOK, SIGNAL(pressed() ), this, SLOT(close() ) );
