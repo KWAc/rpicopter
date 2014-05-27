@@ -128,7 +128,7 @@ bool Exception::handle() {
   // Device handler
   //////////////////////////////////////////////////////////////////////////////////////////
   if(m_pHalBoard->get_errors() & AbsErrorDevice::GYROMETER_F) {     // Gyrometer was not healthy: Go down straight
-    #if DEBUG_OUT
+    #if DEBUG_OUT and !BENCH_OUT
     m_pHalBoard->m_pHAL->console->printf("Inertial exception - Taking model down\n");
     #endif
     
@@ -136,7 +136,7 @@ bool Exception::handle() {
     return true;
   }
   if(m_pHalBoard->get_errors() & AbsErrorDevice::ACCELEROMETR_F) {  // Accelerometer was not healthy: Go down straight
-    #if DEBUG_OUT
+    #if DEBUG_OUT and !BENCH_OUT
     m_pHalBoard->m_pHAL->console->printf("Inertial exception - Taking model down\n");
     #endif
     
@@ -144,7 +144,7 @@ bool Exception::handle() {
     return true;
   }
   if(m_pHalBoard->get_errors() & AbsErrorDevice::BAROMETER_F) {     // If barometer is not working, the height calculation would be likely unreliable (GPS probably not stable)
-    #if DEBUG_OUT
+    #if DEBUG_OUT and !BENCH_OUT
     m_pHalBoard->m_pHAL->console->printf("barometer exception - disable hold altitude\n");
     #endif
     
@@ -163,7 +163,7 @@ bool Exception::handle() {
   if(m_pHalBoard->get_errors() & AbsErrorDevice::CURRENT_HIGH_F) {
   }
   if(m_pHalBoard->get_errors() & AbsErrorDevice::CURRENT_LOW_F) {   // Battery is at the end: Go down straight
-    #if DEBUG_OUT
+    #if DEBUG_OUT and !BENCH_OUT
     m_pHalBoard->m_pHAL->console->printf("current exception - Taking model down\n");
     #endif
     
