@@ -2,6 +2,7 @@
 #define TRIMPROFILE_H
 
 #include <QtWidgets>
+#include "container.h"
 
 
 typedef QPair<double, double> trim; // roll, pitch
@@ -31,10 +32,13 @@ public:
     void loadConfig();
     void saveConfig();
 
+    PIDS loadPIDs();
+
 public slots:
     void sl_createProfile();
     void sl_deleteProfile();
     void sl_updateTrim(float roll, float pitch);
+    void sl_savePIDs(PIDS);
 
 signals:
     void si_trimChanged(float roll, float pitch);

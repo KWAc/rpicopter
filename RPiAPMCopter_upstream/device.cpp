@@ -96,6 +96,7 @@ Device::Device( const AP_HAL::HAL *pHAL,
   m_fCmpH             = 0.f;
   m_fGpsH             = 0.f;
 
+  m_iUpdateRate       = MAIN_T_MS;
   m_eErrors           = NOTHING_F;
 
   // HAL
@@ -243,12 +244,12 @@ void Device::update_inav() {
 
 void Device::init_pids() {
   // Rate PIDs
-  m_rgPIDS[PID_PIT_RATE].kP(0.55);
+  m_rgPIDS[PID_PIT_RATE].kP(0.70);
   m_rgPIDS[PID_PIT_RATE].kI(0.15);
   m_rgPIDS[PID_PIT_RATE].kD(0.01);
   m_rgPIDS[PID_PIT_RATE].imax(50);
 
-  m_rgPIDS[PID_ROL_RATE].kP(0.55);
+  m_rgPIDS[PID_ROL_RATE].kP(0.70);
   m_rgPIDS[PID_ROL_RATE].kI(0.15);
   m_rgPIDS[PID_ROL_RATE].kD(0.01);
   m_rgPIDS[PID_ROL_RATE].imax(50);
@@ -309,9 +310,8 @@ void Device::init_compass() {
 }
 
 void Device::init_inertial() {
-  // Turn on MPU6050 - quad must be kept still as gyros will calibrate
-  m_pInert->init(AP_InertialSensor::COLD_START, AP_InertialSensor::RATE_100HZ);
-  //m_pInert->init_accel();
+  // Turn on MPU6050
+  m_pInert->init(AP_InertialSensor::COLD_START, AP_InertialSensor::RATE_200HZ);
 
   // Calibrate the inertial
   m_t32Inertial = m_pHAL->scheduler->millis();
@@ -453,8 +453,8 @@ BaroData Device::read_baro() {
   m_ContBaro.pressure_pa      = SFilter::low_pass_filt_f(m_pBaro->get_pressure(), m_ContBaro.pressure_pa, BAROM_LOWPATH_FILT_f);
   m_ContBaro.temperature_deg  = SFilter::low_pass_filt_f(m_pBaro->get_temperature(), m_ContBaro.temperature_deg, BAROM_LOWPATH_FILT_f);
 
-  m_ContBaro.altitude_cm      = SFilter::low_pass_filt_l(m_pBaro->get_altitude() * 100, m_ContBaro.altitude_cm, BAROM_LOWPATH_FILT_i);
-  m_ContBaro.climb_rate_cms   = SFilter::low_pass_filt_l(m_pBaro->get_climb_rate() * 100, m_ContBaro.climb_rate_cms, BAROM_LOWPATH_FILT_i);
+  m_ContBaro.altitude_cm      = static_cast<int_fast32_t>(SFilter::low_pass_filt_f(m_pBaro->get_altitude(), m_ContBaro.altitude_cm, BAROM_LOWPATH_FILT_f) * 100);
+  m_ContBaro.climb_rate_cms   = static_cast<int_fast32_t>(SFilter::low_pass_filt_f(m_pBaro->get_climb_rate(), m_ContBaro.climb_rate_cms, BAROM_LOWPATH_FILT_f) * 100);
 
   m_ContBaro.pressure_samples = m_pBaro->get_pressure_samples();
 
@@ -535,7 +535,7 @@ float Device::get_accel_x_g(Device *pDev, bool &bOK) {
 
   float fCFactor = 100.f * INERT_G_CONST;
   float fG       = -pDev->get_accel_mg_cmss().x / fCFactor;
-  fGForce        = SFilter::low_pass_filt_f(fG, fGForce, ACCL_LOWPATH_FILT_f);
+  fGForce        = SFilter::low_pass_filt_f(fG, fGForce, ACCEL_LOWPATH_FILT_f);
 
   bOK = true;
   return fGForce;
@@ -560,7 +560,7 @@ float Device::get_accel_y_g(Device *pDev, bool &bOK) {
 
   float fCFactor = 100.f * INERT_G_CONST;
   float fG       = -pDev->get_accel_mg_cmss().y / fCFactor;
-  fGForce        = SFilter::low_pass_filt_f(fG, fGForce, ACCL_LOWPATH_FILT_f);
+  fGForce        = SFilter::low_pass_filt_f(fG, fGForce, ACCEL_LOWPATH_FILT_f);
 
   bOK = true;
   return fGForce;
@@ -585,8 +585,16 @@ float Device::get_accel_z_g(Device *pDev, bool &bOK) {
 
   float fCFactor = 100.f * INERT_G_CONST;
   float fG       = -pDev->get_accel_mg_cmss().z / fCFactor;
-  fGForce        = SFilter::low_pass_filt_f(fG, fGForce, ACCL_LOWPATH_FILT_f);
+  fGForce        = SFilter::low_pass_filt_f(fG, fGForce, ACCEL_LOWPATH_FILT_f);
 
   bOK = true;
   return fGForce;
+}
+
+void Device::set_update_rate_ms(const uint_fast8_t rate) {
+  m_iUpdateRate = rate;
+}
+
+uint_fast8_t Device::get_update_rate_ms() const {
+  return m_iUpdateRate;
 }

@@ -4,6 +4,15 @@
 #include <QtWidgets>
 
 
+struct PIDS {
+    double m_pit_rkp, m_pit_rki, m_pit_rkd, m_pit_rimax;
+    double m_rol_rkp, m_rol_rki, m_rol_rkd, m_rol_rimax;
+    double m_yaw_rkp, m_yaw_rki, m_yaw_rkd, m_yaw_rimax;
+    double m_thr_rkp, m_thr_rki, m_thr_rkd, m_thr_rimax;
+    double m_acc_rkp, m_acc_rki, m_acc_rkd, m_acc_rimax;
+    double m_pit_skp, m_rol_skp, m_yaw_skp, m_thr_skp, m_acc_skp;
+};
+
 struct RANGE {
     void setF1 ();
     void setF2 ();

@@ -49,9 +49,7 @@ private slots:
     void sl_sendRC2UDP(); // Emitted by timer; Calls sendJSON2UDP
     
 public slots:
-    void sl_startTimer();
     void sl_setRadioEnabled(bool state);
-
     void sl_setAttitudeCorr(float fRoll, float fPitch);
     
 signals:

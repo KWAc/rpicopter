@@ -42,6 +42,8 @@ private:
   Vector3f m_vAccelPG_cmss; // acceleration readout
   Vector3f m_vAccelMG_cmss; // acceleration readout minus G constant (~9.81)
 
+  uint_fast8_t m_iUpdateRate;     // Suggested update rate of the main loop, dependent on the usage of the 3DR radio on uartC
+  
 protected:
   float        m_fCmpH; // Compass heading
   float        m_fGpsH; // GPS heading
@@ -151,6 +153,12 @@ public:
   static float get_accel_x_g  (Device *pDev, bool &bOK);
   static float get_accel_y_g  (Device *pDev, bool &bOK);
   static float get_accel_z_g  (Device *pDev, bool &bOK);
+  
+  // Suggests an update rate in ms for the main loop
+  // The rate is linked with the usage of the 3DR radio
+  // The 3DR radio is only working if the CPU load is low
+  void set_update_rate_ms(const uint_fast8_t);
+  uint_fast8_t get_update_rate_ms() const;
 };
 
 #endif

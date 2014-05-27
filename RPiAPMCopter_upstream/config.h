@@ -31,7 +31,6 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 // General settings
 //////////////////////////////////////////////////////////////////////////////////////////
-
 #define DEBUG_OUT            0
 #define BENCH_OUT            0
 
@@ -95,8 +94,6 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 // Receiver module
 //////////////////////////////////////////////////////////////////////////////////////////
-
-// Indices for the remote control array
 #define RC_ROL               0
 #define RC_PIT               1
 #define RC_THR               2
@@ -132,15 +129,13 @@
 #define COMP_ANNEAL_SLOPE    1.0f   // Slope modifier of the annealing function
 #define COMP_FUSION_RATE     0.75f  // Sensor fusion rate: higher => faster annealing
 
-#define INERT_ANNEAL_SLOPE   20.f   // Slope modifier of the annealing function
+#define INERT_ANNEAL_SLOPE   12.5f  // Slope modifier of the annealing function
 #define INERT_FUSION_RATE    5.f    // Sensor fusion rate: higher => faster annealing
 
-#define INERT_LOWPATH_FILT_f 0.33f  // Filter for the accelerometer
-#define BAROM_LOWPATH_FILT_f 0.33f  // Filter for the accelerometer
-#define BAROM_LOWPATH_FILT_i 33     // Filter for the accelerometer
-#define COMPA_LOWPATH_FILT_f 0.25f  // Filter for the accelerometer
-
-#define ACCL_LOWPATH_FILT_f  0.025f // Filter for the accelerometer
+#define BAROM_LOWPATH_FILT_f 0.33f  // Filter constant for the barometer
+#define COMPA_LOWPATH_FILT_f 0.25f  // Filter constant for the compass
+#define INERT_LOWPATH_FILT_f 0.175f // Filter constant for the accelerometer
+#define ACCEL_LOWPATH_FILT_f 0.025f // Filter constant for the accelerometer
 
 #define INERT_G_CONST        9.81f
 
@@ -160,7 +155,6 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 // Auto navigation
 //////////////////////////////////////////////////////////////////////////////////////////
-
 #define MAX_YAW              15
 #define MAX_PIT              15
 #define YAW_ZERO_SLOPE       25.f

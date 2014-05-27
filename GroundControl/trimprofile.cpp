@@ -39,6 +39,8 @@ void TrimProfile::setupUI() {
     connect(pButOK, SIGNAL(pressed() ), this, SLOT(sl_setProfile() ) );
     connect(pButOK, SIGNAL(pressed() ), this, SLOT(close() ) );
     connect(pButCancel, SIGNAL(pressed() ), this, SLOT(close() ) );
+
+    connect(m_pProfileSelector, SIGNAL(currentIndexChanged(int) ), this, SLOT(sl_IndexChanged(int) ) );
 }
 
 void TrimProfile::saveConfig() {
@@ -56,12 +58,95 @@ void TrimProfile::saveConfig() {
     m_pConf->endArray();
 }
 
+void TrimProfile::sl_savePIDs(PIDS p) {
+    m_pConf->beginWriteArray("trims");
+    m_pConf->setArrayIndex(m_pProfileSelector->currentIndex() );
+
+    m_pConf->setValue("p_rkp", p.m_pit_rkp);
+    m_pConf->setValue("p_rki", p.m_pit_rki);
+    m_pConf->setValue("p_rkd", p.m_pit_rkd);
+    m_pConf->setValue("p_rimax", p.m_pit_rimax);
+
+    m_pConf->setValue("r_rkp", p.m_rol_rkp);
+    m_pConf->setValue("r_rki", p.m_rol_rki);
+    m_pConf->setValue("r_rkd", p.m_rol_rkd);
+    m_pConf->setValue("r_rimax", p.m_rol_rimax);
+
+    m_pConf->setValue("y_rkp", p.m_yaw_rkp);
+    m_pConf->setValue("y_rki", p.m_yaw_rki);
+    m_pConf->setValue("y_rkd", p.m_yaw_rkd);
+    m_pConf->setValue("y_rimax", p.m_yaw_rimax);
+
+    m_pConf->setValue("t_rkp", p.m_thr_rkp);
+    m_pConf->setValue("t_rki", p.m_thr_rki);
+    m_pConf->setValue("t_rkd", p.m_thr_rkd);
+    m_pConf->setValue("t_rimax", p.m_thr_rimax);
+
+    m_pConf->setValue("a_rkp", p.m_acc_skp);
+    m_pConf->setValue("a_rki", p.m_acc_rki);
+    m_pConf->setValue("a_rkd", p.m_acc_rkd);
+    m_pConf->setValue("a_rimax", p.m_acc_rimax);
+
+    m_pConf->setValue("p_skp", p.m_pit_skp);
+    m_pConf->setValue("r_skp", p.m_rol_skp);
+    m_pConf->setValue("y_skp", p.m_yaw_skp);
+    m_pConf->setValue("t_skp", p.m_thr_skp);
+    m_pConf->setValue("a_skp", p.m_acc_skp);
+
+    m_pConf->endArray();
+}
+
+
+PIDS TrimProfile::loadPIDs() {
+    PIDS p;
+
+    m_pConf->beginReadArray("trims");
+    m_pConf->setArrayIndex(m_pProfileSelector->currentIndex() );
+
+    p.m_pit_rkp = m_pConf->value("p_rkp").toDouble();
+    p.m_pit_rki = m_pConf->value("p_rki").toDouble();
+    p.m_pit_rkd = m_pConf->value("p_rkd").toDouble();
+    p.m_pit_rimax = m_pConf->value("p_rimax").toDouble();
+
+    p.m_rol_rkp = m_pConf->value("r_rkp").toDouble();
+    p.m_rol_rki = m_pConf->value("r_rki").toDouble();
+    p.m_rol_rkd = m_pConf->value("r_rkd").toDouble();
+    p.m_rol_rimax = m_pConf->value("r_rimax").toDouble();
+
+    p.m_yaw_rkp = m_pConf->value("y_rkp").toDouble();
+    p.m_yaw_rki = m_pConf->value("y_rki").toDouble();
+    p.m_yaw_rkd = m_pConf->value("y_rkd").toDouble();
+    p.m_yaw_rimax = m_pConf->value("y_rimax").toDouble();
+
+    p.m_thr_rkp = m_pConf->value("t_rkp").toDouble();
+    p.m_thr_rki = m_pConf->value("t_rki").toDouble();
+    p.m_thr_rkd = m_pConf->value("t_rkd").toDouble();
+    p.m_thr_rimax = m_pConf->value("t_rimax").toDouble();
+
+    p.m_acc_skp = m_pConf->value("a_rkp").toDouble();
+    p.m_acc_rki = m_pConf->value("a_rki").toDouble();
+    p.m_acc_rkd = m_pConf->value("a_rkd").toDouble();
+    p.m_acc_rimax = m_pConf->value("a_rimax").toDouble();
+
+    p.m_pit_skp = m_pConf->value("p_skp").toDouble();
+    p.m_rol_skp = m_pConf->value("r_skp").toDouble();
+    p.m_yaw_skp = m_pConf->value("y_skp").toDouble();
+    p.m_thr_skp = m_pConf->value("t_skp").toDouble();
+    p.m_acc_skp = m_pConf->value("a_skp").toDouble();
+
+    m_pConf->endArray();
+
+    return p;
+}
 void TrimProfile::createDefaultProfile() {
     QString sName = "default";
 
+    m_pConf->beginWriteArray("trims");
+    m_pConf->setArrayIndex(0);
     m_pConf->setValue("name", sName);
     m_pConf->setValue("trimPitch", 0.f);
     m_pConf->setValue("trimRoll", 0.f);
+    m_pConf->endArray();
 
     m_pProfileSelector->addItem(sName);
     m_lTrims.append(trim(0.f, 0.f) );
@@ -83,6 +168,9 @@ void TrimProfile::loadConfig() {
         createDefaultProfile();
     }
 
+    // Load last active profile
+    m_pProfileSelector->setCurrentIndex(m_pConf->value("pmanager_lindex", 0).toInt() );
+
     emitCurrentIndex();
 }
 
@@ -94,15 +182,12 @@ void TrimProfile::sl_createProfile() {
     if (ok && !profile.isEmpty()) {
         m_lTrims.append(trim(0.f, 0.f) );
         m_pProfileSelector->addItem(profile);
+        saveConfig();
     }
 }
 
 void TrimProfile::sl_IndexChanged(int index) {
-    assert(m_pProfileSelector->count() == m_lTrims.size() );
-
-    float fRoll = m_lTrims.at(index).first;
-    float fPitch = m_lTrims.at(index).second;
-    emit si_trimChanged(fRoll, fPitch);
+    m_pConf->setValue("pmanager_lindex", index);
 }
 
 void TrimProfile::sl_setProfile() {

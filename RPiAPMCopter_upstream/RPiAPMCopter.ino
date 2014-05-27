@@ -57,20 +57,16 @@ Task taskINAV(&inav_loop, INAV_T_MS, 1);
 
 // Attitude-, Altitude and Navigation control loop
 void main_loop() {
-#if CONFIG_HAL_BOARD == HAL_BOARD_APM2
   // Limit on APM 2.5 the update rate if the 3DR radio is used,
   // Otherwise the packets are corrupted often?!
   // TODO: Maybe try out different buffer sizes on begin() at setup()
   static uint_fast16_t timer = 0;
   uint_fast16_t time = _HAL_BOARD.m_pHAL->scheduler->millis();
   
-  if(time - timer >= _RECVR.get_update_rate_ms() ) {
+  if(time - timer >= _HAL_BOARD.get_update_rate_ms() ) {
     _MODEL.run();
     timer = time;
   }
-#else
-  _MODEL.run();
-#endif
 }
 
 // Altitude estimation and AHRS system (yaw correction with GPS, barometer, ..)

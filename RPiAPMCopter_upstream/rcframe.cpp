@@ -69,12 +69,8 @@ void M4XFrame::add(int_fast16_t FL, int_fast16_t BL, int_fast16_t FR, int_fast16
 void M4XFrame::run() {
   // Must get called before altitude hold calculation
   calc_attitude_hold();
-  
-  // Calculates motor changes _after_ attitude calculation if there is a need (e.g. UAV mode)
-  if(m_pReceiver->m_Waypoint.mode != GPSPosition::NOTHING_F) {
-    calc_altitude_hold();
-    calc_gpsnavig_hold();
-  }
+  calc_altitude_hold();
+  calc_gpsnavig_hold();
   
   // Output to the motors of the model
   out();
@@ -131,15 +127,16 @@ void M4XFrame::calc_altitude_hold() {
     iAltZOutput        = m_pHalBoard->m_rgPIDS[PID_THR_RATE].get_pid(fAltZStabOut - fClmbRate_cms, 1);
   }
 
-  // TODO: TEST
-  // If the quad-copter is going down too fast, fAcceleration_g becomes greater
-  if(m_pReceiver->m_Waypoint.mode == GPSPosition::CONTRLD_DOWN_F && fAccel_g > fBias_g) {
-    m_pExeption->pause_take_down();
-  }
+  if(m_pReceiver->m_rgChannelsRC[RC_ROL] > RC_THR_OFF) {
+    // If the quad-copter is going down too fast, fAcceleration_g becomes greater
+    if(m_pReceiver->m_Waypoint.mode == GPSPosition::CONTRLD_DOWN_F && fAccel_g > fBias_g) {
+      m_pExeption->pause_take_down();
+    }
 
-  // else: the fAcceleration_g becomes smaller
-  if(m_pReceiver->m_Waypoint.mode == GPSPosition::CONTRLD_DOWN_F && fAccel_g <= fBias_g) {
-    m_pExeption->continue_take_down();
+    // else: the fAcceleration_g becomes smaller
+    if(m_pReceiver->m_Waypoint.mode == GPSPosition::CONTRLD_DOWN_F && fAccel_g <= fBias_g) {
+      m_pExeption->continue_take_down();
+    }
   }
 
   // Don't change the throttle if acceleration is below a certain bias

@@ -382,6 +382,10 @@ void QPIDConfig::Setup() {
 }
 
 void QPIDConfig::sl_sendPIDs() {
+    sendPIDs(getPIDS() );
+}
+
+void QPIDConfig::sendPIDs(PIDS p) {
     if(!m_bSend){
         qDebug() << "PIDs not emitted";
         return;
@@ -389,17 +393,53 @@ void QPIDConfig::sl_sendPIDs() {
 
     QString com = "";
     QTextStream stream(&com);
-    stream  << "{\"type\":\"pid\",\"p_rkp\":" << m_pit_rkp_V->value() << ",\"p_rki\":" << m_pit_rki_V->value() << ",\"p_rkd\":" << m_pit_rkd_V->value() << ",\"p_rimax\":" << m_pit_rimax_V->value()
-                             << ",\"r_rkp\":" << m_rol_rkp_V->value() << ",\"r_rki\":" << m_rol_rki_V->value() << ",\"r_rkd\":" << m_rol_rkd_V->value() << ",\"r_rimax\":" << m_rol_rimax_V->value()
-                             << ",\"y_rkp\":" << m_yaw_rkp_V->value() << ",\"y_rki\":" << m_yaw_rki_V->value() << ",\"y_rkd\":" << m_yaw_rkd_V->value() << ",\"y_rimax\":" << m_yaw_rimax_V->value()
-                             << ",\"t_rkp\":" << m_thr_rkp_V->value() << ",\"t_rki\":" << m_thr_rki_V->value() << ",\"t_rkd\":" << m_thr_rkd_V->value() << ",\"t_rimax\":" << m_thr_rimax_V->value()
-                             << ",\"a_rkp\":" << m_acc_rkp_V->value() << ",\"a_rki\":" << m_acc_rki_V->value() << ",\"a_rkd\":" << m_acc_rkd_V->value() << ",\"a_rimax\":" << m_acc_rimax_V->value()
-                             << ",\"p_skp\":" << m_pit_skp_V->value()
-                             << ",\"r_skp\":" << m_rol_skp_V->value()
-                             << ",\"y_skp\":" << m_yaw_skp_V->value()
-                             << ",\"t_skp\":" << m_thr_skp_V->value()
-                             << ",\"a_skp\":" << m_acc_skp_V->value() << "}";
+    stream  << "{\"type\":\"pid\",\"p_rkp\":" << p.m_pit_rkp << ",\"p_rki\":" << p.m_pit_rki << ",\"p_rkd\":" << p.m_pit_rkd << ",\"p_rimax\":" << p.m_pit_rimax
+                             << ",\"r_rkp\":" << p.m_rol_rkp << ",\"r_rki\":" << p.m_rol_rki << ",\"r_rkd\":" << p.m_rol_rkd << ",\"r_rimax\":" << p.m_rol_rimax
+                             << ",\"y_rkp\":" << p.m_yaw_rkp << ",\"y_rki\":" << p.m_yaw_rki << ",\"y_rkd\":" << p.m_yaw_rkd << ",\"y_rimax\":" << p.m_yaw_rimax
+                             << ",\"t_rkp\":" << p.m_thr_rkp << ",\"t_rki\":" << p.m_thr_rki << ",\"t_rkd\":" << p.m_thr_rkd << ",\"t_rimax\":" << p.m_thr_rimax
+                             << ",\"a_rkp\":" << p.m_acc_rkp << ",\"a_rki\":" << p.m_acc_rki << ",\"a_rkd\":" << p.m_acc_rkd << ",\"a_rimax\":" << p.m_acc_rimax
+                             << ",\"p_skp\":" << p.m_pit_skp
+                             << ",\"r_skp\":" << p.m_rol_skp
+                             << ",\"y_skp\":" << p.m_yaw_skp
+                             << ",\"t_skp\":" << p.m_thr_skp
+                             << ",\"a_skp\":" << p.m_acc_skp << "}";
 
     m_pUdpSock->write(com.toLocal8Bit(), com.length() );
     qDebug() << com;
+}
+
+PIDS QPIDConfig::getPIDS() {
+    PIDS p;
+
+    p.m_acc_rimax = m_acc_rimax_V->value();
+    p.m_acc_rkd = m_acc_rkd_V->value();
+    p.m_acc_rki = m_acc_rki_V->value();
+    p.m_acc_rkp = m_acc_rkp_V->value();
+    p.m_acc_skp = m_acc_skp_V->value();
+
+    p.m_pit_rimax = m_pit_rimax_V->value();
+    p.m_pit_rkd = m_pit_rkd_V->value();
+    p.m_pit_rki = m_pit_rki_V->value();
+    p.m_pit_rkp = m_pit_rkp_V->value();
+    p.m_pit_skp = m_pit_skp_V->value();
+
+    p.m_rol_rimax = m_rol_rimax_V->value();
+    p.m_rol_rkd = m_rol_rkd_V->value();
+    p.m_rol_rki = m_rol_rki_V->value();
+    p.m_rol_rkp = m_rol_rkp_V->value();
+    p.m_rol_skp = m_rol_skp_V->value();
+
+    p.m_thr_rimax = m_thr_rimax_V->value();
+    p.m_thr_rkd = m_thr_rkd_V->value();
+    p.m_thr_rki = m_thr_rki_V->value();
+    p.m_thr_rkp = m_thr_rkp_V->value();
+    p.m_thr_skp = m_thr_skp_V->value();
+
+    p.m_yaw_rimax = m_yaw_rimax_V->value();
+    p.m_yaw_rkd = m_yaw_rkd_V->value();
+    p.m_yaw_rki = m_yaw_rki_V->value();
+    p.m_yaw_rkp = m_yaw_rkp_V->value();
+    p.m_yaw_skp = m_yaw_skp_V->value();
+
+    return p;
 }

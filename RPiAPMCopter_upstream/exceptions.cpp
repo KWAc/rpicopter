@@ -37,7 +37,7 @@ Exception::Exception(Device *pDevice, Receiver *pReceiver) {
 void Exception::dev_take_down() {
   static bool bInertTimer = false;
   static bool bIgnRcvr    = false;
-
+  
   // If motors do not spin: reset & return
   if(m_pReceiver->m_rgChannelsRC[RC_THR] == RC_THR_OFF) {
     bInertTimer = false;
@@ -45,7 +45,11 @@ void Exception::dev_take_down() {
     m_pReceiver->m_Waypoint.mode = GPSPosition::NOTHING_F;
     rls_recvr(bIgnRcvr);
     return;
+  } else {
+    // Set the flag that copter is in controlled take down mode
+    m_pReceiver->m_Waypoint.mode = GPSPosition::CONTRLD_DOWN_F;
   }
+  
   // Don't reduce speed of the motors if pause set
   if(m_bPauseTD == true) {
     return;
@@ -65,15 +69,20 @@ void Exception::dev_take_down() {
 
 void Exception::rcvr_take_down() {
   static bool bIgnRcvr    = false;
+  
   // Get time to calculate how much the motors should be reduced
   uint_fast32_t packet_t = m_pReceiver->last_parse_t32(); // Measure time elapsed since last successful package from WiFi or radio
   // If motors do not spin or a new packet arrived: reset & return
-  if( m_pReceiver->m_rgChannelsRC[RC_THR] == RC_THR_OFF || packet_t <= COM_PKT_TIMEOUT ) {
+  if(m_pReceiver->m_rgChannelsRC[RC_THR] == RC_THR_OFF || packet_t <= COM_PKT_TIMEOUT ) {
     m_pReceiver->set_errors(AbsErrorDevice::NOTHING_F);
     m_pReceiver->m_Waypoint.mode = GPSPosition::NOTHING_F;
     rls_recvr(bIgnRcvr);
     return;
+  } else {
+    // Set the flag that copter is in controlled take down mode
+    m_pReceiver->m_Waypoint.mode = GPSPosition::CONTRLD_DOWN_F;
   }
+  
   // Don't reduce speed of the motors if pause set
   if(m_bPauseTD == true) {
     return;
@@ -122,6 +131,7 @@ bool Exception::handle() {
     #if DEBUG_OUT
     m_pHalBoard->m_pHAL->console->printf("Inertial exception - Taking model down\n");
     #endif
+    
     dev_take_down();
     return true;
   }
@@ -129,6 +139,7 @@ bool Exception::handle() {
     #if DEBUG_OUT
     m_pHalBoard->m_pHAL->console->printf("Inertial exception - Taking model down\n");
     #endif
+    
     dev_take_down();
     return true;
   }
@@ -136,6 +147,7 @@ bool Exception::handle() {
     #if DEBUG_OUT
     m_pHalBoard->m_pHAL->console->printf("barometer exception - disable hold altitude\n");
     #endif
+    
     disable_alti_hold();
   }
   if(m_pHalBoard->get_errors() & AbsErrorDevice::COMPASS_F) {       // If Compass not working, the GPS navigation shouldn't be used
@@ -150,7 +162,11 @@ bool Exception::handle() {
   }
   if(m_pHalBoard->get_errors() & AbsErrorDevice::CURRENT_HIGH_F) {
   }
-  if(m_pHalBoard->get_errors() & AbsErrorDevice::CURRENT_LOW_F) {   // Battery is at the end: Go down straight  
+  if(m_pHalBoard->get_errors() & AbsErrorDevice::CURRENT_LOW_F) {   // Battery is at the end: Go down straight
+    #if DEBUG_OUT
+    m_pHalBoard->m_pHAL->console->printf("current exception - Taking model down\n");
+    #endif
+    
     dev_take_down();
     return true;
   }
@@ -160,8 +176,9 @@ bool Exception::handle() {
   //////////////////////////////////////////////////////////////////////////////////////////
   if(m_pReceiver->get_errors() & AbsErrorDevice::UART_TIMEOUT_F) {
     #if DEBUG_OUT
-    m_pHalBoard->m_pHAL->console->printf("No signal from receiver for more than 500 ms\n");
+    m_pHalBoard->m_pHAL->console->printf("No signal from receiver for more than %d ms\n", COM_PKT_TIMEOUT);
     #endif
+    
     rcvr_take_down();
     return true;
   }
@@ -185,8 +202,6 @@ void Exception::continue_take_down() {
 
 void Exception::reduce_thr(float fTime) {
   static float fStepC           = 15.f;   // Default step size
-
-  m_pReceiver->m_Waypoint.mode = GPSPosition::CONTRLD_DOWN_F;
 
   // The speed of decreasing the throttle is dependent on the height
   uint_fast32_t iAltitudeTime = m_pHalBoard->m_pHAL->scheduler->millis() - m_t32Altitude;

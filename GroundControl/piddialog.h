@@ -3,6 +3,7 @@
 
 #include <QtWidgets>
 #include <QUdpSocket>
+#include "container.h"
 
 
 class QPIDConfig : public QWidget {
@@ -40,6 +41,9 @@ private:
 
 public:
     QPIDConfig(QUdpSocket *pSock, QWidget *parent = NULL);
+
+    void sendPIDs(PIDS);
+    PIDS getPIDS();
 
 public slots:
     void sl_Activate();

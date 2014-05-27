@@ -34,7 +34,7 @@ QRCWidget::QRCWidget(QUdpSocket *pSock, QSerialPort *pSerialPort, QWidget *paren
 }
 
 void QRCWidget::start() {
-    m_trimTimer.start(1000);
+    m_trimTimer.start(500);
     m_keyEventTimer.start(m_iUpdateTime);
 }
 
@@ -365,8 +365,4 @@ void QRCWidget::sl_sendRC2UDP() {
     if(m_bRadioEnabled) {
         sendJSON2COM(m_COM.cstr_makeRadioCommand() );
     }
-}
-
-void QRCWidget::sl_startTimer() {
-    m_keyEventTimer.start(m_iUpdateTime);
 }

@@ -17,8 +17,6 @@ Receiver::Receiver(Device *pHalBoard) {
   m_iSParseTime_A  = m_iSParseTime_C  = m_iSParseTime  = 0;
 
   m_eErrors = NOTHING_F;
-  
-  m_iUpdateRate = MAIN_T_MS;
 }
 
 uint_fast8_t Receiver::calc_chksum(char *str) {
@@ -159,7 +157,7 @@ void Receiver::run_calibration() {
   // Adjust AHRS
   m_pHalBoard->m_pAHRS->set_trim(Vector3f(roll_trim, pitch_trim, 0) );
 #else
-	m_pHalBoard->m_pHAL->console->println_P(PSTR("calibrate_accel not available on 1280"));
+	m_pHalBoard->m_pHAL->console->println_P(PSTR("calibrate_accel not available on 1280") );
 #endif
 }
 
@@ -358,7 +356,7 @@ bool Receiver::read_uartA(uint_fast16_t bytesAvail) {
       bRet = parse(m_cBuffer);
       if(bRet) {
         m_iSParseTimer_A = m_iSParseTimer;
-        m_iUpdateRate = MAIN_T_MS;
+        m_pHalBoard->set_update_rate_ms(MAIN_T_MS);
       }
       memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;
     }
@@ -445,9 +443,7 @@ bool Receiver::try_uartAC() {
   if(!bOK && m_iSParseTime_A > UART_A_TIMEOUT) {
     // Try radio next
     bOK = read_uartC(m_pHalBoard->m_pHAL->uartC->available() );
-    #if !BENCH_OUT
-    m_iUpdateRate = FALB_T_MS;
-    #endif
+    m_pHalBoard->set_update_rate_ms(FALB_T_MS);
   }
 
   // Update the time for the last successful parse of a control string
@@ -474,13 +470,3 @@ uint_fast32_t Receiver::last_parse_uartC_t32() {
   m_iSParseTime_C = m_pHalBoard->m_pHAL->scheduler->millis() - m_iSParseTimer_C;
   return m_iSParseTime_C;
 }
-
-#if CONFIG_HAL_BOARD == HAL_BOARD_APM2
-void Receiver::set_update_rate_ms(const uint_fast8_t rate) {
-  m_iUpdateRate = rate;
-}
-
-uint_fast8_t Receiver::get_update_rate_ms() const {
-  return m_iUpdateRate;
-}
-#endif

@@ -558,7 +558,7 @@ void MainWindow::connectToHost(const QString & hostName, quint16 port, QIODevice
         qDebug() << "connectToHost - Not connected: " << m_pUdpSocket->error();
     }
 
-    m_pRCWidget->sl_startTimer();
+    m_pRCWidget->start();
     m_pRCWidget->setDisabled(false);
     m_pRCWidget->setFocus();
 }
