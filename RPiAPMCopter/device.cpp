@@ -1,197 +1,280 @@
 #include <AP_Compass.h>
 #include <AP_Baro.h>
 #include <AP_InertialSensor.h>
-#include <AP_GPS.h>
+#include <AP_InertialNav.h>
+//#include <AP_InertialNav_NavEKF.h>
+#include <AP_GPS.h>             // ArduPilot GPS library
+
 #include <AP_BattMonitor.h>
+#include <AP_RangeFinder.h>
+#include <AP_BoardLED.h>
 
 #include "device.h"
 #include "config.h"
 #include "BattMonitor.h"
 #include "math.h"
+#include "filter.h"
 
 
-inline int add_flag(int flag, int mask) {
-  flag |= mask;
-  return flag;
+// create board led object
+AP_BoardLED board_led;
+
+/*
+ * Sigmoid transfer function
+ */
+inline float atti_f(float fX, float fSlope) {
+  float fVal = (180.f - smaller_f(fabs(fSlope * fX), 179.9f) ) / 180.f;
+  return fVal / sqrt(1.f + pow2_f(fVal) );
 }
-  
-inline int rem_flag(int flag, int mask) {
-  flag &= ~mask;
-  return flag;
+
+void Device::update_attitude() {
+  m_pAHRS->update();
+
+#if BENCH_OUT
+  static int iCounter = 0;
+  static int iTimer = 0;
+  int iCurTime = m_pHAL->scheduler->millis();
+  ++iCounter;
+  if(iCurTime - iTimer >= 1000) {
+    m_pHAL->console->printf("Benchmark - update_attitude(): %d Hz\n", iCounter);
+    iCounter = 0;
+    iTimer = iCurTime;
+  }
+#endif
+
+#if SIGM_FOR_ATTITUDE
+  // Use "m_pInert->update()" only if "m_pAHRS->update()" is not used
+  //m_pInert->update();
+
+  // Calculate time (in s) passed
+  uint_fast32_t t32CurrentTime = m_pHAL->scheduler->millis();
+  float dT = static_cast<float>((t32CurrentTime - m_t32Inertial) ) / 1000.f;
+  m_t32Inertial = t32CurrentTime;
+
+  // Calculate attitude from relative gyrometer changes
+  m_vAtti_deg  += read_gyro_deg() * dT;
+  m_vAtti_deg   = wrap180_V3f(m_vAtti_deg);
+  m_vAtti_deg.z = ToDeg(m_pAHRS->yaw); // Use AHRS for the yaw
+
+  // Use a temporary instead of the member variable for acceleration data
+  Vector3f vRef_deg = read_accl_deg();
+
+  #if DEBUG_OUT && !BENCH_OUT
+  m_pHAL->console->printf("Attitude - x: %.1f/%.1f, y: %.1f/%.1f, z: %.1f\n", m_vAtti_deg.x, vRef_deg.x, m_vAtti_deg.y, vRef_deg.y, m_vAtti_deg.z);
+  #endif
+
+  // Use accelerometer on in +/-45° range
+  if(vRef_deg.x > 45.f || vRef_deg.x < -45.f) {
+    return;
+  }
+  if(vRef_deg.y > 45.f || vRef_deg.y < -45.f) {
+    return;
+  }
+
+  // Anneal Pitch/Roll gyrometer to accelerometer
+  m_vAtti_deg.x = SFilter::transff_filt_f(m_vAtti_deg.x, vRef_deg.x-m_vAtti_deg.x, dT*INERT_FUSION_RATE, Functor_f(&atti_f, vRef_deg.x, INERT_ANNEAL_SLOPE) );
+  m_vAtti_deg.y = SFilter::transff_filt_f(m_vAtti_deg.y, vRef_deg.y-m_vAtti_deg.y, dT*INERT_FUSION_RATE, Functor_f(&atti_f, vRef_deg.y, INERT_ANNEAL_SLOPE) );
+#else
+  m_vAtti_deg.x = ToDeg(m_pAHRS->pitch);
+  m_vAtti_deg.y = ToDeg(m_pAHRS->roll);
+  m_vAtti_deg.z = ToDeg(m_pAHRS->yaw);
+#endif
 }
 
 Device::Device( const AP_HAL::HAL *pHAL,
-                AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, GPS *pGPS, BattMonitor *pBat )
+                AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, AP_GPS *pGPS, BattMonitor *pBat, RangeFinder *pRF, AP_AHRS_DCM *pAHRS, AP_InertialNav *pInertNav )
 {
-  m_fInertRolOffs = 0.f;
-  m_fInertPitOffs = 0.f;
-  m_fInertYawOffs = 0.f;
+  m_iAltitude_cm      = 0;
 
-  m_fInertRolCor  = 0.f;
-  m_fInertPitCor  = 0.f;
+  m_fInertRolCor      = 0.f;
+  m_fInertPitCor      = 0.f;
 
-  m_vAttitude.x   = 0.f;
-  m_vAttitude.y   = 0.f;
-  m_vAttitude.z   = 0.f;
+  m_vAtti_deg.x       = 0.f;
+  m_vAtti_deg.y       = 0.f;
+  m_vAtti_deg.z       = 0.f;
 
-  m_fCmpH         = 0.f;
-  m_fGpsH         = 0.f;
-  
-  m_eErrors       = EVERYTHING_OK_F;
-  
-  if(CMP_FOR_YAW) {
-    m_fCmpH = -read_comp(0, 0);
-  } else {
-    m_fCmpH = 0.f;
-  }
-  
+  m_fCmpH             = 0.f;
+  m_fGpsH             = 0.f;
+
+  m_iUpdateRate       = MAIN_T_MS;
+  m_eErrors           = NOTHING_F;
+
   // HAL
-  m_pHAL     = pHAL;
+  m_pHAL              = pHAL;
   // Sensors
-  m_pInert   = pInert;
-  m_pComp    = pComp;
-  m_pBaro    = pBar;
-  m_pGPS     = pGPS;
-  m_pBat     = pBat;
+  m_pInert            = pInert;
+  m_pComp             = pComp;
+  m_pBaro             = pBar;
+  m_pGPS              = pGPS;
+  m_pBat              = pBat;
+  m_pRF               = pRF;
+  m_pAHRS             = pAHRS;
+  m_pInertNav         = pInertNav;
 
-  // Initialize all members
-  // Timer for sensor fusion
-  m_iTimer   = m_pHAL->scheduler->millis();
+  // Timers
+  m_t32Compass = m_t32InertialNav = m_t32Inertial = m_pHAL->scheduler->millis();
+
   // PIDs
-  memset(m_pPIDS, 0, sizeof(m_pPIDS) );
-}
-  
-uint_fast32_t Device::time_elapsed_ms() {
-  uint_fast32_t time_ms = m_pHAL->scheduler->millis() - m_iTimer;
-  m_iTimer = m_pHAL->scheduler->millis();
-  return time_ms;
+  memset(m_rgPIDS, 0, sizeof(m_rgPIDS) );
 }
 
-float Device::time_elapsed_s() {
-  float time_s = (float)time_elapsed_ms() / 1000.f;
-  return time_s;
+void Device::init_rf() {
+  #ifdef SONAR_TYPE
+    #if SONAR_TYPE <= AP_RANGEFINDER_MAXSONARI2CXL
+      // type conversion
+      AP_RangeFinder_MaxsonarXL *pRF = (AP_RangeFinder_MaxsonarXL*)m_pRF;
+      // init scaler
+      pRF->calculate_scaler(SONAR_TYPE, SONAR_SCALING);
+    #elif SONAR_TYPE == AP_RANGEFINDER_PULSEDLIGHT
+        // type conversion
+      AP_RangeFinder_PulsedLightLRF *pRF = (AP_RangeFinder_PulsedLightLRF*)m_pRF;
+      // ensure i2c is slow
+      hal.i2c->setHighSpeed(false);
+      // initialise sensor
+      pRF->init();
+      // kick off one reading
+      pRF->take_reading();
+      // check health
+      if (!pRF->healthy) {
+          m_pHAL->console->println("Initialisation failed\n");
+      }
+    #endif
+  #else
+    m_pHAL->console->println("No range finder installed\n");
+  #endif
 }
 
-void Device::update_inertial() {
-  m_pInert->update();
-  
-  // Calculate time (in s) passed
-  float time_s = time_elapsed_s();
-  // Calculate attitude from relative gyrometer changes
-  m_vAttitude += read_gyro() * time_s;
-  m_vAttitude = wrap180_V3f(m_vAttitude);
-  // Use a temporary instead of the member variable for acceleration data
-  Vector3f vAnneal = read_accel();
+void Device::init_inertial_nav() {
+  m_pAHRS->set_compass(m_pComp);
 
-  // Use accelerometer on in +/-45° range
-  // Pitch
-  if(vAnneal.x > 45.f || vAnneal.x < -45.f) {
-    return;
-  }
-  // Roll
-  if(vAnneal.y > 45.f || vAnneal.y < -45.f) {
-    return;
-  }
-/*
-  // .. alternatively the compass or GPS could be used ..
-  // First read the sensors
-  if(CMP_FOR_YAW) {
-    m_fCmpH = -read_comp(0, 0);
-  }
-  if(GPS_FOR_YAW) { // TODO TEST this code
-    GPSData gps = read_gps();
-    float fHyp = sqrt(pow2_f(gps.heading_x) + pow2_f(gps.heading_y) );  // Calculate hypotenuse
-    m_fGpsH = atan2(gps.heading_y, fHyp);                               // Calculate the heading in degrees (from X and Y heading)
-  }
-  // Then calculate the heading, dependent on the devices used
-  // NO compass or GPS is used:
-  if(!CMP_FOR_YAW && !GPS_FOR_YAW) {
-    vAnneal.z = m_vAttitude.z; // Take the gyrometer
-  }
-  // Only compass used:
-  if(CMP_FOR_YAW && !GPS_FOR_YAW) {
-    vAnneal.z = m_fCmpH;
-  }
-  // Only GPS used:
-  if(!CMP_FOR_YAW && GPS_FOR_YAW) {
-    vAnneal.z = m_fGpsH;
-  }
-  // Compass and GPS used:
-  if(CMP_FOR_YAW && GPS_FOR_YAW) {
-    vAnneal.z = (m_fGpsH + m_fCmpH) / 2.f;
-  }
-*/
-  // Anneal both sensors
-  m_vAttitude = anneal_V3f(m_vAttitude, vAnneal, time_s, INERT_ANNEAL_SLOPE, INERT_FUSION_RATE);
+  m_pInertNav->init();
+  m_pInertNav->set_velocity_xy(0.f, 0.f);
+  m_pInertNav->set_velocity_z(0.f);
+
+  m_pInertNav->setup_home_position();
+  m_pInertNav->set_altitude(0.f);
+
+  m_t32Compass = m_t32Inertial = m_t32InertialNav = m_pHAL->scheduler->millis();
 }
 
-float Device::getInertPitCor() {
+#ifdef SONAR_TYPE
+int_fast32_t Device::read_rf_cm() {
+  m_iAltitude_cm = m_pRF->read();
+  return m_iAltitude_cm;
+}
+#endif
+
+#ifdef SONAR_TYPE
+int_fast32_t Device::get_rf_cm() {
+  return m_iAltitude_cm;
+}
+#endif
+
+float Device::get_pit_cor() {
   return m_fInertPitCor;
 }
 
-float Device::getInertRolCor() {
+float Device::get_rol_cor() {
   return m_fInertRolCor;
 }
 
-void Device::setInertPitCor(float fValDeg) {
+void Device::set_pit_cor(float fValDeg) {
   m_fInertPitCor = fValDeg;
 }
 
-void Device::setInertRolCor(float fValDeg) {
+void Device::set_rol_cor(float fValDeg) {
   m_fInertRolCor = fValDeg;
 }
 
-Vector3f Device::get_atti_cor() {
-  return Vector3f(m_vAttitude.x - m_fInertPitCor, // Pitch correction for inbalances
-                  m_vAttitude.y - m_fInertRolCor, // Roll correction for inbalances
-                  m_vAttitude.z);                 // Yaw is without correction on that point, because compass/GPS is thought to do that job, but not here
+Vector3f Device::get_atti_cor_deg() {
+  return Vector3f(m_vAtti_deg.x - m_fInertPitCor, // Pitch correction for inbalances
+                  m_vAtti_deg.y - m_fInertRolCor, // Roll correction for inbalances
+                  m_vAtti_deg.z);                 // Yaw is without correction on that point, because compass/GPS is thought to do that job, but not here
 }
 
-Vector3f Device::get_atti_raw() {
-  return m_vAttitude;
+Vector3f Device::get_atti_raw_deg() {
+  return m_vAtti_deg;
 }
 
-Vector3f Device::get_gyro_cor() {
-  return Vector3f(m_vGyro.x - m_fInertPitCor, // Pitch correction for inbalances
-                  m_vGyro.y - m_fInertRolCor, // Roll correction for inbalances
-                  m_vGyro.z);                 // Yaw is without correction on that point, because compass/GPS is thought to do that job, but not here
+Vector3f Device::get_gyro_cor_deg() {
+  return Vector3f(m_vGyro_deg.x - m_fInertPitCor, // Pitch correction for inbalances
+                  m_vGyro_deg.y - m_fInertRolCor, // Roll correction for inbalances
+                  m_vGyro_deg.z);                 // Yaw is without correction on that point, because compass/GPS is thought to do that job, but not here
 }
 
-Vector3f Device::get_gyro_raw() {
-  return m_vGyro;
+Vector3f Device::get_gyro_raw_deg() {
+  return m_vGyro_deg;
 }
 
-Vector3f Device::get_accel_cor() {
-  return Vector3f(m_vAccel.x - m_fInertPitCor, // Pitch correction for inbalances
-                  m_vAccel.y - m_fInertRolCor, // Roll correction for inbalances
-                  m_vAccel.z);                 // Yaw is without correction on that point, because compass/GPS is thought to do that job, but not here
+Vector3f Device::get_accel_cor_deg() {
+  return Vector3f(m_vAccel_deg.x - m_fInertPitCor, // Pitch correction for inbalances
+                  m_vAccel_deg.y - m_fInertRolCor, // Roll correction for inbalances
+                  m_vAccel_deg.z);                 // Yaw is without correction on that point, because compass/GPS is thought to do that job, but not here
 }
 
-Vector3f Device::get_accel_raw() {
-  return m_vAccel;
+Vector3f Device::get_accel_raw_deg() {
+  return m_vAccel_deg;
 }
 
 void Device::init_barometer() {
   m_pBaro->init();
   m_pBaro->calibrate();
+
+#ifdef APM2_HARDWARE
+  // we need to stop the barometer from holding the SPI bus
+  m_pHAL->gpio->pinMode(40, GPIO_OUTPUT);
+  m_pHAL->gpio->write(40, HIGH);
+#endif
+}
+
+void Device::update_inav() {
+  if(!m_pGPS) {
+    return;
+  }
+
+  read_gps();
+  read_comp_deg();
+  //m_pAHRS->update(); // AHRS system is already updated at 100 Hz in the attitude update function
+
+  uint_fast32_t t32CurrentTime = m_pHAL->scheduler->millis();
+  float fTime_s = (t32CurrentTime - m_t32InertialNav) / 1000.f;
+  m_pInertNav->update(fTime_s);
+  m_t32InertialNav = t32CurrentTime;
 }
 
 void Device::init_pids() {
-  m_pPIDS[PID_PIT_RATE].kP(0.50);
-  m_pPIDS[PID_PIT_RATE].kI(0.25);
-  m_pPIDS[PID_PIT_RATE].imax(50);
+  // Rate PIDs
+  m_rgPIDS[PID_PIT_RATE].kP(0.65);
+  m_rgPIDS[PID_PIT_RATE].kI(0.20);
+  m_rgPIDS[PID_PIT_RATE].kD(0.01);
+  m_rgPIDS[PID_PIT_RATE].imax(50);
 
-  m_pPIDS[PID_ROL_RATE].kP(0.50);
-  m_pPIDS[PID_ROL_RATE].kI(0.25);
-  m_pPIDS[PID_ROL_RATE].imax(50);
+  m_rgPIDS[PID_ROL_RATE].kP(0.65);
+  m_rgPIDS[PID_ROL_RATE].kI(0.20);
+  m_rgPIDS[PID_ROL_RATE].kD(0.01);
+  m_rgPIDS[PID_ROL_RATE].imax(50);
 
-  m_pPIDS[PID_YAW_RATE].kP(1.25);
-  m_pPIDS[PID_YAW_RATE].kI(0.25);
-  m_pPIDS[PID_YAW_RATE].imax(50);
+  m_rgPIDS[PID_YAW_RATE].kP(0.55);
+  m_rgPIDS[PID_YAW_RATE].kI(0.15);
+  m_rgPIDS[PID_YAW_RATE].kD(0.0f);
+  m_rgPIDS[PID_YAW_RATE].imax(50);
 
-  m_pPIDS[PID_PIT_STAB].kP(5.5);
-  m_pPIDS[PID_ROL_STAB].kP(5.5);
-  m_pPIDS[PID_YAW_STAB].kP(5.5);
+  m_rgPIDS[PID_THR_RATE].kP(0.75);  // For altitude hold
+  m_rgPIDS[PID_THR_RATE].kI(0.25);  // For altitude hold
+  m_rgPIDS[PID_THR_RATE].kD(0.0f);  // For altitude hold
+  m_rgPIDS[PID_THR_RATE].imax(100); // For altitude hold
+
+  m_rgPIDS[PID_ACC_RATE].kP(1.50);  // For altitude hold
+  m_rgPIDS[PID_ACC_RATE].kI(0.75);  // For altitude hold
+  m_rgPIDS[PID_ACC_RATE].kD(0.0f);  // For altitude hold
+  m_rgPIDS[PID_ACC_RATE].imax(100); // For altitude hold
+
+  // STAB PIDs
+  m_rgPIDS[PID_PIT_STAB].kP(3.65);
+  m_rgPIDS[PID_ROL_STAB].kP(3.65);
+  m_rgPIDS[PID_YAW_STAB].kP(3.65);
+  m_rgPIDS[PID_THR_STAB].kP(5.50);  // For altitude hold
+  m_rgPIDS[PID_ACC_STAB].kP(15.50); // For altitude hold
 }
 
 void Device::init_compass() {
@@ -222,17 +305,23 @@ void Device::init_compass() {
     m_pHAL->console->printf("unknown\n");
     break;
   }
+
+  m_t32Compass = m_pHAL->scheduler->millis();
 }
 
 void Device::init_inertial() {
-  // Turn on MPU6050 - quad must be kept still as gyros will calibrate
+  // Turn on MPU6050
   m_pInert->init(AP_InertialSensor::COLD_START, AP_InertialSensor::RATE_200HZ);
+
   // Calibrate the inertial
-  calibrate_inertial();
+  m_t32Inertial = m_pHAL->scheduler->millis();
 }
 
 void Device::init_gps() {
-  m_pGPS->init(m_pHAL->uartB, GPS::GPS_ENGINE_AIRBORNE_2G);
+  // Init the GPS without logging
+  m_pGPS->init(NULL);
+  // Initialise the LEDs
+  board_led.init();
 }
 
 void Device::init_batterymon() {
@@ -243,52 +332,60 @@ void Device::init_batterymon() {
 /*
  * Reads the current altitude changes from the gyroscope in degrees and returns it as a 3D vector
  */
-Vector3f Device::read_gyro() {
+Vector3f Device::read_gyro_deg() {
   if(!m_pInert->healthy() ) {
-    m_pHAL->console->println("read_gyro(): Inertial not healthy\n");
-    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(rem_flag(m_eErrors, EVERYTHING_OK_F) );
+    m_pHAL->console->println("read_gyro_deg(): Inertial not healthy\n");
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, GYROMETER_F) );
-    return m_vGyro;
+    return m_vGyro_deg;
   }
-  
-  m_vGyro = m_pInert->get_gyro();
+
+  m_vGyro_deg = m_pInert->get_gyro();
   // Save values
-  float fRol = ToDeg(m_vGyro.x); // in comparison to the accelerometer data swapped
-  float fPit = ToDeg(m_vGyro.y); // in comparison to the accelerometer data swapped
-  float fYaw = ToDeg(m_vGyro.z);
+  float fRol = ToDeg(m_vGyro_deg.x); // in comparison to the accelerometer data swapped
+  float fPit = ToDeg(m_vGyro_deg.y); // in comparison to the accelerometer data swapped
+  float fYaw = ToDeg(m_vGyro_deg.z);
   // Put them into the right order
-  m_vGyro.x = fPit; // PITCH
-  m_vGyro.y = fRol; // ROLL
-  m_vGyro.z = fYaw; // YAW
-  
-  return m_vGyro;
+  m_vGyro_deg.x = fPit; // PITCH
+  m_vGyro_deg.y = fRol; // ROLL
+  m_vGyro_deg.z = fYaw; // YAW
+
+  return m_vGyro_deg;
 }
 
 /*
  * Reads the current attitude from the accelerometer in degrees and returns it as a 3D vector
  * From: "Tilt Sensing Using a Three-Axis Accelerometer"
  */
-Vector3f Device::read_accel() { 
+Vector3f Device::read_accl_deg() {
   if(!m_pInert->healthy() ) {
-    m_pHAL->console->println("read_accel(): Inertial not healthy\n");
-    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(rem_flag(m_eErrors, EVERYTHING_OK_F) );
+    m_pHAL->console->println("read_accl_deg(): Inertial not healthy\n");
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, ACCELEROMETR_F) );
-    return m_vAccel;
+    return m_vAccel_deg;
   }
 
-  // Low Pass Filter
-  Vector3f vAccelTmp_mss = m_pInert->get_accel();
-  m_vAccel = m_vAccelLast_mss = vAccelTmp_mss * INERT_LOWPATH_FILT + (m_vAccelLast_mss * (1.0 - INERT_LOWPATH_FILT));
-  
-  // Calculate roll and pitch in degrees from the filtered acceleration readouts
-  float fpYZ = sqrt(pow2_f(m_vAccel.y) + pow2_f(m_vAccel.z) );
-  //float fuXZ = sign_f(m_vAccel.z) * sqrt(0.1f * pow2_f(m_vAccel.x) + pow2_f(m_vAccel.z) );
-  m_vAccel.x = ToDeg(atan2(m_vAccel.x, fpYZ) )   - m_fInertPitOffs; // PITCH
-  //m_vAccel.y = ToDeg(atan2(-m_vAccel.y, -fuXZ) ) - m_fInertRolOffs; // ROLL
-  m_vAccel.y = ToDeg(atan2(-m_vAccel.y, -m_vAccel.z) ) - m_fInertRolOffs;
-  m_vAccel.z = 0.f;                                                 // YAW:   Cannot be calculated because accelerometer is aligned with the gravitational field vector
+  // Low Pass SFilter
+  Vector3f vAccelCur_cmss = m_pInert->get_accel() * 100.f;
+  m_vAccel_deg = m_vAccelPG_cmss = SFilter::low_pass_filt_V3f(vAccelCur_cmss, m_vAccelPG_cmss, INERT_LOWPATH_FILT_f);
 
-  return m_vAccel;
+  // Calculate G-const. corrected acceleration
+  m_vAccelMG_cmss = vAccelCur_cmss - m_vAccelPG_cmss;
+
+  // Calculate roll and pitch in degrees from the filtered acceleration readouts (attitude)
+  float fpYZ = sqrt(pow2_f(m_vAccel_deg.y) + pow2_f(m_vAccel_deg.z) );
+  // Pitch
+  m_vAccel_deg.x = ToDeg(atan2(m_vAccel_deg.x, fpYZ) );
+  // Roll
+  m_vAccel_deg.y = ToDeg(atan2(-m_vAccel_deg.y, -m_vAccel_deg.z) );
+
+  return m_vAccel_deg;
+}
+
+Vector3f Device::get_accel_mg_cmss() {
+  return m_vAccelMG_cmss;
+}
+
+Vector3f Device::get_accel_pg_cmss() {
+  return m_vAccelPG_cmss;
 }
 
 /*
@@ -296,19 +393,21 @@ Vector3f Device::read_accel() {
  * In heading the heading of the compass is written.
  * All units in degrees
  */
-float Device::read_comp(const float roll, const float pitch) {
-  if (!m_pComp->healthy() ) {
-    m_pHAL->console->println("read_comp(): Compass not healthy\n");
-    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(rem_flag(m_eErrors, EVERYTHING_OK_F) );
+float Device::read_comp_deg() {
+  if (!m_pComp->use_for_yaw() ) {
+    //m_pHAL->console->println("read_comp_deg(): Compass not healthy\n");
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, COMPASS_F) );
     return m_fCmpH;
   }
-  
+
+  // Update the compass readout maximally ten times a second
+  if(m_pHAL->scheduler->millis() - m_t32Compass <= COMPASS_UPDATE_T) {
+    return m_fCmpH;
+  }
+
   m_pComp->read();
-  
-  Matrix3f dcm_matrix;
-  dcm_matrix.from_euler(roll, pitch, 0);
-  m_fCmpH = m_pComp->calculate_heading(dcm_matrix);
+
+  m_fCmpH = m_pComp->calculate_heading(m_pAHRS->get_dcm_matrix() );
   m_fCmpH = ToDeg(m_fCmpH);
   m_pComp->learn_offsets();
 
@@ -316,59 +415,47 @@ float Device::read_comp(const float roll, const float pitch) {
 }
 
 GPSData Device::read_gps() {
-  if(m_pGPS->status() == GPS::NO_GPS) {
-    m_pHAL->console->println("read_gps(): GPS not healthy\n");
-    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(rem_flag(m_eErrors, EVERYTHING_OK_F) );
-    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, GPS_F) );
+  if(!m_pGPS) {
     return m_ContGPS;
   }
 
   m_pGPS->update();
+  m_ContGPS.status = static_cast<uint_fast32_t>(m_pGPS->status() );
   
-  if(m_pGPS->new_data) {
-    if(m_pGPS->fix) {
-      m_ContGPS.latitude    = m_pGPS->latitude;
-      m_ContGPS.longitude   = m_pGPS->longitude;
-      m_ContGPS.altitude_m  = (float)m_pGPS->altitude_cm / 100.0;
+  if(m_ContGPS.status > AP_GPS::NO_FIX) {
+    m_ContGPS.latitude    = m_pGPS->location().lat;
+    m_ContGPS.longitude   = m_pGPS->location().lng;
+    m_ContGPS.altitude_cm = m_pGPS->location().alt;
 
-      m_ContGPS.gspeed_ms   = (float)m_pGPS->ground_speed_cm / 100.0;
-      m_ContGPS.espeed_ms   = m_pGPS->velocity_east();
-      m_ContGPS.nspeed_ms   = m_pGPS->velocity_north();
-      m_ContGPS.dspeed_ms   = m_pGPS->velocity_down();
+    m_ContGPS.gspeed_cms  = m_pGPS->ground_speed_cm();
 
-      // The fucking avr_g++ does NOT support dynamic C++ with class like objects in structs declared as static :(
-      // Hate this permittivity
-      m_ContGPS.heading_x   = m_pGPS->velocity_vector().x;
-      m_ContGPS.heading_y   = m_pGPS->velocity_vector().y;
-      m_ContGPS.heading_z   = m_pGPS->velocity_vector().z;
-
-      m_ContGPS.gcourse_cd  = (int)m_pGPS->ground_course_cd / 100;
-      m_ContGPS.status_fix  = m_pGPS->fix;
-      m_ContGPS.satelites   = m_pGPS->num_sats;
-      m_ContGPS.time_week   = m_pGPS->time_week;
-      m_ContGPS.time_week_s = m_pGPS->time_week_ms / 1000.0;
-    } else {
-      // Dunno atm
-    }
-    m_pGPS->new_data = false;
+    m_ContGPS.gcourse_cd  = m_pGPS->ground_course_cd();
+    m_ContGPS.satelites   = m_pGPS->num_sats();
+    m_ContGPS.time_week   = m_pGPS->time_week();
+    m_ContGPS.time_week_s = m_pGPS->time_week_ms() / 1000.0;
+  } else {
+    //m_pHAL->console->println("read_gps(): GPS not healthy\n");
+    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, GPS_F) );
   }
+
   return m_ContGPS;
 }
 
 BaroData Device::read_baro() {
   if (!m_pBaro->healthy) {
     m_pHAL->console->println("read_baro(): Barometer not healthy\n");
-    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(rem_flag(m_eErrors, EVERYTHING_OK_F) );
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, BAROMETER_F) );
     return m_ContBaro;
   }
 
   m_pBaro->read();
-  
-  m_ContBaro.pressure = m_pBaro->get_pressure();
-  m_ContBaro.altitude = m_pBaro->get_altitude();
-  m_ContBaro.temperature = m_pBaro->get_temperature();
-  m_ContBaro.climb_rate = m_pBaro->get_climb_rate();
+
+  m_ContBaro.pressure_pa      = SFilter::low_pass_filt_f(m_pBaro->get_pressure(), m_ContBaro.pressure_pa, BAROM_LOWPATH_FILT_f);
+  m_ContBaro.temperature_deg  = SFilter::low_pass_filt_f(m_pBaro->get_temperature(), m_ContBaro.temperature_deg, BAROM_LOWPATH_FILT_f);
+
+  m_ContBaro.altitude_cm      = static_cast<int_fast32_t>(SFilter::low_pass_filt_f(m_pBaro->get_altitude(), m_ContBaro.altitude_cm, BAROM_LOWPATH_FILT_f) * 100);
+  m_ContBaro.climb_rate_cms   = static_cast<int_fast32_t>(SFilter::low_pass_filt_f(m_pBaro->get_climb_rate(), m_ContBaro.climb_rate_cms, BAROM_LOWPATH_FILT_f) * 100);
+
   m_ContBaro.pressure_samples = m_pBaro->get_pressure_samples();
 
   return m_ContBaro;
@@ -380,90 +467,134 @@ BattData Device::read_bat() {
   m_ContBat.voltage_V    = m_pBat->voltage();
   m_ContBat.current_A    = m_pBat->current_amps();
   m_ContBat.consumpt_mAh = m_pBat->current_total_mah();
-  
+
   if(m_ContBat.voltage_V < 6.0f) {
-    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(rem_flag(m_eErrors, EVERYTHING_OK_F) );
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, VOLTAGE_LOW_F) );
   }
   if(m_ContBat.voltage_V > 25.2f) {
-    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(rem_flag(m_eErrors, EVERYTHING_OK_F) );
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, VOLTAGE_HIGH_F) );
   }
 
   return m_ContBat;
 }
 
-/*
- * Find the offset from total equilibrium.
- * Because the vehicle is never totally horizontally,
- * we will measure the discrepancy to compensate unequal motor thrust at start.
- */
-Vector3f Device::calibrate_inertial() {
-  Vector3f offset;
-  float samples_acc[ATTITUDE_SAMPLE_CNT];
-  float samples_avg = 0;
-  float samples_dev = 0;
+float Device::get_comp_deg() {
+  return m_fCmpH;
+}
 
-  m_fInertRolOffs = 0;
-  m_fInertPitOffs = 0;
-  m_fInertYawOffs = 0;
+BaroData Device::get_baro() {
+  return m_ContBaro;
+}
 
-  m_fInertPitCor = 0;
-  m_fInertRolCor = 0;
+GPSData Device::get_gps() {
+  return m_ContGPS;
+}
 
-  float fInertRolOffs = 0;
-  float fInertPitOffs = 0;
-  float fInertYawOffs = 0;
+BattData Device::get_bat() {
+  return m_ContBat;
+}
 
-  // initially switch on LEDs
-  //leds_on(); bool led = true;
-
-  while(true) {
-    samples_avg = 0;
-    samples_dev = 0;
-
-    fInertRolOffs = 0;
-    fInertPitOffs = 0;
-    fInertYawOffs = 0;
-
-    // Take 10 samples in less than one second
-    for(uint_fast8_t i = 0; i < ATTITUDE_SAMPLE_CNT; i++) {
-      m_pInert->update();
-      offset = read_accel();
-
-      m_pHAL->console->printf("Gyroscope calibration - Offsets are roll:%f, pitch:%f, yaw:%f.\n",
-                              (double)offset.y, (double)offset.x, (double)offset.z);
-
-      fInertPitOffs += offset.x / (float)ATTITUDE_SAMPLE_CNT;
-      fInertRolOffs += offset.y / (float)ATTITUDE_SAMPLE_CNT;
-      fInertYawOffs += offset.z / (float)ATTITUDE_SAMPLE_CNT;
-
-      // Check whether the data set is useable
-      float cur_sample = sqrt(pow2_f(offset.x) + pow2_f(offset.y) + pow2_f(offset.z) );
-      samples_acc[i] = cur_sample;
-      samples_avg += cur_sample / ATTITUDE_SAMPLE_CNT;
-
-      //flash_leds(led); led = !led;  // Let LEDs blink
-      m_pHAL->scheduler->delay(50);     // Wait 50ms
-    }
-
-    // Calc standard deviation
-    for(uint_fast8_t i = 0; i < ATTITUDE_SAMPLE_CNT; i++) {
-      samples_dev += pow2_f(samples_acc[i] - samples_avg) / (float)ATTITUDE_SAMPLE_CNT;
-    }
-    samples_dev = sqrt(samples_dev);
-    // If std dev is low: exit loop
-    if(samples_dev < samples_avg / 16.f)
-      break;
+float Device::get_altitude_cm(Device *pDev, bool &bOK) {
+  bOK = false;
+  if(!pDev) {
+    return 0.f;
   }
 
-  // Save offsets
-  m_fInertPitOffs = offset.x = fInertPitOffs;
-  m_fInertRolOffs = offset.y = fInertRolOffs;
-  m_fInertYawOffs = offset.z = fInertYawOffs;
+  float fAltitude_cm = 0.f;
+  // Barometer and GPS usable
+  if(pDev->m_pInertNav->altitude_ok() ) {
+    fAltitude_cm = static_cast<float>(pDev->m_pInertNav->get_altitude() );
+    bOK = true;
+  }
+#ifdef SONAR_TYPE
+  // Use the range finder for smaller altitudes
+  float iAltitudeRF_cm = static_cast<float>(pDev->get_rf_cm() );
+  if(iAltitudeRF_cm <= 600) {
+    fAltitude_cm = iAltitudeRF_cm;
+  }
+#endif
+  return fAltitude_cm;
+}
 
-  //leds_off();   // switch off leds
-  m_pHAL->console->printf("Gyroscope calibrated - Offsets are roll:%f, pitch:%f, yaw:%f.\nAverage euclidian distance:%f, standard deviation:%f\n",
-                          (double)m_fInertRolOffs, (double)m_fInertPitOffs, (double)m_fInertYawOffs, (double)samples_avg, (double)samples_dev);
-  return offset;
+float Device::get_accel_x_g(Device *pDev, bool &bOK) {
+  static float fGForce = 0.f;
+
+  bOK = false;
+  // Break when no device was found
+  if(!pDev) {
+    return fGForce;
+  }
+  // -45 < Pitch < +45
+  if(pDev->get_atti_raw_deg().x > 45.f || pDev->get_atti_raw_deg().x < -45.f) {
+    return fGForce;
+  }
+  // -45 < Roll < +45
+  if(pDev->get_atti_raw_deg().y > 45.f || pDev->get_atti_raw_deg().y < -45.f) {
+    return fGForce;
+  }
+
+  float fCFactor = 100.f * INERT_G_CONST;
+  float fG       = -pDev->get_accel_mg_cmss().x / fCFactor;
+  fGForce        = SFilter::low_pass_filt_f(fG, fGForce, ACCEL_LOWPATH_FILT_f);
+
+  bOK = true;
+  return fGForce;
+}
+
+float Device::get_accel_y_g(Device *pDev, bool &bOK) {
+  static float fGForce = 0.f;
+
+  bOK = false;
+  // Break when no device was found
+  if(!pDev) {
+    return fGForce;
+  }
+  // -45 < Pitch < +45
+  if(pDev->get_atti_raw_deg().x > 45.f || pDev->get_atti_raw_deg().x < -45.f) {
+    return fGForce;
+  }
+  // -45 < Roll < +45
+  if(pDev->get_atti_raw_deg().y > 45.f || pDev->get_atti_raw_deg().y < -45.f) {
+    return fGForce;
+  }
+
+  float fCFactor = 100.f * INERT_G_CONST;
+  float fG       = -pDev->get_accel_mg_cmss().y / fCFactor;
+  fGForce        = SFilter::low_pass_filt_f(fG, fGForce, ACCEL_LOWPATH_FILT_f);
+
+  bOK = true;
+  return fGForce;
+}
+
+float Device::get_accel_z_g(Device *pDev, bool &bOK) {
+  static float fGForce = 0.f;
+
+  bOK = false;
+  // Break when no device was found
+  if(!pDev) {
+    return fGForce;
+  }
+  // -45 < Pitch < +45
+  if(pDev->get_atti_raw_deg().x > 45.f || pDev->get_atti_raw_deg().x < -45.f) {
+    return fGForce;
+  }
+  // -45 < Roll < +45
+  if(pDev->get_atti_raw_deg().y > 45.f || pDev->get_atti_raw_deg().y < -45.f) {
+    return fGForce;
+  }
+
+  float fCFactor = 100.f * INERT_G_CONST;
+  float fG       = -pDev->get_accel_mg_cmss().z / fCFactor;
+  fGForce        = SFilter::low_pass_filt_f(fG, fGForce, ACCEL_LOWPATH_FILT_f);
+
+  bOK = true;
+  return fGForce;
+}
+
+void Device::set_update_rate_ms(const uint_fast8_t rate) {
+  m_iUpdateRate = rate;
+}
+
+uint_fast8_t Device::get_update_rate_ms() const {
+  return m_iUpdateRate;
 }

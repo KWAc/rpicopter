@@ -12,16 +12,18 @@ void send_baro();
 void send_gps();
 void send_bat();
 void send_rc();
-void send_pids();
+void send_pids_attitude();
+void send_pids_altitude();
 
-// function, delay, multiplier of the delay 
-Task taskAtti(&send_atti, 3,  1);
-Task taskRC  (&send_rc,   37, 1);
-Task taskComp(&send_comp, 44, 1);
-Task taskBaro(&send_baro, 66, 1);
-Task taskGPS (&send_gps,  66, 2);
-Task taskBat (&send_bat,  75, 1);
-Task taskPID (&send_pids, 75, 2);
+// function, delay, multiplier of the delay
+Task outAtti   (&send_atti,          3,   1);
+Task outRC     (&send_rc,            37,  1);
+Task outComp   (&send_comp,          44,  1);
+Task outBaro   (&send_baro,          66,  1);
+Task outGPS    (&send_gps,           66,  2);
+Task outBat    (&send_bat,           75,  1);
+Task outPIDAtt (&send_pids_attitude, 133, 1);
+Task outPIDAlt (&send_pids_altitude, 133, 2);
 
 ///////////////////////////////////////////////////////////
 // LED OUT
@@ -44,121 +46,139 @@ void leds_on() {
 // compass
 ///////////////////////////////////////////////////////////
 void send_comp() {
+  if(!_HAL_BOARD.m_pComp->healthy() ) {
+    return;
+  }
+
   hal.console->printf("{\"type\":\"s_cmp\",\"h\":%.1f}\n",
-  (double)_HAL_BOARD.read_comp() );
+  static_cast<double>(_HAL_BOARD.read_comp_deg() ) );
 }
 ///////////////////////////////////////////////////////////
 // attitude in degrees
 ///////////////////////////////////////////////////////////
 void send_atti() {
   hal.console->printf("{\"type\":\"s_att\",\"r\":%.1f,\"p\":%.1f,\"y\":%.1f}\n",
-  (double)_HAL_BOARD.get_atti_raw().y, (double)_HAL_BOARD.get_atti_raw().x, (double)_HAL_BOARD.get_atti_raw().z);
+  static_cast<double>(_HAL_BOARD.get_atti_cor_deg().y), 
+  static_cast<double>(_HAL_BOARD.get_atti_cor_deg().x), 
+  static_cast<double>(_HAL_BOARD.get_atti_cor_deg().z) );
 }
 ///////////////////////////////////////////////////////////
 // barometer
 ///////////////////////////////////////////////////////////
 void send_baro() {
+  if(!_HAL_BOARD.m_pBaro->healthy) {
+    return;
+  }
+
   BaroData baro = _HAL_BOARD.read_baro();
-  hal.console->printf("{\"type\":\"s_bar\",\"p\":%.1f,\"a\":%.1f,\"t\":%.1f,\"c\":%.1f,\"s\":%d}\n",
-  (double)baro.pressure, (double)baro.altitude, (double)baro.temperature, (double)baro.climb_rate, (uint_fast16_t)baro.pressure_samples);
+  hal.console->printf("{\"type\":\"s_bar\",\"p\":%.1f,\"a\":%ld,\"t\":%.1f,\"c\":%.1f,\"s\":%d}\n",
+  static_cast<double>(baro.pressure_pa), 
+  baro.altitude_cm, 
+  static_cast<double>(baro.temperature_deg), 
+  static_cast<double>(baro.climb_rate_cms), 
+  static_cast<uint_fast16_t>(baro.pressure_samples) );
 }
 ///////////////////////////////////////////////////////////
 // gps
 ///////////////////////////////////////////////////////////
 void send_gps() {
-  GPSData gps = _HAL_BOARD.read_gps();
-  hal.console->printf("{\"type\":\"s_gps\",\"lat\":%d,\"lon\":%d,\"a_m\":%.1f,\"g_ms\":%.1f,\"e_ms\":%.1f,\"n_ms\":%.1f,\"d_ms\":%.1f,\"h_x\":%.1f,\"h_y\":%.1f,\"h_z\":%.1f,\"g_cd\":%d,\"sat\":%d,\"tw\":%d,\"tw_s\":%d}\n",
-  gps.latitude,
-  gps.longitude,
-  (double)gps.altitude_m,
+  // Has fix?
+  if(!_HAL_BOARD.m_pGPS->status() > 1) {
+    return;
+  }
 
-  (double)gps.gspeed_ms,
-  (double)gps.espeed_ms,
-  (double)gps.nspeed_ms,
-  (double)gps.dspeed_ms,
-
-  (double)gps.heading_x,
-  (double)gps.heading_y,
-  (double)gps.heading_z,
-
-  gps.gcourse_cd,
-  gps.satelites,
-  gps.time_week,
-  gps.time_week_s);
+  GPSData gps = _HAL_BOARD.get_gps();
+  hal.console->printf("{\"type\":\"s_gps\",\"lat_dege7\":%ld,\"lon_dege7\":%ld,\"a_cm\":%ld,\"g_cms\":%ld,\"g_cd\":%ld,\"sat\":%d,\"tw\":%d,\"tw_s\":%.2f}\n",
+                      gps.latitude,
+                      gps.longitude,
+                      gps.altitude_cm,
+                      
+                      gps.gspeed_cms,
+                      
+                      gps.gcourse_cd,
+                      gps.satelites,
+                      gps.time_week,
+                      static_cast<double>(gps.time_week_s) );
 }
 ///////////////////////////////////////////////////////////
 // battery monitor
 ///////////////////////////////////////////////////////////
-/*
- * Function from a LiPo charging chart:
- * 4,20 V  100%
- * 4,13 V       90%
- * 4,06 V       80%
- * 3,99 V       70%
- * 3,92 V       60%
- * 3,85 V       50%
- * 3,78 V       40%
- * 3,71 V       30%
- * 3,64 V       20%
- * 3,57 V       10%
- * 3,50 V  0%
- * Return: 0 - 1 (0%-100%) if in voltage range of this table :D
- */
-/*
-inline float remain_lipocap(const float voltage_V, const uint_fast8_t num_cells) {
-  float fCap =  1.4286 * (voltage_V / (float)num_cells) - 5.f;
-  return fCap < 0.f ? 0.f : fCap > 1.f ? 1.f : fCap;
-}
-*/
 void send_bat() {
   BattData bat = _HAL_BOARD.read_bat();
-  // TODO Add support for other battery types (NiMH, ..)
-  //float fCapPerc = remain_lipocap(bat.voltage_V+AP_BATT_VOLT_OFFSET, AP_BATT_CELL_COUNT);
-  /*
-  hal.console->printf("{\"type\":\"s_bat\",\"V\":%.1f,\"A\":%.1f,\"c_mAh\":%.1f,\"r_cap\":%.1f}\n",
-  (double)(bat.voltage_V+AP_BATT_VOLT_OFFSET), (double)bat.current_A, (double)bat.consumpt_mAh, (double)fCapPerc);
-  */
   hal.console->printf("{\"type\":\"s_bat\",\"V\":%.1f,\"A\":%.1f,\"c_mAh\":%.1f}\n",
-  (double)bat.voltage_V, (double)bat.current_A, (double)bat.consumpt_mAh);
+                      static_cast<double>(bat.voltage_V), 
+                      static_cast<double>(bat.current_A), 
+                      static_cast<double>(bat.consumpt_mAh) );
 }
 ///////////////////////////////////////////////////////////
 // remote control
 ///////////////////////////////////////////////////////////
 void send_rc() {
-  int_fast16_t rcthr = _RECVR.m_pChannelsRC[2];
-  int_fast16_t rcyaw = _RECVR.m_pChannelsRC[3];
-  int_fast16_t rcpit = _RECVR.m_pChannelsRC[1];
-  int_fast16_t rcrol = _RECVR.m_pChannelsRC[0];
+  int_fast16_t rcthr = _RECVR.m_rgChannelsRC[RC_THR];
+  int_fast16_t rcyaw = _RECVR.m_rgChannelsRC[RC_YAW];
+  int_fast16_t rcpit = _RECVR.m_rgChannelsRC[RC_PIT];
+  int_fast16_t rcrol = _RECVR.m_rgChannelsRC[RC_ROL];
 
   hal.console->printf("{\"type\":\"rc_in\",\"r\":%d,\"p\":%d,\"t\":%d,\"y\":%d}\n",
-  rcrol, rcpit, rcthr, rcyaw);
+                      rcrol, rcpit, rcthr, rcyaw);
 }
 ///////////////////////////////////////////////////////////
 // PID configuration
 ///////////////////////////////////////////////////////////
-void send_pids() {
+void send_pids_attitude() {
   // Capture values
-  float pit_rkp   = _HAL_BOARD.m_pPIDS[PID_PIT_RATE].kP();
-  float pit_rki   = _HAL_BOARD.m_pPIDS[PID_PIT_RATE].kI();
-  float pit_rimax = _HAL_BOARD.m_pPIDS[PID_PIT_RATE].imax();
+  float pit_rkp   = _HAL_BOARD.m_rgPIDS[PID_PIT_RATE].kP();
+  float pit_rki   = _HAL_BOARD.m_rgPIDS[PID_PIT_RATE].kI();
+  float pit_rkd   = _HAL_BOARD.m_rgPIDS[PID_PIT_RATE].kD();
+  float pit_rimax = _HAL_BOARD.m_rgPIDS[PID_PIT_RATE].imax();
 
-  float rol_rkp   = _HAL_BOARD.m_pPIDS[PID_ROL_RATE].kP();
-  float rol_rki   = _HAL_BOARD.m_pPIDS[PID_ROL_RATE].kI();
-  float rol_rimax = _HAL_BOARD.m_pPIDS[PID_ROL_RATE].imax();
+  float rol_rkp   = _HAL_BOARD.m_rgPIDS[PID_ROL_RATE].kP();
+  float rol_rki   = _HAL_BOARD.m_rgPIDS[PID_ROL_RATE].kI();
+  float rol_rkd   = _HAL_BOARD.m_rgPIDS[PID_ROL_RATE].kD();
+  float rol_rimax = _HAL_BOARD.m_rgPIDS[PID_ROL_RATE].imax();
 
-  float yaw_rkp   = _HAL_BOARD.m_pPIDS[PID_YAW_RATE].kP();
-  float yaw_rki   = _HAL_BOARD.m_pPIDS[PID_YAW_RATE].kI();
-  float yaw_rimax = _HAL_BOARD.m_pPIDS[PID_YAW_RATE].imax();
+  float yaw_rkp   = _HAL_BOARD.m_rgPIDS[PID_YAW_RATE].kP();
+  float yaw_rki   = _HAL_BOARD.m_rgPIDS[PID_YAW_RATE].kI();
+  float yaw_rkd   = _HAL_BOARD.m_rgPIDS[PID_YAW_RATE].kD();
+  float yaw_rimax = _HAL_BOARD.m_rgPIDS[PID_YAW_RATE].imax();
 
-  float pit_skp   = _HAL_BOARD.m_pPIDS[PID_PIT_STAB].kP();
-  float rol_skp   = _HAL_BOARD.m_pPIDS[PID_ROL_STAB].kP();
-  float yaw_skp   = _HAL_BOARD.m_pPIDS[PID_YAW_STAB].kP();
+  float pit_skp   = _HAL_BOARD.m_rgPIDS[PID_PIT_STAB].kP();
+  float rol_skp   = _HAL_BOARD.m_rgPIDS[PID_ROL_STAB].kP();
+  float yaw_skp   = _HAL_BOARD.m_rgPIDS[PID_YAW_STAB].kP();
 
-  hal.console->printf("{\"type\":\"pid_cnf\",\"pit_rkp\":%.2f,\"pit_rki\":%.2f,\"pit_rimax\":%.2f,\"rol_rkp\":%.2f,\"rol_rki\":%.2f,\"rol_rimax\":%.2f,\"yaw_rkp\":%.2f,\"yaw_rki\":%.2f,\"yaw_rimax\":%.2f,\"pit_skp\":%.2f,\"rol_skp\":%.2f,\"yaw_skp\":%.2f}\n",
-  (double)pit_rkp, (double)pit_rki, (double)pit_rimax,
-  (double)rol_rkp, (double)rol_rki, (double)rol_rimax,
-  (double)yaw_rkp, (double)yaw_rki, (double)yaw_rimax,
-  (double)pit_skp, (double)rol_skp, (double)yaw_skp);
+  hal.console->printf("{\"type\":\"pid_cnf\","
+                      "\"p_rkp\":%.2f,\"p_rki\":%.2f,\"p_rkd\":%.4f,\"p_rimax\":%.2f,"
+                      "\"r_rkp\":%.2f,\"r_rki\":%.2f,\"r_rkd\":%.4f,\"r_rimax\":%.2f,"
+                      "\"y_rkp\":%.2f,\"y_rki\":%.2f,\"y_rkd\":%.4f,\"y_rimax\":%.2f,"
+                      "\"p_skp\":%.2f,\"r_skp\":%.2f,\"y_skp\":%.4f}\n",
+                      static_cast<double>(pit_rkp), static_cast<double>(pit_rki), static_cast<double>(pit_rkd), static_cast<double>(pit_rimax),
+                      static_cast<double>(rol_rkp), static_cast<double>(rol_rki), static_cast<double>(rol_rkd), static_cast<double>(rol_rimax),
+                      static_cast<double>(yaw_rkp), static_cast<double>(yaw_rki), static_cast<double>(yaw_rkd), static_cast<double>(yaw_rimax),
+                      static_cast<double>(pit_skp), static_cast<double>(rol_skp), static_cast<double>(yaw_skp) );
+}
+
+void send_pids_altitude() {
+  // Capture values
+  float thr_rkp   = _HAL_BOARD.m_rgPIDS[PID_THR_RATE].kP();
+  float thr_rki   = _HAL_BOARD.m_rgPIDS[PID_THR_RATE].kI();
+  float thr_rkd   = _HAL_BOARD.m_rgPIDS[PID_THR_RATE].kD();
+  float thr_rimax = _HAL_BOARD.m_rgPIDS[PID_THR_RATE].imax();
+
+  float acc_rkp   = _HAL_BOARD.m_rgPIDS[PID_ACC_RATE].kP();
+  float acc_rki   = _HAL_BOARD.m_rgPIDS[PID_ACC_RATE].kI();
+  float acc_rkd   = _HAL_BOARD.m_rgPIDS[PID_ACC_RATE].kD();
+  float acc_rimax = _HAL_BOARD.m_rgPIDS[PID_ACC_RATE].imax();
+
+  float thr_skp   = _HAL_BOARD.m_rgPIDS[PID_THR_STAB].kP();
+  float acc_skp   = _HAL_BOARD.m_rgPIDS[PID_ACC_STAB].kP();
+
+  hal.console->printf("{\"type\":\"pid_cnf\","
+                      "\"t_rkp\":%.2f,\"t_rki\":%.2f,\"t_rkd\":%.4f,\"t_rimax\":%.2f,"
+                      "\"a_rkp\":%.2f,\"a_rki\":%.2f,\"a_rkd\":%.4f,\"a_rimax\":%.2f,"
+                      "\"t_skp\":%.2f,\"a_skp\":%.2f}\n",
+                      static_cast<double>(thr_rkp), static_cast<double>(thr_rki), static_cast<double>(thr_rkd), static_cast<double>(thr_rimax),
+                      static_cast<double>(acc_rkp), static_cast<double>(acc_rki), static_cast<double>(acc_rkd), static_cast<double>(acc_rimax),
+                      static_cast<double>(thr_skp), static_cast<double>(acc_skp) );
 }
 
 #endif

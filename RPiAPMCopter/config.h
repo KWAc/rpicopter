@@ -31,8 +31,10 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 // General settings
 //////////////////////////////////////////////////////////////////////////////////////////
+#define DEBUG_OUT            0
+#define BENCH_OUT            0
 
-#define NR_OF_PIDS           9
+#define NR_OF_PIDS           10
 // PID indices
 #define PID_PIT_RATE 	       0      // From Dr. Owen..
 #define PID_ROL_RATE 	       1
@@ -43,7 +45,8 @@
 // Optional altitude hold
 #define PID_THR_RATE 	       6      // For my altitude hold implementation
 #define PID_THR_STAB 	       7      // For my altitude hold implementation
-#define PID_THR_ACCL 	       8      // For my altitude hold implementation
+#define PID_ACC_RATE 	       8      // For my altitude hold implementation
+#define PID_ACC_STAB 	       9      // For my altitude hold implementation
 
 // Motor numbers definitions for X configuration
 #define MOTOR_FR             0      // Front right  (CW)
@@ -58,7 +61,7 @@
 #define RC_THR_ACRO          1125   // Minimum throttle to begin with stabilization
 #define RC_THR_MAX           1900   // Maximum throttle bias
 // Maximum allowed throttle value, settable by user
-#define RC_THR_80P           0.8 * (RC_THR_MAX - RC_THR_MIN) + RC_THR_MIN
+#define RC_THR_80P           1650
 
 // Degree range for remote control
 #define RC_YAW_MIN           -180
@@ -78,9 +81,10 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 // Main loop
 //////////////////////////////////////////////////////////////////////////////////////////
-#define MAIN_LOOP_T_MS       6      // Update frequency of the main loop: 166.6 Hz
-#define ALTI_ESTIM_T_MS      113    // Update frequency of the main loop: 166.6 Hz
-#define INERT_TIMEOUT        5      // in ms
+#define MAIN_T_MS            0      // Update frequency of the main loop: ~100.0 Hz is the theoretical maximum
+#define FALB_T_MS            20     // Update frequency of the main loop: ~50,0 Hz
+#define INAV_T_MS            20     // Update frequency: 50 Hz - Only important for auto navigation system
+#define INERT_TIMEOUT        10     // in ms
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Scheduler module
@@ -90,30 +94,53 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 // Receiver module
 //////////////////////////////////////////////////////////////////////////////////////////
+#define RC_ROL               0
+#define RC_PIT               1
+#define RC_THR               2
+#define RC_YAW               3
+
 #define RADIO_MAX_OFFS       7      // Maximum length of command message via radio without stop bit
 #define APM_IOCHAN_CNT 	     8
 
-#define COM_PKT_TIMEOUT      500    // in ms
-#define UART_A_TIMEOUT       100    // in ms
+#define COM_PKT_TIMEOUT      750    // Time-out in ms; If the time-out is triggered the quadcopter will go down
+#define UART_A_TIMEOUT       250    // Time-out of the console serial port in ms; If time-out is triggered the firmware tries to receive packets via the 3DR radio on uartC
 
-#define PID_ARGS             5      // Nr of arguments for PID configuration
-#define PID_SIZE             3      // Nr of arguments for PID configuration
+#define PID_ARGS             6      // Nr of arguments for PID configuration
+#define PID_BUFFER_S         5
 
-#define COMP_ARGS            4      // Nr of arguments for on-flight drift compensation
-#define GPSP_ARGS            4      // Nr of arguments for GPSPosition structure
+#define COMP_ARGS            4      // Nr. of arguments for on-flight drift compensation
+#define GPSP_ARGS            4      // Nr. of arguments for GPSPosition structure
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Device module
 //////////////////////////////////////////////////////////////////////////////////////////
-#define ATTITUDE_SAMPLE_CNT  10     // Inertial calibration sample count
+#define AP_RANGEFINDER_PULSEDLIGHT 5
+#define AP_RANGEFINDER_SHARPEGP2Y  6
 
-#define INERT_ANNEAL_SLOPE   20.f   // Slope modifier of the annealing function
+//#define SONAR_TYPE AP_RANGEFINDER_MAXSONARXL      // 0 - XL (default)
+//#define SONAR_TYPE AP_RANGEFINDER_MAXSONARLV      // 1 - LV (cheaper)
+//#define SONAR_TYPE AP_RANGEFINDER_MAXSONARXLL     // 2 - XLL (XL with 10m range)
+//#define SONAR_TYPE AP_RANGEFINDER_MAXSONARHRLV    // 3 - HRLV-MaxSonar-EZ0 (5m range)
+//#define SONAR_TYPE AP_RANGEFINDER_MAXSONARI2CXL   // 4 - XLI2C (XL with I2C interface and 7m range)
+//#define SONAR_TYPE AP_RANGEFINDER_PULSEDLIGHT     // 5
+
+#define SONAR_SCALING        5
+
+#define COMP_ANNEAL_SLOPE    1.0f   // Slope modifier of the annealing function
+#define COMP_FUSION_RATE     0.75f  // Sensor fusion rate: higher => faster annealing
+
+#define INERT_ANNEAL_SLOPE   12.5f  // Slope modifier of the annealing function
 #define INERT_FUSION_RATE    5.f    // Sensor fusion rate: higher => faster annealing
 
-#define INERT_LOWPATH_FILT   0.5f   // Filter for the accelerometer
+#define BAROM_LOWPATH_FILT_f 0.33f  // Filter constant for the barometer
+#define COMPA_LOWPATH_FILT_f 0.25f  // Filter constant for the compass
+#define INERT_LOWPATH_FILT_f 0.175f // Filter constant for the accelerometer
+#define ACCEL_LOWPATH_FILT_f 0.025f // Filter constant for the accelerometer
 
-#define CMP_FOR_YAW          0      // Compass
-#define GPS_FOR_YAW          0      // GPS
+#define INERT_G_CONST        9.81f
+
+#define SIGM_FOR_ATTITUDE    1      // A little bit slower than standard method
+#define COMPASS_UPDATE_T     100
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Error handling
@@ -124,6 +151,16 @@
 #define THR_TAKE_OFF         1300
 #define THR_MIN_STEP_S       25.f
 #define MAX_FALL_SPEED_MS    0.833f
-#define ALTI_MEASURE_TIME    100    // Time in ms to measure the hight if the model takes down
+
+//////////////////////////////////////////////////////////////////////////////////////////
+// Auto navigation
+//////////////////////////////////////////////////////////////////////////////////////////
+#define MAX_YAW              15
+#define MAX_PIT              15
+#define YAW_ZERO_SLOPE       25.f
+#define YAW_ZERO_MOD         5.0f
+#define YAW_CTRL_SLOPE       5.0f
+#define YAW_CTRL_MOD         1.0f
+#define YAW_ERROR_RATE       5.0f
 
 #endif /*DEFS_h*/

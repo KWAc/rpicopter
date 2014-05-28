@@ -8,12 +8,19 @@
 #include <PID.h>
 
 #include "containers.h"
+#include "absdevice.h"
+#include "config.h"
 
 class AP_InertialSensor;
+class AP_InertialNav;
+//class AP_InertialNav_NavEKF;
+class AP_AHRS_DCM;
 class Compass;
 class AP_Baro;
-class GPS;
+class AP_GPS;
+class AP_GPS_Auto;
 class BattMonitor;
+class RangeFinder;
 
 class BaroData;
 class BattData;
@@ -23,63 +30,44 @@ class PID;
 
 
 ///////////////////////////////////////////////////////////
-// Definition of important device errors
-///////////////////////////////////////////////////////////
-enum DEVICE_ERROR_FLAGS {
-  GYROMETER_F       = 1 << 0,
-  ACCELEROMETR_F    = 1 << 1,
-  BAROMETER_F       = 1 << 2,
-  COMPASS_F         = 1 << 3,
-  GPS_F             = 1 << 4,
-  VOLTAGE_HIGH_F    = 1 << 5,
-  VOLTAGE_LOW_F     = 1 << 6,
-  CURRENT_HIGH_F    = 1 << 7,
-  CURRENT_LOW_F     = 1 << 8,
-  EVERYTHING_OK_F   = 1 << 9
-  // TODO: Extend maybe
-};
-
-///////////////////////////////////////////////////////////
 // Container for sensor data and sensor configuration
 ///////////////////////////////////////////////////////////
-class Device {
+class Device : public AbsErrorDevice {
 private:
-  uint_fast32_t m_iTimer;
-  // Used for low path filter
-  Vector3f m_vAccelLast_mss;
-  // Set by inertial calibration
-  float m_fInertRolOffs;
-  float m_fInertPitOffs;
-  float m_fInertYawOffs;
-  
-  // Flag holding device errors
-  DEVICE_ERROR_FLAGS m_eErrors;
+  uint_fast32_t m_t32Inertial; // For calculating the derivative of the angular changes
+  uint_fast32_t m_t32InertialNav;
+  uint_fast32_t m_t32Compass;
+
+  // Used with low path filter
+  Vector3f m_vAccelPG_cmss; // acceleration readout
+  Vector3f m_vAccelMG_cmss; // acceleration readout minus G constant (~9.81)
+
+  uint_fast8_t m_iUpdateRate;     // Suggested update rate of the main loop, dependent on the usage of the 3DR radio on uartC
   
 protected:
-  float     m_fCmpH; // Compass heading
-  float     m_fGpsH; // GPS heading
+  float        m_fCmpH; // Compass heading
+  float        m_fGpsH; // GPS heading
   // x = pitch, y = roll, z = yaw
-  Vector3f  m_vGyro;
-  Vector3f  m_vAccel;
-  Vector3f  m_vAttitude;
+  Vector3f     m_vGyro_deg;
+  Vector3f     m_vAccel_deg;
+  Vector3f     m_vAtti_deg;
+  int_fast16_t m_iAltitude_cm;
   // misc
-  BaroData  m_ContBaro;
-  GPSData   m_ContGPS;
-  BattData  m_ContBat;
+  BaroData     m_ContBaro;
+  GPSData      m_ContGPS;
+  BattData     m_ContBat;
 
+  // User set correction variables
   float m_fInertPitCor; // +/-: left to right or right to left
   float m_fInertRolCor; // +/-: front to back or back to front
-  
+
   /* Not updating the intertial, to avoid double updates on other spots in the code :( Not elegant so far */
-  Vector3f  read_gyro();        // converts sensor relative readout to absolute attitude in degrees and saves in m_vGyro
-  Vector3f  read_accel();       // converts sensor relative readout to absolute attitude and saves in m_vAccel
-  
-  inline float time_elapsed_s();
-  inline uint_fast32_t time_elapsed_ms();
-  
+  Vector3f  read_gyro_deg();        // converts sensor relative readout to absolute attitude in degrees and saves in m_vGyro_deg
+  Vector3f  read_accl_deg();       // converts sensor relative readout to absolute attitude and saves in m_vAccel_deg
+
 public:
   // PID configuration and remote contro
-  PID m_pPIDS[6];
+  PID m_rgPIDS[NR_OF_PIDS];
   // Hardware abstraction library interface
   const AP_HAL::HAL  *m_pHAL;
   // MPU6050 accel/gyro chip
@@ -89,50 +77,88 @@ public:
   // Barometer
   AP_Baro            *m_pBaro;
   // GPS
-  GPS                *m_pGPS;
+  AP_GPS             *m_pGPS;
   // battery monitor
   BattMonitor        *m_pBat;
-
+  // Sonar
+  RangeFinder        *m_pRF;
+  // Inertial Navigation
+  AP_InertialNav     *m_pInertNav;
+  // Attitude heading reference system
+  AP_AHRS_DCM        *m_pAHRS;
+  
 public:
   // Accepts pointers to abstract base classes to handle different sensor types
   Device( const AP_HAL::HAL *,
-          AP_InertialSensor *, Compass *, AP_Baro *, GPS *, BattMonitor * );
+          AP_InertialSensor *, Compass *, AP_Baro *, AP_GPS *, BattMonitor *, RangeFinder *, AP_AHRS_DCM *, AP_InertialNav *);
 
   void init_barometer();
   void init_pids();
   void init_compass();
-  
-  Vector3f calibrate_inertial();
   void init_inertial();
-  
   void init_gps();
   void init_batterymon();
+  void init_rf();
+  void init_inertial_nav();
+
+  /* Update intertial navigation (accelerometer, barometer, GPS sensor fusion) */
+  void update_inav();
 
   /* Updating the inertial and calculates the attitude from fused sensor values */
-  void update_inertial();   // Calls: read_gyro() and read_accel() and saves results to m_vAttitude, m_vGyro and m_vAccel
-  
+  void update_attitude();   // Calls: read_gyro_deg() and read_accl_deg() and saves results to m_vAtti_deg, m_vGyro_deg and m_vAccel_deg
+
   /* updating the sensors */
   BaroData  read_baro();
-  float     read_comp(const float roll = 0.f, const float pitch = 0.f);
+  float     read_comp_deg();
   GPSData   read_gps();
   BattData  read_bat();
+// Ensure, there is a compiler error if sonar is not installed, but function used
+#ifdef SONAR_TYPE
+  int_fast32_t read_rf_cm();        // Altitude estimate using range finder
+#endif
 
   /* Return the Vector3f Inertial readouts */
-  Vector3f get_atti_cor();  // fused sensor values from accelerometer/gyrometer with m_fInertPitCor/m_fInertRolCor
-  Vector3f get_atti_raw();  // fused sensor values from accelerometer/gyrometer without m_fInertPitCor/m_fInertRolCor
-  
-  Vector3f get_gyro_cor();  // gyrometer sensor readout with m_fInertPitCor/m_fInertRolCor
-  Vector3f get_gyro_raw();  // gyrometer sensor readout without m_fInertPitCor/m_fInertRolCor
-  
-  Vector3f get_accel_cor(); // accelerometer sensor readout with m_fInertPitCor/m_fInertRolCor
-  Vector3f get_accel_raw(); // accelerometer sensor readout without m_fInertPitCor/m_fInertRolCor
-  
+  Vector3f get_atti_cor_deg();  // fused sensor values from accelerometer/gyrometer with m_fInertPitCor/m_fInertRolCor
+  Vector3f get_atti_raw_deg();  // fused sensor values from accelerometer/gyrometer without m_fInertPitCor/m_fInertRolCor
+
+  Vector3f get_gyro_cor_deg();  // gyrometer sensor readout with m_fInertPitCor/m_fInertRolCor
+  Vector3f get_gyro_raw_deg();  // gyrometer sensor readout without m_fInertPitCor/m_fInertRolCor
+
+  Vector3f get_accel_cor_deg(); // accelerometer sensor readout with m_fInertPitCor/m_fInertRolCor
+  Vector3f get_accel_raw_deg(); // accelerometer sensor readout without m_fInertPitCor/m_fInertRolCor
+
+  // Negative if falling down and positive if going up
+  Vector3f get_accel_pg_cmss();  // Acceleration with the G-const
+  Vector3f get_accel_mg_cmss();  // Acceleration without the G-const (filtered out)
+
+  float    get_comp_deg();      // Just return the last estimated compass
+  BaroData get_baro();          // Just return the filtered barometer data
+  GPSData  get_gps();           // Just return the last estimated gps data
+  BattData get_bat();           // Just return the last estimated battery data
+// Ensure, there is a compiler error if sonar is not installed, but function used
+#ifdef SONAR_TYPE
+  int_fast32_t get_rf_cm();     // Altitude estimate using range finder
+#endif
   // Setter and getter for inertial adjustments
-  float getInertPitCor();
-  float getInertRolCor();
+  float get_pit_cor();
+  float get_rol_cor();
+
+  void set_pit_cor(float fValDeg);
+  void set_rol_cor(float fValDeg);
+
+  // Static functions
+  // Altitude estimation in cm with support for sonar
+  static float get_altitude_cm(Device *pDev, bool &bOK);
+  // Filtered acceleration in g:
+  static float get_accel_x_g  (Device *pDev, bool &bOK);
+  static float get_accel_y_g  (Device *pDev, bool &bOK);
+  static float get_accel_z_g  (Device *pDev, bool &bOK);
   
-  void setInertPitCor(float fValDeg);
-  void setInertRolCor(float fValDeg);
+  // Suggests an update rate in ms for the main loop
+  // The rate is linked with the usage of the 3DR radio
+  // The 3DR radio is only working if the CPU load is low
+  void set_update_rate_ms(const uint_fast8_t);
+  uint_fast8_t get_update_rate_ms() const;
 };
 
 #endif

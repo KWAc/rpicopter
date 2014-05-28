@@ -6,6 +6,8 @@
 // Ardu pilot library includes
 ////////////////////////////////////////////////////////////////////////////////
 #include <AP_Notify.h>
+#include <AP_Mission.h>
+#include <AP_Buffer.h>
 #include <AP_Common.h>
 #include <AP_Math.h>
 #include <AP_Param.h>
@@ -26,9 +28,14 @@
 // Sensors
 ////////////////////////////////////////////////////////////////////////////////
 #include <AP_Compass.h>
+#include <AP_RangeFinder.h>
 #include <AP_Baro.h>
 #include <AP_InertialSensor_MPU6000.h>
+#include <AP_InertialNav.h>
+#include <AP_InertialNav_NavEKF.h>
 #include <AP_GPS.h>
+#include <AP_GPS_Glitch.h>
+#include <AP_AHRS.h>
 #include <AP_ADC_AnalogSource.h>
 #include <AP_BattMonitor.h>
 ////////////////////////////////////////////////////////////////////////////////
@@ -39,114 +46,59 @@
 #include "math.h"
 
 
-inline void set_channels(int_fast16_t &pit, int_fast16_t &rol, int_fast16_t &yaw, int_fast16_t &thr);
+////////////////////////////////////////////////////////////////////////////////
+// Declarations
+////////////////////////////////////////////////////////////////////////////////
+inline void load_settings();
+
 inline void main_loop();
-Task taskMain(&main_loop, MAIN_LOOP_T_MS, 1);
+inline void inav_loop();
+Task taskINAV(&inav_loop, INAV_T_MS, 1);
 
-/*
- * Sets references to values in the eight channel rc input
- */
-void set_channels(int_fast16_t &pit, int_fast16_t &rol, int_fast16_t &yaw, int_fast16_t &thr) {
-  rol = _RECVR.m_pChannelsRC[0];
-  pit = _RECVR.m_pChannelsRC[1];
-  thr = _RECVR.m_pChannelsRC[2] > RC_THR_80P ? RC_THR_80P : _RECVR.m_pChannelsRC[2];
-  yaw = _RECVR.m_pChannelsRC[3];
-}
-
-/*
- * Fast and time critical loop for:
- * - controlling the quadrocopter
- * - fetching rc signals
- * - filtering and processing sensor data necessary for flight
- */
+// Attitude-, Altitude and Navigation control loop
 void main_loop() {
-  // additional filter or rc variables
-  static float targ_yaw = 0.f; // yaw target from rc
-
-  // Wait until new orientation data (normally 5 ms max)
-  while(_INERT.wait_for_sample(INERT_TIMEOUT) == 0);
-
-  // Variables to store remote control commands
-  int_fast16_t rcthr, rcyaw, rcpit, rcrol;
-  set_channels(rcpit, rcrol, rcyaw, rcthr);
-
-  // Reduce throttle if no update for more than 500 ms
-  uint_fast32_t packet_t = _RECVR.timeLastSuccessfulParse(); // Measure time elapsed since last successful package from WiFi or radio
-  if(packet_t > COM_PKT_TIMEOUT && rcthr > RC_THR_OFF) {
-    // how much to reduce?
-    float fDecr = 1.25 * ((float)packet_t / 25.f);
-    int_fast16_t fDelta = rcthr - (int_fast16_t)fDecr;
-    // reduce thrust..
-    rcthr = (int_fast16_t)fDecr < 0 ? RC_THR_OFF : fDelta > RC_THR_MIN ? fDelta : RC_THR_OFF;
-    // reset yaw, pitch and roll
-    rcyaw = 0; // yaw
-    rcpit = 0; // pitch
-    rcrol = 0; // roll
-  }
-
-  // Update sensor information
-  _HAL_BOARD.update_inertial();
-  Vector3f vAtti = _HAL_BOARD.get_atti_cor(); // returns the fused sensor value (gyrometer and accelerometer)
-  Vector3f vGyro = _HAL_BOARD.get_gyro_cor();     // returns the sensor value from the gyrometer
-  // Throttle raised, turn on stabilisation.
-  if(rcthr > RC_THR_ACRO) {
-    // Stabilise PIDS
-    float pit_stab_output = constrain_float(_HAL_BOARD.m_pPIDS[PID_PIT_STAB].get_pid((float)rcpit - vAtti.x, 1), -250, 250);
-    float rol_stab_output = constrain_float(_HAL_BOARD.m_pPIDS[PID_ROL_STAB].get_pid((float)rcrol - vAtti.y, 1), -250, 250);
-    float yaw_stab_output = constrain_float(_HAL_BOARD.m_pPIDS[PID_YAW_STAB].get_pid(wrap180_f(targ_yaw - vAtti.z), 1), -360, 360);
-
-    // is pilot asking for yaw change - if so feed directly to rate pid (overwriting yaw stab output)
-    if(abs(rcyaw ) > 5.f) {
-      yaw_stab_output = rcyaw;
-      targ_yaw = vAtti.z; // remember this yaw for when pilot stops
-    }
-
-    // rate PIDS
-    int_fast16_t pit_output = (int_fast16_t)constrain_float(_HAL_BOARD.m_pPIDS[PID_PIT_RATE].get_pid(pit_stab_output - vGyro.x, 1), -500, 500);
-    int_fast16_t rol_output = (int_fast16_t)constrain_float(_HAL_BOARD.m_pPIDS[PID_ROL_RATE].get_pid(rol_stab_output - vGyro.y, 1), -500, 500);
-    int_fast16_t yaw_output = (int_fast16_t)constrain_float(_HAL_BOARD.m_pPIDS[PID_YAW_RATE].get_pid(yaw_stab_output - vGyro.z, 1), -500, 500);
-
-    int_fast16_t fFL = rcthr + rol_output + pit_output - yaw_output;
-    int_fast16_t fBL = rcthr + rol_output - pit_output + yaw_output;
-    int_fast16_t fFR = rcthr - rol_output + pit_output + yaw_output;
-    int_fast16_t fBR = rcthr - rol_output - pit_output - yaw_output;
-
-    hal.rcout->write(MOTOR_FL, fFL);
-    hal.rcout->write(MOTOR_BL, fBL);
-    hal.rcout->write(MOTOR_FR, fFR);
-    hal.rcout->write(MOTOR_BR, fBR);
-  }
-  else {
-    // motors off
-    hal.rcout->write(MOTOR_FL, RC_THR_OFF);
-    hal.rcout->write(MOTOR_BL, RC_THR_OFF);
-    hal.rcout->write(MOTOR_FR, RC_THR_OFF);
-    hal.rcout->write(MOTOR_BR, RC_THR_OFF);
-
-    // reset yaw target so we maintain this on take-off
-    targ_yaw = vAtti.z;
-
-    // reset PID integrals whilst on the ground
-    for(uint_fast8_t i = 0; i < 6; i++) {
-      _HAL_BOARD.m_pPIDS[i].reset_I();
-    }
+  // Limit on APM 2.5 the update rate if the 3DR radio is used,
+  // Otherwise the packets are corrupted often?!
+  // TODO: Maybe try out different buffer sizes on begin() at setup()
+  static uint_fast16_t timer = 0;
+  uint_fast16_t time = _HAL_BOARD.m_pHAL->scheduler->millis();
+  
+  if(time - timer >= _HAL_BOARD.get_update_rate_ms() ) {
+    _MODEL.run();
+    timer = time;
   }
 }
 
-double progress_f(uint_fast8_t iStep, uint_fast8_t iMax) {
-  return (double)iStep*100.f/(double)iMax;
+// Altitude estimation and AHRS system (yaw correction with GPS, barometer, ..)
+void inav_loop() {  
+  _HAL_BOARD.update_inav();
+#ifdef SONAR_TYPE
+  _HAL_BOARD.read_rf_m();
+#endif
+}
+
+void load_settings() {
+  if (!_COMP._learn.load() ) { }
+  // change the default for the AHRS_GPS_GAIN for ArduCopter
+  // if it hasn't been set by the user
+  if (!_AHRS.gps_gain.load() ) { }
+  // Setup different AHRS gains for ArduCopter than the default
+  // but allow users to override in their config
+  if (!_AHRS._kp.load() ) { }
+  if (!_AHRS._kp_yaw.load() ) { }
 }
 
 void setup() {
   // Prepare scheduler for the main loop ..
-  _SCHED.addTask(&taskMain,  0);
+  _SCHED.add_task(&taskINAV, 0);  // Inertial, GPS, Compass, Barometer sensor fusions (slow) ==> running at 50 Hz
   // .. and the sensor output functions
-  _SCHED.addTask(&taskAtti,  75);
-  _SCHED.addTask(&taskBaro,  1000);
-  _SCHED.addTask(&taskGPS,   1000);
-  _SCHED.addTask(&taskComp,  2000);
-  _SCHED.addTask(&taskBat,   5000);
-  _SCHED.addTask(&taskPID,   5000);
+  _SCHED.add_task(&outAtti,  75);
+  _SCHED.add_task(&outBaro,  1000);
+  _SCHED.add_task(&outGPS,   1000);
+  _SCHED.add_task(&outComp,  1500);
+  _SCHED.add_task(&outBat,   1750);
+  _SCHED.add_task(&outPIDAtt,2000);
+  _SCHED.add_task(&outPIDAlt,2000);
 
   // Set baud rate when connected to RPi
   hal.uartA->begin(BAUD_RATE_A); // USB
@@ -155,47 +107,58 @@ void setup() {
   hal.console->printf("Setup device ..\n");
 
   // Enable the motors and set at 490Hz update
-  hal.console->printf("%.1f%%: Set ESC refresh rate to 490 Hz\n", progress_f(1, 7) );
+  hal.console->printf("%.1f%%: Set ESC refresh rate to 490 Hz\n", progress_f(1, 10) );
   for(uint_fast16_t i = 0; i < 8; i++) {
     hal.rcout->enable_ch(i);
   }
   hal.rcout->set_freq(0xFF, 490);
 
   // PID Configuration
-  hal.console->printf("%.1f%%: Set PID configuration\n", progress_f(2, 7) );
+  hal.console->printf("%.1f%%: Set PID configuration\n", progress_f(2, 10) );
   _HAL_BOARD.init_pids();
 
-  hal.console->printf("%.1f%%: Init barometer\n", progress_f(3, 7) );
+  // Load settings from EEPROM
+  hal.console->printf("%.1f%%: Load settings from EEPROM\n", progress_f(3, 10) );
+  //load_settings();
+  
+  hal.console->printf("%.1f%%: Init barometer\n", progress_f(4, 10) );
   _HAL_BOARD.init_barometer();
 
-  hal.console->printf("%.1f%%: Init inertial sensor\n", progress_f(4, 7) );
+  hal.console->printf("%.1f%%: Init inertial sensor\n", progress_f(5, 10) );
   _HAL_BOARD.init_inertial();
 
   // Compass initializing
-  hal.console->printf("%.1f%%: Init compass: ", progress_f(5, 7) );
+  hal.console->printf("\n%.1f%%: Init compass: ", progress_f(6, 10) );
   _HAL_BOARD.init_compass();
 
   // GPS initializing
-  hal.console->printf("%.1f%%: Init GPS", progress_f(6, 7) );
-  _HAL_BOARD.init_gps();
+  hal.console->printf("%.1f%%: Init GPS", progress_f(7, 10) );
+  //_HAL_BOARD.init_gps();
 
   // battery monitor initializing
-  hal.console->printf("\n%.1f%%: Init battery monitor\n", progress_f(7, 7) );
+  hal.console->printf("\n%.1f%%: Init battery monitor\n", progress_f(8, 10) );
   _HAL_BOARD.init_batterymon();
+
+  // battery monitor initializing
+  hal.console->printf("%.1f%%: Init range finder\n", progress_f(9, 10) );
+  _HAL_BOARD.init_rf();
+
+  hal.console->printf("%.1f%%: Init inertial navigation\n", progress_f(10, 10) );
+  _HAL_BOARD.init_inertial_nav();
 }
 
-void loop() { 
+void loop() {
   // Commands via serial port (in this case WiFi -> RPi -> APM2.5)
-  bool bOK = _RECVR.read_uartA(hal.console->available() ); 	// Try WiFi (serial) first
-  if(!bOK && _RECVR.timeLastSuccessfulParse_uartA() > UART_A_TIMEOUT) {
-    _RECVR.read_uartC(hal.uartC->available() ); 	        // If not working: Try radio next
-  }
-
+  _RECVR.try_uartAC();
   // send some json formatted information about the model over serial port
   _SCHED.run(); // Wrote my own small and absolutely fair scheduler
+  // Don't use the scheduler for the time critical main loop (~20% faster)
+  main_loop();
 }
 
 AP_HAL_MAIN();
+
+
 
 
 
