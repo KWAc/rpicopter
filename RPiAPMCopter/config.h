@@ -132,9 +132,9 @@
 #define INERT_ANNEAL_SLOPE   12.5f  // Slope modifier of the annealing function
 #define INERT_FUSION_RATE    5.f    // Sensor fusion rate: higher => faster annealing
 
-#define BAROM_LOWPATH_FILT_f 0.33f  // Filter constant for the barometer
+#define BAROM_LOWPATH_FILT_f 0.35f  // Filter constant for the barometer
 #define COMPA_LOWPATH_FILT_f 0.25f  // Filter constant for the compass
-#define INERT_LOWPATH_FILT_f 0.175f // Filter constant for the accelerometer
+#define INERT_LOWPATH_FILT_f 0.35f  // Filter constant for the accelerometer
 #define ACCEL_LOWPATH_FILT_f 0.025f // Filter constant for the accelerometer
 
 #define INERT_G_CONST        9.81f
