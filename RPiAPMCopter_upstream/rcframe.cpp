@@ -1,5 +1,7 @@
 #include <AP_InertialSensor_MPU6000.h>
 #include <AP_InertialNav.h>
+#include <RC_Channel.h>     // RC Channel Library
+#include <AP_Motors.h>
 
 #include "rcframe.h"
 #include "device.h"
@@ -30,40 +32,42 @@ Frame::Frame(Device *pDev, Receiver *pRecv, Exception *pExcp, UAVNav* pUAV) {
   m_pNavigation = pUAV;
 }
 
+
 ////////////////////////////////////////////////////////////////////////
 // Class implementation
 ////////////////////////////////////////////////////////////////////////
 M4XFrame::M4XFrame(Device *pDev, Receiver *pRecv, Exception *pExcp, UAVNav* pUAV) : Frame(pDev, pRecv, pExcp, pUAV)
-{
-  _FL = _BL = _FR = _BR = RC_THR_OFF;
+{  
+  m_pMotors = new AP_MotorsQuad(*(m_pReceiver->m_pRCRol), 
+                                *(m_pReceiver->m_pRCPit), 
+                                *(m_pReceiver->m_pRCThr), 
+                                *(m_pReceiver->m_pRCYaw) );
 }
 
-void M4XFrame::out() {
-  m_pHalBoard->m_pHAL->rcout->write(MOTOR_FL, _FL);
-  m_pHalBoard->m_pHAL->rcout->write(MOTOR_BL, _BL);
-  m_pHalBoard->m_pHAL->rcout->write(MOTOR_FR, _FR);
-  m_pHalBoard->m_pHAL->rcout->write(MOTOR_BR, _BR);
+void M4XFrame::init_motors() {
+  // motor initialisation
+  m_pMotors->set_update_rate(490);
+  m_pMotors->set_frame_orientation(AP_MOTORS_X_FRAME);
+  m_pMotors->set_min_throttle(RC_THR_ACRO-RC_THR_OFF);
+  m_pMotors->set_mid_throttle((RC_THR_MAX-RC_THR_OFF)/2);
+  m_pMotors->Init();      // initialise motors
+
+  m_pMotors->enable();
+  m_pMotors->output_min();
+}
+
+void M4XFrame::out() {  
+  m_pMotors->set_pitch(_iPitOut);
+  m_pMotors->set_roll(_iRolOut);
+  m_pMotors->set_yaw(_iYawOut);
+  m_pMotors->set_throttle(_iThrOut);
+  m_pMotors->output();
 }
 
 void M4XFrame::clear() {
-  _FL = RC_THR_OFF;
-  _BL = RC_THR_OFF;
-  _FR = RC_THR_OFF;
-  _BR = RC_THR_OFF;
-}
-
-void M4XFrame::set(int_fast16_t FL, int_fast16_t BL, int_fast16_t FR, int_fast16_t BR) {
-  _FL = FL;
-  _BL = BL;
-  _FR = FR;
-  _BR = BR;
-}
-
-void M4XFrame::add(int_fast16_t FL, int_fast16_t BL, int_fast16_t FR, int_fast16_t BR) {
-  _FL += FL;
-  _BL += BL;
-  _FR += FR;
-  _BR += BR;
+  _iPitOut = _iYawOut = _iRolOut = _iThrOut = 0;  
+  out();
+  m_pMotors->armed(false);
 }
 
 void M4XFrame::run() {
@@ -147,14 +151,9 @@ void M4XFrame::calc_altitude_hold() {
     float fAccZStabOut = m_pHalBoard->m_rgPIDS[PID_ACC_STAB].get_pid(fAccel_g, 1);
     iAccZOutput        = m_pHalBoard->m_rgPIDS[PID_ACC_RATE].get_pid(fAccZStabOut, 1);
   }
-
-  // Modify the speed of the motors to hold the altitude
-  int_fast16_t iFL = iAltZOutput + iAccZOutput;
-  int_fast16_t iBL = iAltZOutput + iAccZOutput;
-  int_fast16_t iFR = iAltZOutput + iAccZOutput;
-  int_fast16_t iBR = iAltZOutput + iAccZOutput;
-
-  add(iFL, iBL, iFR, iBR);
+  
+  // Calculate new motor output
+  _iThrOut += iAltZOutput + iAccZOutput;
 }
 
 /*
@@ -174,8 +173,8 @@ void M4XFrame::calc_attitude_hold() {
   m_pExeption->handle();
 
   // Variables to store remote control commands plus "rcalt" for the desired altitude in cm
-  float rcpit, rcrol, rcyaw, rcthr;
-  set_channels(m_pReceiver, rcpit, rcrol, rcyaw, rcthr);
+  float rcpit, rcrol, rcyaw, _iThrOut;
+  set_channels(m_pReceiver, rcpit, rcrol, rcyaw, _iThrOut);
 
   // Update sensor information
   m_pHalBoard->update_attitude();
@@ -183,7 +182,7 @@ void M4XFrame::calc_attitude_hold() {
   Vector3f vGyro = m_pHalBoard->get_gyro_cor_deg(); // returns the sensor value from the gyrometer
 
   // Throttle raised, turn on stabilisation.
-  if(rcthr > RC_THR_ACRO) {
+  if(_iThrOut > RC_THR_ACRO) {
     // Stabilise PIDS
     float pit_stab_output = constrain_float(m_pHalBoard->m_rgPIDS[PID_PIT_STAB].get_pid(rcpit - vAtti.x, 1), -250, 250);
     float rol_stab_output = constrain_float(m_pHalBoard->m_rgPIDS[PID_ROL_STAB].get_pid(rcrol - vAtti.y, 1), -250, 250);
@@ -196,17 +195,11 @@ void M4XFrame::calc_attitude_hold() {
     }
 
     // rate PIDS
-    int_fast16_t pit_output = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->m_rgPIDS[PID_PIT_RATE].get_pid(pit_stab_output - vGyro.x, 1), -500, 500) );
-    int_fast16_t rol_output = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->m_rgPIDS[PID_ROL_RATE].get_pid(rol_stab_output - vGyro.y, 1), -500, 500) );
-    int_fast16_t yaw_output = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->m_rgPIDS[PID_YAW_RATE].get_pid(yaw_stab_output - vGyro.z, 1), -500, 500) );
-
-    // Calculate the speed of the motors
-    int_fast16_t iFL = rcthr + rol_output + pit_output - yaw_output;
-    int_fast16_t iBL = rcthr + rol_output - pit_output + yaw_output;
-    int_fast16_t iFR = rcthr - rol_output + pit_output + yaw_output;
-    int_fast16_t iBR = rcthr - rol_output - pit_output - yaw_output;
-
-    set(iFL, iBL, iFR, iBR);
+    _iPitOut = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->m_rgPIDS[PID_PIT_RATE].get_pid(pit_stab_output - vGyro.x, 1), -500, 500) );
+    _iRolOut = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->m_rgPIDS[PID_ROL_RATE].get_pid(rol_stab_output - vGyro.y, 1), -500, 500) );
+    _iYawOut = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->m_rgPIDS[PID_YAW_RATE].get_pid(yaw_stab_output - vGyro.z, 1), -500, 500) );
+    _iThrOut -= RC_THR_OFF; // Remote control output ==>  to motor input range
+    m_pMotors->armed(true);
   }
   else {
     clear();

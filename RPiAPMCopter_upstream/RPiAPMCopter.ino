@@ -19,6 +19,9 @@
 #include <AP_Airspeed.h>
 #include <AP_Vehicle.h>
 #include <AP_Declination.h>
+#include <RC_Channel.h>     // RC Channel Library
+#include <AP_Motors.h>
+#include <AP_Curve.h>
 
 #include <GCS_MAVLink.h>
 #include <DataFlash.h>
@@ -107,11 +110,8 @@ void setup() {
   hal.console->printf("Setup device ..\n");
 
   // Enable the motors and set at 490Hz update
-  hal.console->printf("%.1f%%: Set ESC refresh rate to 490 Hz\n", progress_f(1, 10) );
-  for(uint_fast16_t i = 0; i < 8; i++) {
-    hal.rcout->enable_ch(i);
-  }
-  hal.rcout->set_freq(0xFF, 490);
+  hal.console->printf("%.1f%%: Init the motor output\n", progress_f(1, 10) );
+  _MODEL.init_motors();
 
   // PID Configuration
   hal.console->printf("%.1f%%: Set PID configuration\n", progress_f(2, 10) );

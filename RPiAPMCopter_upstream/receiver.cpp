@@ -1,5 +1,6 @@
 #include <AP_InertialSensor.h> // for user interactant
 #include <AP_AHRS.h>
+#include <RC_Channel.h>     // RC Channel Library
 
 #include "receiver.h"
 #include "device.h"
@@ -17,6 +18,30 @@ Receiver::Receiver(Device *pHalBoard) {
   m_iSParseTime_A  = m_iSParseTime_C  = m_iSParseTime  = 0;
 
   m_eErrors = NOTHING_F;
+  init_radio();
+}
+
+void Receiver::init_radio() {
+  m_pRCRol = new RC_Channel(0);
+  m_pRCPit = new RC_Channel(1);
+  m_pRCThr = new RC_Channel(2);
+  m_pRCYaw = new RC_Channel(3);
+  
+  // setup radio
+  if (m_pRCThr->radio_min == 0) {
+    // cope with AP_Param not being loaded
+    m_pRCThr->radio_min = RC_THR_OFF;
+  }
+  if (m_pRCThr->radio_max == 0) {
+    // cope with AP_Param not being loaded
+    m_pRCThr->radio_max = RC_THR_MAX;
+  }
+  
+  // set rc channel ranges
+  m_pRCRol->set_angle(RC_ROL_MAX*100);
+  m_pRCPit->set_angle(RC_PIT_MAX*100);
+  m_pRCThr->set_range(RC_THR_ACRO-RC_THR_OFF, RC_THR_MAX-RC_THR_OFF);
+  m_pRCYaw->set_angle(RC_YAW_MAX*100);
 }
 
 uint_fast8_t Receiver::calc_chksum(char *str) {
