@@ -19,6 +19,7 @@
 #include <AP_Airspeed.h>
 #include <AP_Vehicle.h>
 #include <AP_Declination.h>
+#include <RC_Channel.h>     // RC Channel Library
 
 #include <GCS_MAVLink.h>
 #include <DataFlash.h>
@@ -149,7 +150,7 @@ void setup() {
 
 void loop() {
   // Commands via serial port (in this case WiFi -> RPi -> APM2.5)
-  _RECVR.try_uartAC();
+  _RECVR.try_any();
   // send some json formatted information about the model over serial port
   _SCHED.run(); // Wrote my own small and absolutely fair scheduler
   // Don't use the scheduler for the time critical main loop (~20% faster)

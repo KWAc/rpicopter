@@ -14,18 +14,18 @@ Receiver::Receiver(Device *pHalBoard) {
   memset(m_cBuffer, 0, sizeof(m_cBuffer) );
   memset(m_rgChannelsRC, 0, sizeof(m_rgChannelsRC) );
 
-  m_iSParseTimer_A = m_iSParseTimer_C = m_iSParseTimer = m_pHalBoard->m_pHAL->scheduler->millis();
-  m_iSParseTime_A  = m_iSParseTime_C  = m_iSParseTime  = 0;
+  m_iPPMTimer = m_iSParseTimer_A = m_iSParseTimer_C = m_iSParseTimer = m_pHalBoard->m_pHAL->scheduler->millis();
+  m_iPPMTime = m_iSParseTime_A = m_iSParseTime_C  = m_iSParseTime  = 0;
 
   m_eErrors = NOTHING_F;
   init_radio();
 }
 
 void Receiver::init_radio() {
-  m_pRCRol = new RC_Channel(0);
-  m_pRCPit = new RC_Channel(1);
-  m_pRCThr = new RC_Channel(2);
-  m_pRCYaw = new RC_Channel(3);
+  m_pRCRol = new RC_Channel(RC_ROL);
+  m_pRCPit = new RC_Channel(RC_PIT);
+  m_pRCThr = new RC_Channel(RC_THR);
+  m_pRCYaw = new RC_Channel(RC_YAW);
   
   // setup radio
   if (m_pRCThr->radio_min == 0) {
@@ -348,18 +348,23 @@ bool Receiver::parse_radio(char *buffer) {
 
   // Validity check:
   // First checksum
-  if(checksum != chk)
+  if(checksum != chk) {
     return false;
-  // Later other values
-  if(rol > 45 || rol < -45)
+  }
+  // Small validity check
+  if(!in_range(RC_PIT_MIN, RC_PIT_MAX, pit) ) {
     return false;
-  if(pit > 45 || pit < -45)
+  }
+  if(!in_range(RC_ROL_MIN, RC_ROL_MAX, rol) ) {
     return false;
-  if(yaw > 180 || yaw < -180)
+  }
+  if(!in_range(RC_THR_OFF, RC_THR_MAX, thr) ) {
     return false;
-  if(thr > RC_THR_80P || thr < RC_THR_MIN)
+  }
+  if(!in_range(RC_YAW_MIN, RC_YAW_MAX, yaw) ) {
     return false;
-
+  }
+    
   // Set values
   m_rgChannelsRC[RC_ROL] = rol;
   m_rgChannelsRC[RC_PIT] = pit;
@@ -390,7 +395,6 @@ bool Receiver::read_uartA(uint_fast16_t bytesAvail) {
     }
   }
 
-  last_parse_uartA_t32();
   return bRet;
 }
 
@@ -424,7 +428,6 @@ bool Receiver::read_uartC(uint_fast16_t bytesAvail) {
     }
   }
 
-  last_parse_uartC_t32();
   return bRet;
 }
 
@@ -462,23 +465,71 @@ bool Receiver::parse(char *buffer) {
   return false;
 }
 
-bool Receiver::try_uartAC() {
-  // Try WiFi first
-  bool bOK = read_uartA(m_pHalBoard->m_pHAL->uartA->available() );
-  if(!bOK && m_iSParseTime_A > UART_A_TIMEOUT) {
-    // Try radio next
-    bOK = read_uartC(m_pHalBoard->m_pHAL->uartC->available() );
-    
-    // Reduce the loop frequency only if not in UAV mode
-    // If currently in other modes, radio could be still helpful
-    if(!chk_fset(m_Waypoint.mode, GPSPosition::GPS_NAVIGATN_F) ) {
-      m_pHalBoard->set_update_rate_ms(FALB_T_MS);
-    }
+bool Receiver::try_any() {
+  // Try rcin (PPM radio)
+  bool bOK = read_rcin();
+  if(bOK) {
+    return true;
+  }
+  
+  // Try WiFi over uartA
+  bOK = read_uartA(m_pHalBoard->m_pHAL->uartA->available() );
+  if(bOK) {
+    return true;
+  }
+  
+  // Not yet time to use the input source on uartC
+  if(last_parse_uartA_t32() < UART_A_TIMEOUT) {
+    return false;
+  }
+  
+  // Reduce the loop frequency only if not in UAV mode
+  // If currently in other modes, radio could be still helpful
+  if(!chk_fset(m_Waypoint.mode, GPSPosition::GPS_NAVIGATN_F) ) {
+    m_pHalBoard->set_update_rate_ms(FALB_T_MS);
   }
 
+  // Try uartC
+  bOK = read_uartC(m_pHalBoard->m_pHAL->uartC->available() );
+  
   // Update the time for the last successful parse of a control string
-  last_parse_t32();
   return bOK;
+}
+
+bool Receiver::read_rcin() {
+  if(!m_pHalBoard->m_pHAL->rcin->new_input() ) {
+    return false;
+  }
+
+  m_pRCPit->set_pwm(m_pHalBoard->m_pHAL->rcin->read(RC_PIT) );
+  m_pRCRol->set_pwm(m_pHalBoard->m_pHAL->rcin->read(RC_ROL) );
+  m_pRCThr->set_pwm(m_pHalBoard->m_pHAL->rcin->read(RC_THR) );
+  m_pRCYaw->set_pwm(m_pHalBoard->m_pHAL->rcin->read(RC_YAW) );
+  
+  // Small validity check
+  if(!in_range(RC_PIT_MIN, RC_PIT_MAX, m_pRCPit->control_in / 100) ) {
+    return false;
+  }
+  if(!in_range(RC_ROL_MIN, RC_ROL_MAX, m_pRCRol->control_in / 100) ) {
+    return false;
+  }
+  if(!in_range(RC_THR_OFF, RC_THR_MAX, m_pRCThr->control_in) ) {
+    return false;
+  }
+  if(!in_range(RC_YAW_MIN, RC_YAW_MAX, m_pRCYaw->control_in / 100) ) {
+    return false;
+  }
+  
+  // If check was successful we feed the input into or rc array
+  m_rgChannelsRC[RC_THR] = m_pRCThr->control_in;
+  // dezi degree to degree
+  m_rgChannelsRC[RC_PIT] = m_pRCPit->control_in / 100;
+  m_rgChannelsRC[RC_ROL] = m_pRCRol->control_in / 100;
+  m_rgChannelsRC[RC_YAW] = m_pRCYaw->control_in / 100;
+  
+  // Update timers
+  m_iSParseTimer = m_iPPMTimer = m_pHalBoard->m_pHAL->scheduler->millis();           // update last valid packet
+  return true;
 }
 
 uint_fast32_t Receiver::last_parse_t32() {
@@ -499,4 +550,9 @@ uint_fast32_t Receiver::last_parse_uartA_t32() {
 uint_fast32_t Receiver::last_parse_uartC_t32() {
   m_iSParseTime_C = m_pHalBoard->m_pHAL->scheduler->millis() - m_iSParseTimer_C;
   return m_iSParseTime_C;
+}
+
+uint_fast32_t Receiver::last_rcin_t32() {
+  m_iPPMTime = m_pHalBoard->m_pHAL->scheduler->millis() - m_iPPMTimer;
+  return m_iPPMTime;
 }

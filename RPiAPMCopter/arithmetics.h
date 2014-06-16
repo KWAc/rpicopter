@@ -4,6 +4,10 @@
 #include "config.h"
 
 
+inline bool in_range(uint_fast16_t iMin, uint_fast16_t iMax, uint_fast16_t iVal) {
+  return iVal > iMax ? false : iVal < iMin ? false : true;
+}
+
 inline double progress_f(uint_fast8_t iStep, uint_fast8_t iMax) {
   return static_cast<double>(iStep) * 100.f / static_cast<double>(iMax);
 }
