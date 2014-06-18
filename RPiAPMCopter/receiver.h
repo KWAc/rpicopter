@@ -11,11 +11,6 @@
 #include "absdevice.h"
 #include "containers.h"
 
-#define CH_PIT 0
-#define CH_ROL 1
-#define CH_THR 2
-#define CH_YAW 3
-
 
 class Device;
 class RC_Channel;
@@ -44,6 +39,7 @@ private:
   // Inertial calibration
   void run_calibration();
   void init_radio();
+  bool check_input(int_fast16_t iRol, int_fast16_t iPit, int_fast16_t iThr, int_fast16_t iYaw);
   
 protected:
   bool    parse_ctrl_com  (char *);
@@ -60,7 +56,7 @@ protected:
 public:
   Receiver(Device *pHalBoard);
   
-  // Channels for the primary radio
+  // Channels for the ppm radio
   RC_Channel *m_pRCPit;
   RC_Channel *m_pRCRol;
   RC_Channel *m_pRCThr;
@@ -76,6 +72,8 @@ public:
   bool read_uartC(uint_fast16_t bytesAvail); // radio in APM 2
   bool read_rcin();                          // PPM radio source
   
+  // This functions tries to read from any best input source
+  // The order is: PPM radio, UartA, UartC
   bool try_any();
   
   // time since last command string was parsed successfully from:

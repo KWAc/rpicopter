@@ -329,6 +329,22 @@ bool Receiver::parse_pid_conf(char* buffer) {
   return bRet;
 }
 
+bool Receiver::check_input(int_fast16_t iRol, int_fast16_t iPit, int_fast16_t iThr, int_fast16_t iYaw) {
+  if(!in_range(RC_PIT_MIN, RC_PIT_MAX, iPit) ) {
+    return false;
+  }
+  if(!in_range(RC_ROL_MIN, RC_ROL_MAX, iRol) ) {
+    return false;
+  }
+  if(!in_range(RC_THR_OFF, RC_THR_MAX, iThr) ) {
+    return false;
+  }
+  if(!in_range(RC_YAW_MIN, RC_YAW_MAX, iYaw) ) {
+    return false;
+  }
+  return true;
+}
+
 /*
  * Compact remote control packet system for the radio on Uart2,
  * Everything fits into 7 bytes
@@ -352,16 +368,7 @@ bool Receiver::parse_radio(char *buffer) {
     return false;
   }
   // Small validity check
-  if(!in_range(RC_PIT_MIN, RC_PIT_MAX, pit) ) {
-    return false;
-  }
-  if(!in_range(RC_ROL_MIN, RC_ROL_MAX, rol) ) {
-    return false;
-  }
-  if(!in_range(RC_THR_OFF, RC_THR_MAX, thr) ) {
-    return false;
-  }
-  if(!in_range(RC_YAW_MIN, RC_YAW_MAX, yaw) ) {
+  if(!check_input(rol, pit, thr, yaw) ) {
     return false;
   }
     
@@ -506,26 +513,22 @@ bool Receiver::read_rcin() {
   m_pRCThr->set_pwm(m_pHalBoard->m_pHAL->rcin->read(RC_THR) );
   m_pRCYaw->set_pwm(m_pHalBoard->m_pHAL->rcin->read(RC_YAW) );
   
-  // Small validity check
-  if(!in_range(RC_PIT_MIN, RC_PIT_MAX, m_pRCPit->control_in / 100) ) {
-    return false;
-  }
-  if(!in_range(RC_ROL_MIN, RC_ROL_MAX, m_pRCRol->control_in / 100) ) {
-    return false;
-  }
-  if(!in_range(RC_THR_OFF, RC_THR_MAX, m_pRCThr->control_in) ) {
-    return false;
-  }
-  if(!in_range(RC_YAW_MIN, RC_YAW_MAX, m_pRCYaw->control_in / 100) ) {
-    return false;
-  }
+  int_fast16_t pit = m_pRCPit->control_in / 100;
+  int_fast16_t rol = m_pRCRol->control_in / 100;
+  int_fast16_t thr = m_pRCThr->control_in;
+  int_fast16_t yaw = m_pRCYaw->control_in / 100;
   
+  // Small validity check
+  if(!check_input(rol, pit, thr, yaw) ) {
+    return false;
+  }
+
   // If check was successful we feed the input into or rc array
-  m_rgChannelsRC[RC_THR] = m_pRCThr->control_in;
+  m_rgChannelsRC[RC_THR] = thr;
   // dezi degree to degree
-  m_rgChannelsRC[RC_PIT] = m_pRCPit->control_in / 100;
-  m_rgChannelsRC[RC_ROL] = m_pRCRol->control_in / 100;
-  m_rgChannelsRC[RC_YAW] = m_pRCYaw->control_in / 100;
+  m_rgChannelsRC[RC_PIT] = pit;
+  m_rgChannelsRC[RC_ROL] = rol;
+  m_rgChannelsRC[RC_YAW] = yaw;
   
   // Update timers
   m_iSParseTimer = m_iPPMTimer = m_pHalBoard->m_pHAL->scheduler->millis();           // update last valid packet
