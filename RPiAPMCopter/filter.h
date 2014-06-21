@@ -13,7 +13,7 @@ public:
   float m_fFirst;
   float m_fSecond;
 
-  Functor_f(float (*pfFunction)(float, float), float first = 0.f, float second = 1.f) {
+  Functor_f(float (*pfFunction)(float, float), float first = 0.f, float second = 0.f) {
     m_fFirst     = first;
     m_fSecond    = second;
     m_pfTransfer = pfFunction;

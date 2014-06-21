@@ -20,11 +20,19 @@
 AP_BoardLED board_led;
 
 /*
- * Sigmoid transfer function
+ * Gaussian bell function
  */
 inline float atti_f(float fX, float fSlope) {
-  float fVal = (180.f - smaller_f(fabs(fSlope * fX), 179.9f) ) / 180.f;
-  return fVal / sqrt(1.f + pow2_f(fVal) );
+  // Calculate the slope of the function ..
+  // .. dependent on the angular range which is allowed (for the accelerometer)
+  fSlope = 180.f / 60.f;
+
+  // Calculate the output rating
+  float fVal = (180.f - fabs(fSlope * fX) ) / 180.f;
+  fVal /= sqrt(1.f + pow2_f(fVal) );
+  
+  // Limit the function: be always >= zero
+  return fVal < 0.f ? 0.f : fVal;
 }
 
 void Device::update_attitude() {
@@ -62,18 +70,9 @@ void Device::update_attitude() {
   #if DEBUG_OUT && !BENCH_OUT
   m_pHAL->console->printf("Attitude - x: %.1f/%.1f, y: %.1f/%.1f, z: %.1f\n", m_vAtti_deg.x, vRef_deg.x, m_vAtti_deg.y, vRef_deg.y, m_vAtti_deg.z);
   #endif
-
-  // Use accelerometer on in +/-45° range
-  if(vRef_deg.x > 45.f || vRef_deg.x < -45.f) {
-    return;
-  }
-  if(vRef_deg.y > 45.f || vRef_deg.y < -45.f) {
-    return;
-  }
-
-  // Anneal Pitch/Roll gyrometer to accelerometer
-  m_vAtti_deg.x = SFilter::transff_filt_f(m_vAtti_deg.x, vRef_deg.x-m_vAtti_deg.x, dT*INERT_FUSION_RATE, Functor_f(&atti_f, vRef_deg.x, INERT_ANNEAL_SLOPE) );
-  m_vAtti_deg.y = SFilter::transff_filt_f(m_vAtti_deg.y, vRef_deg.y-m_vAtti_deg.y, dT*INERT_FUSION_RATE, Functor_f(&atti_f, vRef_deg.y, INERT_ANNEAL_SLOPE) );
+ 
+  m_vAtti_deg.x = SFilter::transff_filt_f(m_vAtti_deg.x, vRef_deg.x-m_vAtti_deg.x, dT*INERT_FUSION_RATE, Functor_f(&atti_f, vRef_deg.x) );
+  m_vAtti_deg.y = SFilter::transff_filt_f(m_vAtti_deg.y, vRef_deg.y-m_vAtti_deg.y, dT*INERT_FUSION_RATE, Functor_f(&atti_f, vRef_deg.y) );
 #else
   m_vAtti_deg.x = ToDeg(m_pAHRS->pitch);
   m_vAtti_deg.y = ToDeg(m_pAHRS->roll);

@@ -58,7 +58,7 @@
 #define RC_THR_OFF           1000   // Motors completely off
 // Normal throttle range
 #define RC_THR_MIN           1100   // Minimum throttle bias
-#define RC_THR_ACRO          1125   // Minimum throttle to begin with stabilization
+#define RC_THR_ACRO          1225   // Minimum throttle to begin with stabilization
 #define RC_THR_MAX           1900   // Maximum throttle bias
 // Maximum allowed throttle value, settable by user
 #define RC_THR_80P           1650
@@ -126,15 +126,11 @@
 
 #define SONAR_SCALING        5
 
-#define COMP_ANNEAL_SLOPE    1.0f   // Slope modifier of the annealing function
-#define COMP_FUSION_RATE     0.75f  // Sensor fusion rate: higher => faster annealing
-
-#define INERT_ANNEAL_SLOPE   12.5f  // Slope modifier of the annealing function
-#define INERT_FUSION_RATE    5.f    // Sensor fusion rate: higher => faster annealing
+#define INERT_FUSION_RATE    0.75f  // Sensor fusion rate: higher => faster annealing
 
 #define BAROM_LOWPATH_FILT_f 0.35f  // Filter constant for the barometer
 #define COMPA_LOWPATH_FILT_f 0.25f  // Filter constant for the compass
-#define INERT_LOWPATH_FILT_f 0.35f  // Filter constant for the accelerometer
+#define INERT_LOWPATH_FILT_f 0.15f  // Filter constant for the accelerometer
 #define ACCEL_LOWPATH_FILT_f 0.025f // Filter constant for the accelerometer
 
 #define INERT_G_CONST        9.81f

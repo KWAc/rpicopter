@@ -492,7 +492,7 @@ bool Receiver::try_any() {
   
   // Reduce the loop frequency only if not in UAV mode
   // If currently in other modes, radio could be still helpful
-  if(!chk_fset(m_Waypoint.mode, GPSPosition::GPS_NAVIGATN_F) ) {
+  if(!chk_fset(m_Waypoint.mode, GPSPosition::GPS_NAVIGATN_F) && !BENCH_OUT) {
     m_pHalBoard->set_update_rate_ms(FALB_T_MS);
   }
 
