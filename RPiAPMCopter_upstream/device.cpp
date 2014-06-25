@@ -243,13 +243,13 @@ void Device::update_inav() {
 
 void Device::init_pids() {
   // Rate PIDs
-  m_rgPIDS[PID_PIT_RATE].kP(0.65);
-  m_rgPIDS[PID_PIT_RATE].kI(0.20);
+  m_rgPIDS[PID_PIT_RATE].kP(0.50);
+  m_rgPIDS[PID_PIT_RATE].kI(0.35);
   m_rgPIDS[PID_PIT_RATE].kD(0.01);
   m_rgPIDS[PID_PIT_RATE].imax(50);
 
-  m_rgPIDS[PID_ROL_RATE].kP(0.65);
-  m_rgPIDS[PID_ROL_RATE].kI(0.20);
+  m_rgPIDS[PID_ROL_RATE].kP(0.50);
+  m_rgPIDS[PID_ROL_RATE].kI(0.35);
   m_rgPIDS[PID_ROL_RATE].kD(0.01);
   m_rgPIDS[PID_ROL_RATE].imax(50);
 

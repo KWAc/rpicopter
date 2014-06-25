@@ -225,7 +225,7 @@ void Exception::reduce_thr(float fTime) {
   #endif
   
   // reduce throttle..
-  m_pReceiver->m_rgChannelsRC[RC_THR] = fThr >= RC_THR_MIN ? fThr : RC_THR_OFF; // throttle
+  m_pReceiver->m_rgChannelsRC[RC_THR] = fThr >= RC_THR_ACRO ? fThr : RC_THR_OFF; // throttle
   // reset yaw, pitch and roll
   m_pReceiver->m_rgChannelsRC[RC_YAW] = 0;                                      // yaw
   m_pReceiver->m_rgChannelsRC[RC_PIT] = 0;                                      // pitch

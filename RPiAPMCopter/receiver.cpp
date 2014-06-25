@@ -190,7 +190,7 @@ bool Receiver::parse_gyr_cal(char* buffer) {
   // If motors run: Do nothing!
   if(m_rgChannelsRC == NULL || m_pHalBoard == NULL) {
     return false;
-  } else if (m_rgChannelsRC[2] > RC_THR_MIN) {
+  } else if (m_rgChannelsRC[2] > RC_THR_OFF) {
     return false;
   }
   // process cmd
@@ -266,7 +266,7 @@ bool Receiver::parse_pid_conf(char* buffer) {
   if(m_pHalBoard == NULL) {
     return false;
   }
-  else if(m_rgChannelsRC[2] > RC_THR_MIN) {        // If motors run: Do nothing!
+  else if(m_rgChannelsRC[2] > RC_THR_OFF) {        // If motors run: Do nothing!
     return false;
   }
 
@@ -393,7 +393,6 @@ bool Receiver::read_uartA(uint_fast16_t bytesAvail) {
       bRet = parse(m_cBuffer);
       if(bRet) {
         m_iSParseTimer_A = m_iSParseTimer;
-        m_pHalBoard->set_update_rate_ms(MAIN_T_MS);
       }
       memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;
     }
@@ -473,33 +472,37 @@ bool Receiver::parse(char *buffer) {
 }
 
 bool Receiver::try_any() {
+  bool bOK = false;
+
   // Try rcin (PPM radio)
-  bool bOK = read_rcin();
-  if(bOK) {
-    return true;
-  }
-  
+  #if USE_RCIN
+  bOK = read_rcin();
+  #endif
+
   // Try WiFi over uartA
-  bOK = read_uartA(m_pHalBoard->m_pHAL->uartA->available() );
-  if(bOK) {
-    return true;
+  #if USE_UART_A
+  if(last_rcin_t32() > RCIN_TIMEOUT) {
+    bOK = read_uartA(m_pHalBoard->m_pHAL->uartA->available() );
+    if(bOK) {
+      m_pHalBoard->set_update_rate_ms(MAIN_T_MS); 
+    }
   }
-  
-  // Not yet time to use the input source on uartC
-  if(last_parse_uartA_t32() < UART_A_TIMEOUT) {
-    return false;
-  }
-  
-  // Reduce the loop frequency only if not in UAV mode
-  // If currently in other modes, radio could be still helpful
-  if(!chk_fset(m_Waypoint.mode, GPSPosition::GPS_NAVIGATN_F) && !BENCH_OUT) {
-    m_pHalBoard->set_update_rate_ms(FALB_T_MS);
-  }
+  #endif
 
   // Try uartC
-  bOK = read_uartC(m_pHalBoard->m_pHAL->uartC->available() );
-  
+  #if USE_UART_C
+  if(last_parse_uartA_t32() > UART_A_TIMEOUT) {
+    // Reduce the loop frequency only if not in UAV mode
+    // If currently in other modes, radio could be still helpful
+    if(!chk_fset(m_Waypoint.mode, GPSPosition::GPS_NAVIGATN_F) ) {
+      m_pHalBoard->set_update_rate_ms(FALB_T_MS);
+    }
+    bOK = read_uartC(m_pHalBoard->m_pHAL->uartC->available() );
+  }
+  #endif
+
   // Update the time for the last successful parse of a control string
+  last_parse_t32();
   return bOK;
 }
 

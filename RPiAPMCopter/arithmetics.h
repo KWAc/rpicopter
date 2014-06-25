@@ -4,7 +4,7 @@
 #include "config.h"
 
 
-inline bool in_range(uint_fast16_t iMin, uint_fast16_t iMax, uint_fast16_t iVal) {
+inline bool in_range(int_fast16_t iMin, int_fast16_t iMax, int_fast16_t iVal) {
   return iVal > iMax ? false : iVal < iMin ? false : true;
 }
 

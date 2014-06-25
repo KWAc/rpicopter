@@ -58,10 +58,10 @@
 #define RC_THR_OFF           1000   // Motors completely off
 // Normal throttle range
 #define RC_THR_MIN           1100   // Minimum throttle bias
-#define RC_THR_ACRO          1125   // Minimum throttle to begin with stabilization
-#define RC_THR_MAX           1900   // Maximum throttle bias
+#define RC_THR_ACRO          1225   // Minimum throttle to begin with stabilization
+#define RC_THR_MAX           2000   // Maximum throttle bias
 // Maximum allowed throttle value, settable by user
-#define RC_THR_80P           1650
+#define RC_THR_80P           1750
 
 // Degree range for remote control
 #define RC_YAW_MIN           -180
@@ -102,8 +102,12 @@
 #define RADIO_MAX_OFFS       7      // Maximum length of command message via radio without stop bit
 #define APM_IOCHAN_CNT 	     8
 
+#define USE_RCIN             0
+#define USE_UART_A           1
+#define USE_UART_C           1
+
 #define COM_PKT_TIMEOUT      750    // Time-out in ms; If the time-out is triggered the quadcopter will go down
-#define UART_A_TIMEOUT       250    // Time-out of the console serial port in ms; If time-out is triggered the firmware tries to receive packets via the 3DR radio on uartC
+#define UART_A_TIMEOUT       350    // Time-out of the console serial port in ms; If time-out is triggered the firmware tries to receive packets via the 3DR radio on uartC
 
 #define PID_ARGS             6      // Nr of arguments for PID configuration
 #define PID_BUFFER_S         5
@@ -126,15 +130,11 @@
 
 #define SONAR_SCALING        5
 
-#define COMP_ANNEAL_SLOPE    1.0f   // Slope modifier of the annealing function
-#define COMP_FUSION_RATE     0.75f  // Sensor fusion rate: higher => faster annealing
-
-#define INERT_ANNEAL_SLOPE   12.5f  // Slope modifier of the annealing function
-#define INERT_FUSION_RATE    5.f    // Sensor fusion rate: higher => faster annealing
+#define INERT_FUSION_RATE    7.0f   // Sensor fusion rate: higher => faster annealing
 
 #define BAROM_LOWPATH_FILT_f 0.35f  // Filter constant for the barometer
 #define COMPA_LOWPATH_FILT_f 0.25f  // Filter constant for the compass
-#define INERT_LOWPATH_FILT_f 0.35f  // Filter constant for the accelerometer
+#define INERT_LOWPATH_FILT_f 0.10f  // Filter constant for the accelerometer
 #define ACCEL_LOWPATH_FILT_f 0.025f // Filter constant for the accelerometer
 
 #define INERT_G_CONST        9.81f
