@@ -107,7 +107,7 @@
 #define USE_UART_C           1
 
 #define COM_PKT_TIMEOUT      750    // Time-out in ms; If the time-out is triggered the quadcopter will go down
-#define UART_A_TIMEOUT       350    // Time-out of the console serial port in ms; If time-out is triggered the firmware tries to receive packets via the 3DR radio on uartC
+#define UART_A_TIMEOUT       200    // Time-out of the console serial port in ms; If time-out is triggered the firmware tries to receive packets via the 3DR radio on uartC
 
 #define PID_ARGS             6      // Nr of arguments for PID configuration
 #define PID_BUFFER_S         5

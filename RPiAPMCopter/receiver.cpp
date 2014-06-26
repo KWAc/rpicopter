@@ -471,6 +471,9 @@ bool Receiver::parse(char *buffer) {
   return false;
 }
 
+// In addition to the attitude control loop,
+// reading from the radio or other input sources is the main performance sink.
+// This function has the aim to be optimized as much as possible
 bool Receiver::try_any() {
   bool bOK = false;
 
@@ -481,17 +484,18 @@ bool Receiver::try_any() {
 
   // Try WiFi over uartA
   #if USE_UART_A
-  if(last_rcin_t32() > RCIN_TIMEOUT) {
+  if(last_rcin_t32() > RCIN_TIMEOUT && !bOK) {
     bOK = read_uartA(m_pHalBoard->m_pHAL->uartA->available() );
+    // Reset the loop rate, if a valid package arrived from this port again
     if(bOK) {
       m_pHalBoard->set_update_rate_ms(MAIN_T_MS); 
     }
   }
   #endif
 
-  // Try uartC
+  // Try radio (433 or 900 MHz) over uartC
   #if USE_UART_C
-  if(last_parse_uartA_t32() > UART_A_TIMEOUT) {
+  if(last_parse_uartA_t32() > UART_A_TIMEOUT && !bOK) {
     // Reduce the loop frequency only if not in UAV mode
     // If currently in other modes, radio could be still helpful
     if(!chk_fset(m_Waypoint.mode, GPSPosition::GPS_NAVIGATN_F) ) {

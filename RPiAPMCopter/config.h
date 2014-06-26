@@ -99,13 +99,13 @@
 #define RADIO_MAX_OFFS       7      // Maximum length of command message via radio without stop bit
 #define APM_IOCHAN_CNT 	     8
 
-#define USE_RCIN             0
-#define USE_UART_A           1
-#define USE_UART_C           1
+#define USE_RCIN             0      // This firmware is not using any PPM radio as default
+#define USE_UART_A           1      // This is the standard input source (USB from Raspberry Pi)
+#define USE_UART_C           1      // And this is the fall-back option (3DR Radio 433 or 900 MHz)
 
-#define COM_PKT_TIMEOUT      750    // Time-out in ms; If the time-out is triggered the quadcopter will go down
-#define RCIN_TIMEOUT         350
-#define UART_A_TIMEOUT       350    // Time-out of the console serial port in ms; If time-out is triggered the firmware tries to receive packets via the 3DR radio on uartC
+#define COM_PKT_TIMEOUT      500    // Time-out in ms; If the time-out is triggered the machine will go down
+#define RCIN_TIMEOUT         200    // Time-out of the ppm radio in ms; If time-out is triggered the firmware tries to receive packets via the USB port on uartA
+#define UART_A_TIMEOUT       250    // Time-out of the console serial port in ms; If time-out is triggered the firmware tries to receive packets via the 3DR radio on uartC
 
 #define PID_ARGS             6      // Nr of arguments for PID configuration
 #define PID_BUFFER_S         5
