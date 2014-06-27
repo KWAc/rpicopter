@@ -67,7 +67,7 @@ void Device::update_attitude() {
   // Use a temporary instead of the member variable for acceleration data
   Vector3f vRef_deg = read_accl_deg();
 
-  #if DEBUG_OUT && !BENCH_OUT
+  #if DEBUG_OUT
   m_pHAL->console->printf("Attitude - x: %.1f/%.1f, y: %.1f/%.1f, z: %.1f\n", m_vAtti_deg.x, vRef_deg.x, m_vAtti_deg.y, vRef_deg.y, m_vAtti_deg.z);
   #endif
  
@@ -243,13 +243,13 @@ void Device::update_inav() {
 
 void Device::init_pids() {
   // Rate PIDs
-  m_rgPIDS[PID_PIT_RATE].kP(0.55);
-  m_rgPIDS[PID_PIT_RATE].kI(0.40);
+  m_rgPIDS[PID_PIT_RATE].kP(0.35);
+  m_rgPIDS[PID_PIT_RATE].kI(0.50);
   m_rgPIDS[PID_PIT_RATE].kD(0.01);
   m_rgPIDS[PID_PIT_RATE].imax(50);
 
-  m_rgPIDS[PID_ROL_RATE].kP(0.55);
-  m_rgPIDS[PID_ROL_RATE].kI(0.40);
+  m_rgPIDS[PID_ROL_RATE].kP(0.35);
+  m_rgPIDS[PID_ROL_RATE].kI(0.50);
   m_rgPIDS[PID_ROL_RATE].kD(0.01);
   m_rgPIDS[PID_ROL_RATE].imax(50);
 

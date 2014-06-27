@@ -190,7 +190,7 @@ bool Receiver::parse_gyr_cal(char* buffer) {
   // If motors run: Do nothing!
   if(m_rgChannelsRC == NULL || m_pHalBoard == NULL) {
     return false;
-  } else if (m_rgChannelsRC[2] > RC_THR_OFF) {
+  } else if (m_rgChannelsRC[2] > RC_THR_ACRO) {
     return false;
   }
   // process cmd
@@ -266,7 +266,7 @@ bool Receiver::parse_pid_conf(char* buffer) {
   if(m_pHalBoard == NULL) {
     return false;
   }
-  else if(m_rgChannelsRC[2] > RC_THR_OFF) {        // If motors run: Do nothing!
+  else if(m_rgChannelsRC[2] > RC_THR_ACRO) {        // If motors run: Do nothing!
     return false;
   }
 
