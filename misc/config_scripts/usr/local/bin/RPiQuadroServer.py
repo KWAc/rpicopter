@@ -19,7 +19,7 @@ logging.basicConfig(filename='/tmp/RPiQuadrocopter.log', level=logging.INFO, for
 # Socket for WiFi data transport
 udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 udp_sock.bind(('0.0.0.0', 7000))
-udp_client  = None
+udp_clients = set()
 pySerial    = None
 
 # Thread lock for multi threading
@@ -67,11 +67,13 @@ def ser_write(type, line):
       pySerial.flushInput()                                             # Workaround: free write buffer (otherwise the Arduino board hangs)
     THR_LOCK.release()
     
-def udp_write(msg, adress):
-  if adress is not None:
-    bytes = udp_sock.sendto(msg, adress)
+def udp_write(msg, clients):
+  for client in clients:
+    bytes = udp_sock.sendto(msg, client)
 
-def make_command(type, p):
+def make_command(p):
+  type = p['type']
+
   # remote control is about controlling the model (thrust and attitude)
   if type == 'rc':
     com = "%d,%d,%d,%d" % (p['r'], p['p'], p['t'], p['y'])
@@ -111,19 +113,19 @@ def make_command(type, p):
   # Ping service for calculating the latency of the connection
   if type == 'ping':
     com = '{"type":"pong","v":%d}' % (p['v'])
-    udp_write(com, udp_client)
+    udp_write(com, udp_clients)
     
 def recv_thr():                                                         # recv_thr() is used to catch sensor data
-  global udp_client
+  global udp_clients
   ser_msg = None
 
   while pySerial is not None:
     if not pySerial.readable() or not pySerial.inWaiting() > 0:
       continue
-      
+
     try:
       THR_LOCK.acquire()
-      ser_msg = pySerial.readline().strip()                           # Remove newline character '\n'
+      ser_msg = pySerial.readline().strip()                             # Remove newline character '\n'
       THR_LOCK.release()
     except serial.SerialTimeoutException as e:
       logging.error("Read timeout on serial port")
@@ -133,14 +135,15 @@ def recv_thr():                                                         # recv_t
       try:
         p = json.loads(ser_msg)
       except (ValueError, KeyError, TypeError):
-        #print ("JSON format error: %s" % ser_msg)                       # Print everything what is not a valid JSON string to console
+        #print ("JSON format error: %s" % ser_msg)                      # Print everything what is not a valid JSON string to console
         ser_msg = '{"type":"NOJSON","data":"%s"}' % ser_msg
       finally:
-        udp_write(ser_msg, udp_client)
+        udp_write(ser_msg, udp_clients)
 
 def trnm_thr():                                                         # trnm_thr() sends commands to Arduino
-  global udp_client
-
+  global udp_clients
+  udp_client = None
+  
   while pySerial is not None:
     if not pySerial.writable():
       continue
@@ -150,12 +153,14 @@ def trnm_thr():                                                         # trnm_t
     except socket.timeout:
       logging.error("Write timeout on socket")                          # Log the problem
     else:
+      if udp_client is not None:
+        udp_clients.add(udp_client)
       try:
         p = json.loads(udp_msg)                                         # parse JSON string from socket
       except (ValueError, KeyError, TypeError):
         logging.debug("JSON format error: " + udp_msg.strip() )
       else:
-        make_command(p['type'], p)
+        make_command(p)
 
 def main():
   recv=threading.Thread(target=recv_thr)
