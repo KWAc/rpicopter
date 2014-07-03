@@ -51,25 +51,27 @@ def chksum(line):
     c = ((c + ord(a)) << 1) % 256
   return c
 
-def ser_write(type, line):
-  chk = chksum(line)
-  output = "%s%s*%x\r\n" % (type, line, chk)                            # Concatenate msg and chksum
-  
+def ser_write(line):
   if pySerial is not None:
     THR_LOCK.acquire()
     try:
-      bytes = pySerial.write(output)
-    except serial.SerialTimeoutException as e:
-      logging.error("Write timeout on serial port")
-    except serial.SerialException as e:
+      bytes = pySerial.write(line)
+    except serial.SerialTimeoutException:
+      logging.error("Write time-out on serial port")
+    except serial.SerialException:
       logging.error("Write exception serial port")
     finally:
       pySerial.flushInput()                                             # Workaround: free write buffer (otherwise the Arduino board hangs)
     THR_LOCK.release()
-    
+
 def udp_write(msg, clients):
   for client in clients:
     bytes = udp_sock.sendto(msg, client)
+
+def send_command(type, line):
+  chk = chksum(line)
+  output = "%s%s*%x\r\n" % (type, line, chk)                            # Concatenate msg and chksum
+  ser_write(output)
 
 def make_command(p):
   type = p['type']
@@ -77,12 +79,12 @@ def make_command(p):
   # remote control is about controlling the model (thrust and attitude)
   if type == 'rc':
     com = "%d,%d,%d,%d" % (p['r'], p['p'], p['t'], p['y'])
-    ser_write("RC#", com)
+    send_command("RC#", com)
 
   # Add a waypoint
   if type == 'uav':
     com = "%d,%d,%d,%d" % (p['lat_d'], p['lon_d'], p['alt_m'], p['flag_t'] )
-    ser_write("UAV#", com)
+    send_command("UAV#", com)
 
   # PID config is about to change the sensitivity of the model to changes in attitude
   if type == 'pid':
@@ -93,28 +95,27 @@ def make_command(p):
       p['t_rkp'], p['t_rki'], p['t_rkd'], p['t_rimax'],
       p['a_rkp'], p['a_rki'], p['a_rkd'], p['a_rimax'],
       p['p_skp'], p['r_skp'], p['y_skp'], p['t_skp'], p['a_skp'] )
-    ser_write("PID#", com)
+    send_command("PID#", com)
 
   # This section is about correcting drifts while model is flying (e.g. due to imbalances of the model)
   if type == 'cmp':
     com = "%.2f,%.2f" % (p['r'], p['p'])
-    ser_write("CMP#", com)
+    send_command("CMP#", com)
 
   # With this section you may start the calibration of the gyro again
   if type == 'gyr':
     com = "%d" % (p['cal'])
-    ser_write("GYR#", com)
+    send_command("GYR#", com)
 
   # User interactant for gyrometer calibration
   if type == 'user_interactant':
-    bytes = pySerial.write("x") # write a char into the serial device
-    pySerial.flushInput()
-    
+    ser_write("x")
+
   # Ping service for calculating the latency of the connection
   if type == 'ping':
     com = '{"type":"pong","v":%d}' % (p['v'])
     udp_write(com, udp_clients)
-    
+
 def recv_thr():                                                         # recv_thr() is used to catch sensor data
   global udp_clients
   ser_msg = None
@@ -127,40 +128,48 @@ def recv_thr():                                                         # recv_t
       THR_LOCK.acquire()
       ser_msg = pySerial.readline().strip()                             # Remove newline character '\n'
       THR_LOCK.release()
-    except serial.SerialTimeoutException as e:
-      logging.error("Read timeout on serial port")
-    except serial.SerialException as e:
+    except serial.SerialTimeoutException:
+      logging.error("Read time-out on serial port")
+      continue
+    except serial.SerialException:
       logging.error("Read exception on serial port")
-    else:
-      try:
-        p = json.loads(ser_msg)
-      except (ValueError, KeyError, TypeError):
-        #print ("JSON format error: %s" % ser_msg)                      # Print everything what is not a valid JSON string to console
-        ser_msg = '{"type":"NOJSON","data":"%s"}' % ser_msg
-      finally:
-        udp_write(ser_msg, udp_clients)
+      continue
+
+    try:
+      p = json.loads(ser_msg)
+    except (ValueError, KeyError, TypeError):
+      #print ("JSON format error: %s" % ser_msg)                        # Print everything what is not a valid JSON string to console
+      ser_msg = '{"type":"NOJSON","data":"%s"}' % ser_msg
+    finally:
+      udp_write(ser_msg, udp_clients)
 
 def trnm_thr():                                                         # trnm_thr() sends commands to Arduino
   global udp_clients
   udp_client = None
-  
+  udp_msg    = ""
+
+  #udp_socket.settimeout(.02)
   while pySerial is not None:
     if not pySerial.writable():
       continue
-      
+
     try:
       udp_msg, udp_client = udp_sock.recvfrom(512)                      # Wait for UDP packet from ground station
     except socket.timeout:
       logging.error("Write timeout on socket")                          # Log the problem
+      continue
+    
+    if udp_client is not None: 
+      udp_clients.add(udp_client)                                       # Add new client to client list
+    if not udp_msg: 
+      continue                                                          # If message is empty continue without parsing
+    
+    try:
+      p = json.loads(udp_msg)                                           # parse JSON string from socket
+    except (ValueError, KeyError, TypeError):
+      logging.debug("JSON format error: " + udp_msg.strip() )
     else:
-      if udp_client is not None:
-        udp_clients.add(udp_client)
-      try:
-        p = json.loads(udp_msg)                                         # parse JSON string from socket
-      except (ValueError, KeyError, TypeError):
-        logging.debug("JSON format error: " + udp_msg.strip() )
-      else:
-        make_command(p)
+      make_command(p)
 
 def main():
   recv=threading.Thread(target=recv_thr)

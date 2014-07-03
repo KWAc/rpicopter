@@ -12,8 +12,8 @@ float SFilter::transff_filt_f (float fSens, float fErrorF, float dTF, float fErr
   return fSens;
 }
 
-float SFilter::transff_filt_f(float fSens, float fError, float dT, const Functor_f &functor) {
-  fSens += fError * functor.run() * dT;
+float SFilter::transff_filt_f(float fSens, float fError, float dT, const Functor_f &pFunc) {
+  fSens += fError * pFunc.run() * dT;
   return fSens;
 }
 

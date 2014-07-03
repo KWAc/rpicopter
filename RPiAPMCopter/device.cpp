@@ -25,14 +25,14 @@ AP_BoardLED board_led;
 inline float atti_f(float fX, float fSlope) {
   // Calculate the slope of the function ..
   // .. dependent on the angular range which is allowed (for the accelerometer)
-  fSlope = 180.f / 60.f;
+  fSlope = 180.f / INERT_ANGLE_BIAS;
 
   // Calculate the output rating
   float fVal = (180.f - fabs(fSlope * fX) ) / 180.f;
   fVal /= sqrt(1.f + pow2_f(fVal) );
   
   // Limit the function: be always >= zero
-  return fVal < 0.f ? 0.f : fVal;
+  return fVal < 0.f ? 0.f : (fVal*fVal);
 }
 
 void Device::update_attitude() {
@@ -68,8 +68,20 @@ void Device::update_attitude() {
   Vector3f vRef_deg = read_accl_deg();
 
   #if DEBUG_OUT
-  m_pHAL->console->printf("Attitude - x: %.1f/%.1f, y: %.1f/%.1f, z: %.1f\n", m_vAtti_deg.x, vRef_deg.x, m_vAtti_deg.y, vRef_deg.y, m_vAtti_deg.z);
+  m_pHAL->console->printf("Attitude - x: %.3f/%.3f, y: %.3f/%.3f, z: %.1f\n", m_vAtti_deg.x, vRef_deg.x, m_vAtti_deg.y, vRef_deg.y, m_vAtti_deg.z);
+  m_pHAL->console->printf("Acceleration - x: %.3f, y: %.3f, z: %.3f\n", m_vAccelPG_cmss.x, m_vAccelPG_cmss.y, m_vAccelPG_cmss.z);
   #endif
+ 
+  // Some sanity checks, before annealing to the accelerometer readouts
+  if( abs(m_vAccelPG_cmss.z) < INERT_FFALL_BIAS ||        // Free fall
+      abs(vRef_deg.x)        > INERT_ANGLE_BIAS ||        // Out of range (roll  > 60°)
+      abs(vRef_deg.y)        > INERT_ANGLE_BIAS)          // Out of range (pitch > 60°)
+  {
+    #if DEBUG_OUT
+    m_pHAL->console->printf("Attitude estimation out of range or free fall: Don't anneal to accelerometer.\n");
+    #endif
+    return;
+  }
  
   m_vAtti_deg.x = SFilter::transff_filt_f(m_vAtti_deg.x, vRef_deg.x-m_vAtti_deg.x, dT*INERT_FUSION_RATE, Functor_f(&atti_f, vRef_deg.x) );
   m_vAtti_deg.y = SFilter::transff_filt_f(m_vAtti_deg.y, vRef_deg.y-m_vAtti_deg.y, dT*INERT_FUSION_RATE, Functor_f(&atti_f, vRef_deg.y) );
@@ -243,18 +255,18 @@ void Device::update_inav() {
 
 void Device::init_pids() {
   // Rate PIDs
-  m_rgPIDS[PID_PIT_RATE].kP(0.35);
-  m_rgPIDS[PID_PIT_RATE].kI(0.50);
-  m_rgPIDS[PID_PIT_RATE].kD(0.01);
+  m_rgPIDS[PID_PIT_RATE].kP(0.65);
+  m_rgPIDS[PID_PIT_RATE].kI(0.35);
+  m_rgPIDS[PID_PIT_RATE].kD(0.015);
   m_rgPIDS[PID_PIT_RATE].imax(50);
 
-  m_rgPIDS[PID_ROL_RATE].kP(0.35);
-  m_rgPIDS[PID_ROL_RATE].kI(0.50);
-  m_rgPIDS[PID_ROL_RATE].kD(0.01);
+  m_rgPIDS[PID_ROL_RATE].kP(0.65);
+  m_rgPIDS[PID_ROL_RATE].kI(0.35);
+  m_rgPIDS[PID_ROL_RATE].kD(0.015);
   m_rgPIDS[PID_ROL_RATE].imax(50);
 
-  m_rgPIDS[PID_YAW_RATE].kP(0.60);
-  m_rgPIDS[PID_YAW_RATE].kI(0.10);
+  m_rgPIDS[PID_YAW_RATE].kP(0.75);
+  m_rgPIDS[PID_YAW_RATE].kI(0.15);
   m_rgPIDS[PID_YAW_RATE].kD(0.0f);
   m_rgPIDS[PID_YAW_RATE].imax(50);
 
@@ -269,9 +281,9 @@ void Device::init_pids() {
   m_rgPIDS[PID_ACC_RATE].imax(100); // For altitude hold
 
   // STAB PIDs
-  m_rgPIDS[PID_PIT_STAB].kP(3.65);
-  m_rgPIDS[PID_ROL_STAB].kP(3.65);
-  m_rgPIDS[PID_YAW_STAB].kP(3.65);
+  m_rgPIDS[PID_PIT_STAB].kP(4.25);
+  m_rgPIDS[PID_ROL_STAB].kP(4.25);
+  m_rgPIDS[PID_YAW_STAB].kP(4.25);
   m_rgPIDS[PID_THR_STAB].kP(5.50);  // For altitude hold
   m_rgPIDS[PID_ACC_STAB].kP(15.50); // For altitude hold
 }
