@@ -32,7 +32,7 @@ inline float atti_f(float fX, float fSlope) {
   fVal /= sqrt(1.f + pow2_f(fVal) );
   
   // Limit the function: be always >= zero
-  return fVal < 0.f ? 0.f : (fVal*fVal);
+  return fVal < 0.f ? 0.f : (fVal*fVal);  // Maybe use a x³ function?!
 }
 
 void Device::update_attitude() {
@@ -535,17 +535,13 @@ float Device::get_accel_x_g(Device *pDev, bool &bOK) {
   if(!pDev) {
     return fGForce;
   }
-  // -45 < Pitch < +45
-  if(pDev->get_atti_raw_deg().x > 45.f || pDev->get_atti_raw_deg().x < -45.f) {
-    return fGForce;
-  }
-  // -45 < Roll < +45
-  if(pDev->get_atti_raw_deg().y > 45.f || pDev->get_atti_raw_deg().y < -45.f) {
+  // Sanity check
+  if(abs(pDev->get_atti_raw_deg().x) > INERT_ANGLE_BIAS || abs(pDev->get_atti_raw_deg().y) > INERT_ANGLE_BIAS) {
     return fGForce;
   }
 
   float fCFactor = 100.f * INERT_G_CONST;
-  float fG       = -pDev->get_accel_mg_cmss().x / fCFactor;
+  float fG       = pDev->get_accel_mg_cmss().x / fCFactor;
   fGForce        = SFilter::low_pass_filt_f(fG, fGForce, ACCEL_LOWPATH_FILT_f);
 
   bOK = true;
@@ -560,17 +556,13 @@ float Device::get_accel_y_g(Device *pDev, bool &bOK) {
   if(!pDev) {
     return fGForce;
   }
-  // -45 < Pitch < +45
-  if(pDev->get_atti_raw_deg().x > 45.f || pDev->get_atti_raw_deg().x < -45.f) {
-    return fGForce;
-  }
-  // -45 < Roll < +45
-  if(pDev->get_atti_raw_deg().y > 45.f || pDev->get_atti_raw_deg().y < -45.f) {
+  // Sanity check
+  if(abs(pDev->get_atti_raw_deg().x) > INERT_ANGLE_BIAS || abs(pDev->get_atti_raw_deg().y) > INERT_ANGLE_BIAS) {
     return fGForce;
   }
 
   float fCFactor = 100.f * INERT_G_CONST;
-  float fG       = -pDev->get_accel_mg_cmss().y / fCFactor;
+  float fG       = pDev->get_accel_mg_cmss().y / fCFactor;
   fGForce        = SFilter::low_pass_filt_f(fG, fGForce, ACCEL_LOWPATH_FILT_f);
 
   bOK = true;
@@ -585,12 +577,8 @@ float Device::get_accel_z_g(Device *pDev, bool &bOK) {
   if(!pDev) {
     return fGForce;
   }
-  // -45 < Pitch < +45
-  if(pDev->get_atti_raw_deg().x > 45.f || pDev->get_atti_raw_deg().x < -45.f) {
-    return fGForce;
-  }
-  // -45 < Roll < +45
-  if(pDev->get_atti_raw_deg().y > 45.f || pDev->get_atti_raw_deg().y < -45.f) {
+  // Sanity check
+  if(abs(pDev->get_atti_raw_deg().x) > INERT_ANGLE_BIAS || abs(pDev->get_atti_raw_deg().y) > INERT_ANGLE_BIAS) {
     return fGForce;
   }
 

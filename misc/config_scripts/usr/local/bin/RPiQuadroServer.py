@@ -146,7 +146,7 @@ def recv_thr():                                                         # recv_t
 def trnm_thr():                                                         # trnm_thr() sends commands to Arduino
   global udp_clients
   udp_client = None
-  udp_msg    = ""
+  udp_msg    = None
 
   #udp_socket.settimeout(.02)
   while pySerial is not None:
