@@ -128,15 +128,15 @@
 
 #define SONAR_SCALING        5
 
-#define INERT_FUSION_RATE    20.f   // Sensor fusion rate: higher => faster annealing
+#define INERT_FUSION_RATE    5.f   // Sensor fusion rate: higher => faster annealing
 
 #define BAROM_LOWPATH_FILT_f 0.35f  // Filter constant for the barometer
 #define COMPA_LOWPATH_FILT_f 0.25f  // Filter constant for the compass
-#define INERT_LOWPATH_FILT_f 0.25f  // Filter constant for the accelerometer
+#define INERT_LOWPATH_FILT_f 0.125f // Filter constant for the accelerometer
 #define ACCEL_LOWPATH_FILT_f 0.025f // Filter constant for the accelerometer
 
 #define INERT_FFALL_BIAS     75     // Accelerometer bias in cm/s². If z-axis values are less than 0.75 m/s², break annealing to accelerometer for attitude estimation
-#define INERT_ANGLE_BIAS     55
+#define INERT_ANGLE_BIAS     65
 
 #define INERT_G_CONST        9.81f
 

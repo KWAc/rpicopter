@@ -32,7 +32,8 @@ inline float atti_f(float fX, float fSlope) {
   fVal /= sqrt(1.f + pow2_f(fVal) );
   
   // Limit the function: be always >= zero
-  return fVal < 0.f ? 0.f : (fVal*fVal);  // Maybe use a x³ function?!
+  fVal = fVal < 0.f ? 0.f : pow2_f(fVal);
+  return (4.f * pow2_f(fVal) );  // x^4; 0 <= y <= 1.0
 }
 
 void Device::update_attitude() {

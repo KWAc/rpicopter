@@ -17,8 +17,9 @@ layout = '%(asctime)s - %(levelname)s - %(message)s'
 logging.basicConfig(filename='/tmp/RPiQuadrocopter.log', level=logging.INFO, format=layout)
 
 # Socket for WiFi data transport
-udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-udp_sock.bind(('0.0.0.0', 7000))
+udp_server  = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+udp_server.bind(('0.0.0.0', 7000))
+
 udp_clients = set()
 pySerial    = None
 
@@ -66,7 +67,7 @@ def ser_write(line):
 
 def udp_write(msg, clients):
   for client in clients:
-    bytes = udp_sock.sendto(msg, client)
+    bytes = udp_server.sendto(msg, client)
 
 def send_command(type, line):
   chk = chksum(line)
@@ -154,7 +155,7 @@ def trnm_thr():                                                         # trnm_t
       continue
 
     try:
-      udp_msg, udp_client = udp_sock.recvfrom(512)                      # Wait for UDP packet from ground station
+      udp_msg, udp_client = udp_server.recvfrom(512)                      # Wait for UDP packet from ground station
     except socket.timeout:
       logging.error("Write timeout on socket")                          # Log the problem
       continue
