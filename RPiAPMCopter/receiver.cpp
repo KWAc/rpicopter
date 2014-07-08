@@ -350,11 +350,11 @@ bool Receiver::check_input(int_fast16_t iRol, int_fast16_t iPit, int_fast16_t iT
  * Everything fits into 7 bytes
  */
 bool Receiver::parse_radio(char *buffer) {
-  int_fast16_t thr = 1000 + (static_cast<int_fast16_t>(buffer[0]) * 100) + (int_fast16_t)buffer[1]; // 1000 - 1900
-  int_fast16_t pit = static_cast<int_fast16_t>(buffer[2]) - 127;                               // -45° - 45°
-  int_fast16_t rol = static_cast<int_fast16_t>(buffer[3]) - 127;                               // -45° - 45°
-  int_fast16_t yaw = static_cast<int_fast16_t>(buffer[5]) * (static_cast<int_fast16_t>(buffer[4]) - 127);        // -180° - 180°
-  uint_fast8_t chk = static_cast<uint_fast8_t>(buffer[6]);                                     // checksum
+  int_fast16_t thr = 1000 + (static_cast<uint_fast16_t>(buffer[0]) * 100) + (uint_fast16_t)buffer[1];    // 1000 - 1900
+  int_fast16_t pit = static_cast<int_fast16_t>(buffer[2]);                                               // -45° - 45°
+  int_fast16_t rol = static_cast<int_fast16_t>(buffer[3]);                                               // -45° - 45°
+  int_fast16_t yaw = static_cast<uint_fast8_t>(buffer[5]) * static_cast<int_fast16_t>(buffer[4]);        // -180° - 180°
+  uint_fast8_t chk = static_cast<uint_fast8_t>(buffer[6]);                                               // checksum
 
   // Calculate checksum
   uint_fast8_t checksum = 0;

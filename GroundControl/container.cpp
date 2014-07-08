@@ -76,17 +76,23 @@ int RC_COM::calc_chksum(char *str) {
 }
 
 QPair<int, char*> RC_COM::cstr_makeRadioCommand() {
-    uint8_t thr_high  = ((int)THR/100)%10;
-    uint8_t thr_low   = THR - (1000 + (((int)THR/100)%10) * 100);
-    uint8_t ypm = YAW < 0 ? -1 : 1;
-    uint8_t yaw = YAW < 0 ? (-1 * YAW) : YAW;
+    int_fast16_t iROL = (int)ROL;
+    int_fast16_t iPIT = (int)PIT;
+    int_fast16_t iYAW = (int)YAW;
+    int_fast16_t iTHR = (int)THR;
+
+    int_fast16_t thr_high  = ((int)iTHR/100)%10;
+    int_fast16_t thr_low   = iTHR - (1000 + (((int)iTHR/100)%10) * 100);
+
+    int_fast16_t ypm = iYAW < 0 ? -1 : 1;
+    int_fast16_t yaw = iYAW < 0 ? (-1 * YAW) : YAW;
     
     m_cRadioCommand[0] = thr_high;
     m_cRadioCommand[1] = thr_low;
-    m_cRadioCommand[2] = uint8_t(PIT+127);
-    m_cRadioCommand[3] = uint8_t(ROL+127);
-    m_cRadioCommand[4] = uint8_t(ypm+127);
-    m_cRadioCommand[5] = uint8_t(yaw);
+    m_cRadioCommand[2] = iPIT;
+    m_cRadioCommand[3] = iROL;
+    m_cRadioCommand[4] = ypm;
+    m_cRadioCommand[5] = yaw;
     
     uint8_t checksum = 0;
     for(unsigned int i = 0; i < 6; i++) {

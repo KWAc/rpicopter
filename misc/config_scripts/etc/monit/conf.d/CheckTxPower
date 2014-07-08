@@ -1,0 +1,3 @@
+check process CheckTxPower pidfile /var/run/CheckTxPower.pid
+ start program = "/etc/init.d/CheckTxPower.sh start"
+ stop program = "/etc/init.d/CheckTxPower.sh stop"  

@@ -4,9 +4,6 @@ iface lo inet loopback
 iface eth0 inet dhcp
 
 # Static adress for usage as access point
-pre-up /sbin/iw reg set BO
-pre-up /sbin/iwconfig wlan0 txpower 30
-
 iface wlan0 inet static
    address 192.168.42.1
    netmask 255.255.255.0
