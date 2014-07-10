@@ -48,10 +48,13 @@ private:
     bool m_bUdpSockCon;
     
     QTimer m_pingTimer;
-    int m_iCurrentPingID;
+    unsigned long m_iCurrentPingID;
+    double m_fAveragePing;
+
     int m_iCurrentPingSent;
     int m_iCurrentPingRecv;
     
+    QString m_sStatBarPing;
     QString m_sStatBarSensor;
     QString m_sStatBarRC;
     QString m_sStatBarOptions;

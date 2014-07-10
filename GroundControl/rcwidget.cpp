@@ -356,13 +356,6 @@ void QRCWidget::sendJSON2COM(QPair<int, char*> pair) {
 
     if (pair.first > 0) {
         qDebug() << "COM: " << pair.first << pair.second;
-/*
-        int buffer[6];
-        for(int i = 0; i < 6; i++) {
-            buffer[i] = pair.second[i];
-        }
-        qDebug() << "COM: " << buffer[0] << buffer[1] << buffer[2] << buffer[3] << buffer[4] << (uint_fast8_t)buffer[5];
-*/
         m_pSerialPort->write(pair.second, pair.first);
     }
 }
