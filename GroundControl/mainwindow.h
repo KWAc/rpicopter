@@ -49,7 +49,6 @@ private:
     
     QTimer m_pingTimer;
     unsigned long m_iCurrentPingID;
-    double m_fAveragePing;
 
     int m_iCurrentPingSent;
     int m_iCurrentPingRecv;

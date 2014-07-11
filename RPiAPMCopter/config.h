@@ -78,7 +78,7 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 // Main loop
 //////////////////////////////////////////////////////////////////////////////////////////
-#define MAIN_T_MS            0      // Update frequency of the main loop: ~100.0 Hz is the theoretical maximum
+#define MAIN_T_MS            0      // Update frequency of the main loop: ~150.0-160 Hz is the current maximum
 #define FALB_T_MS            15     // Update frequency of the main loop: ~66,6 Hz
 #define INAV_T_MS            20     // Update frequency: 50 Hz - Only important for auto navigation system
 #define INERT_TIMEOUT        10     // in ms

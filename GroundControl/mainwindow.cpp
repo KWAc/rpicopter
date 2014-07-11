@@ -12,7 +12,6 @@ MainWindow::MainWindow(QSettings *pConf, QWidget *parent)
     searchSerialRadio();
     
     m_iCurrentPingID   = 0;
-    m_fAveragePing     = 0.f;
     m_sStatBarPing     = "not calculated";
 
     m_iCurrentPingSent = 0;
@@ -385,8 +384,9 @@ QAbstractSocket *MainWindow::getSocket() {
 void MainWindow::sl_UpdateSensorData(QPair<double, QVariantMap> sensorRead) {
     static float fHeading = 0.f;
 
-    static int iAvrPingCntr = 0;
-    static float fAvrPing = 0.f;
+    static int    iAvrPingCntr  = 0;
+    static float  fAvrPing      = 0.f;
+    const int     iDataPoints   = 25;
 
     double time_s = sensorRead.first;
     QVariantMap map = sensorRead.second;
@@ -399,12 +399,13 @@ void MainWindow::sl_UpdateSensorData(QPair<double, QVariantMap> sensorRead) {
             // Update the plot
             double ping_ms = (double)(m_iCurrentPingRecv - m_iCurrentPingSent);
 
-            if(iAvrPingCntr < 25) {
+            // Calculate average ping
+            if(iAvrPingCntr < iDataPoints) {
                 fAvrPing += ping_ms;
                 iAvrPingCntr++;
             } else {
-                m_fAveragePing = fAvrPing/25.f;
-                m_sStatBarPing = QString::number(m_fAveragePing) + " ms";
+                fAvrPing = fAvrPing/(float)iDataPoints;
+                m_sStatBarPing = QString::number(fAvrPing) + " ms";
 
                 iAvrPingCntr = 0;
                 fAvrPing = 0.f;

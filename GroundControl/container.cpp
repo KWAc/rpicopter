@@ -81,8 +81,8 @@ QPair<int, char*> RC_COM::cstr_makeRadioCommand() {
     int_fast16_t iYAW = (int)YAW;
     int_fast16_t iTHR = (int)THR;
 
-    int_fast16_t thr_high  = ((int)iTHR/100)%10;
-    int_fast16_t thr_low   = iTHR - (1000 + (((int)iTHR/100)%10) * 100);
+    int_fast16_t thr_high  = (iTHR/100)%10;
+    int_fast16_t thr_low   = iTHR - (1000 + ((iTHR/100)%10) * 100);
 
     int_fast16_t ypm = iYAW < 0 ? -1 : 1;
     int_fast16_t yaw = iYAW < 0 ? (-1 * YAW) : YAW;
