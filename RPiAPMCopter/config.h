@@ -136,7 +136,7 @@
 #define ACCEL_LOWPATH_FILT_f 0.025f // Filter constant for the accelerometer
 
 #define INERT_FFALL_BIAS     75     // Accelerometer bias in cm/s². If z-axis values are less than 0.75 m/s², break annealing to accelerometer for attitude estimation
-#define INERT_ANGLE_BIAS     75
+#define INERT_ANGLE_BIAS     60
 
 #define INERT_G_CONST        9.81f
 
