@@ -40,14 +40,14 @@ void Device::update_attitude() {
   m_pAHRS->update();
 
 #if BENCH_OUT
-  static int iCounter = 0;
+  static int iBCounter = 0;
   static int iTimer = 0;
-  int iCurTime = m_pHAL->scheduler->millis();
-  ++iCounter;
-  if(iCurTime - iTimer >= 1000) {
-    m_pHAL->console->printf("Benchmark - update_attitude(): %d Hz\n", iCounter);
-    iCounter = 0;
-    iTimer = iCurTime;
+  int iBCurTime = m_pHAL->scheduler->millis();
+  ++iBCounter;
+  if(iBCurTime - iTimer >= 1000) {
+    m_pHAL->console->printf("Benchmark - update_attitude(): %d Hz\n", iBCounter);
+    iBCounter = 0;
+    iTimer = iBCurTime;
   }
 #endif
 
@@ -69,8 +69,14 @@ void Device::update_attitude() {
   Vector3f vRef_deg = read_accl_deg();
 
   #if DEBUG_OUT
-  m_pHAL->console->printf("Attitude - x: %.3f/%.3f, y: %.3f/%.3f, z: %.1f\n", m_vAtti_deg.x, vRef_deg.x, m_vAtti_deg.y, vRef_deg.y, m_vAtti_deg.z);
-  m_pHAL->console->printf("Acceleration - x: %.3f, y: %.3f, z: %.3f\n", m_vAccelPG_cmss.x, m_vAccelPG_cmss.y, m_vAccelPG_cmss.z);
+  static int iDTimer = 0;
+  int iDCurTime = m_pHAL->scheduler->millis();
+  if(iDCurTime - iDTimer >= 35) {
+    iDTimer = iDCurTime;
+  
+    m_pHAL->console->printf("Attitude - x: %.3f/%.3f, y: %.3f/%.3f, z: %.1f\n", m_vAtti_deg.x, vRef_deg.x, m_vAtti_deg.y, vRef_deg.y, m_vAtti_deg.z);
+    //m_pHAL->console->printf("Acceleration - x: %.3f, y: %.3f, z: %.3f\n", m_vAccelPG_cmss.x, m_vAccelPG_cmss.y, m_vAccelPG_cmss.z);
+  }
   #endif
  
   // Some sanity checks, before annealing to the accelerometer readouts

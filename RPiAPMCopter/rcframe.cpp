@@ -200,6 +200,15 @@ void M4XFrame::calc_attitude_hold() {
     int_fast16_t rol_output = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->m_rgPIDS[PID_ROL_RATE].get_pid(rol_stab_output - vGyro.y, 1), -500, 500) );
     int_fast16_t yaw_output = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->m_rgPIDS[PID_YAW_RATE].get_pid(yaw_stab_output - vGyro.z, 1), -500, 500) );
 
+/*
+    // Experimental altitude-/roll-/pitch-compensation
+    float fPitRad = ToRad(rcpit);
+    float fRolRad = ToRad(rcrol);
+    float fTiltCompThr = rcthr / (cos(fPitRad) * cos(fRolRad) );
+    if(fTiltCompThr <= RC_THR_80P) {
+      rcthr = fTiltCompThr;
+    }
+*/
     // Calculate the speed of the motors
     int_fast16_t iFL = rcthr + rol_output + pit_output - yaw_output;
     int_fast16_t iBL = rcthr + rol_output - pit_output + yaw_output;
