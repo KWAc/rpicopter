@@ -41,7 +41,8 @@ GPSPosition::GPSPosition(int_fast32_t lat, int_fast32_t lon, int_fast32_t alt, G
 }
 
 BattData::BattData() {
-  voltage_V   = 0;
-  current_A   = 0;
-  consumpt_mAh = 0;
+  refVoltage_V = -1.f;
+  voltage_V    = 0.f;
+  current_A    = 0.f;
+  consumpt_mAh = 0.f;
 }

@@ -200,9 +200,28 @@ void M4XFrame::calc_attitude_hold() {
     int_fast16_t rol_output = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->m_rgPIDS[PID_ROL_RATE].get_pid(rol_stab_output - vGyro.y, 1), -500, 500) );
     int_fast16_t yaw_output = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->m_rgPIDS[PID_YAW_RATE].get_pid(yaw_stab_output - vGyro.z, 1), -500, 500) );
 
+    // Current delta PWM signal. E.g.: 1400 - RC_THR_ACRO = 175
+    float fCurThr = rcthr - RC_THR_ACRO;
+    
     // Experimental altitude-/roll-/pitch-compensation
-    float fTiltCompThr = (rcthr - RC_THR_ACRO) / (cos(ToRad(rcpit) ) * cos(ToRad(rcrol) ) ) + RC_THR_ACRO;
+    float fTiltCompThr = fCurThr / (cos(ToRad(rcpit) ) * cos(ToRad(rcrol) ) ) + RC_THR_ACRO;
     rcthr = fTiltCompThr <= RC_THR_80P ? fTiltCompThr : RC_THR_80P;
+
+    // Experimental battery compensation
+    // Is the reference voltage already determined?
+    if(m_pHalBoard->get_bat().refVoltage_V > 0.f) {
+      float fCurVoltage = m_pHalBoard->get_bat().voltage_V;
+      float fdCurVoltage = fCurVoltage - m_pHalBoard->get_bat().refVoltage_V;
+      // Is the current voltage reasonable?
+      if( fCurVoltage <= BAT_MAX_VOLTAGE && // Measured voltage smaller than defined maximum
+          fCurVoltage >= BAT_MIN_VOLTAGE && // Measured voltage bigger than defined minimum
+          fdCurVoltage <= 1.0 && fdCurVoltage >= -4.0) // Delta of measured voltage and reference inside reasonable range
+      {
+        float fBatCompThr = fCurThr * (m_pHalBoard->get_bat().refVoltage_V / fCurVoltage) + RC_THR_ACRO;
+        // Don't go too high, if the battery is too low
+        rcthr = fBatCompThr <= RC_THR_80P ? fBatCompThr : RC_THR_80P;
+      }
+    }
 
     // Calculate the speed of the motors
     int_fast16_t iFL = rcthr + rol_output + pit_output - yaw_output;

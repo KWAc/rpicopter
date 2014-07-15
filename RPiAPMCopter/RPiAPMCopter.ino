@@ -54,7 +54,18 @@ inline void load_settings();
 
 inline void main_loop();
 inline void inav_loop();
+inline void batt_loop();
+
 Task taskINAV(&inav_loop, INAV_T_MS, 1);
+Task taskRBat(&batt_loop,  BAT_UT_MS, 1);
+
+// Read the battery. 
+// The voltage is used for adjusting the motor speed,
+// as the speed is dependent on the voltage 
+void batt_loop() {
+  _HAL_BOARD.read_bat();
+}
+
 
 // Attitude-, Altitude and Navigation control loop
 void main_loop() {
@@ -92,6 +103,7 @@ void load_settings() {
 void setup() {
   // Prepare scheduler for the main loop ..
   _SCHED.add_task(&taskINAV, 0);  // Inertial, GPS, Compass, Barometer sensor fusions (slow) ==> running at 50 Hz
+  _SCHED.add_task(&taskRBat, 0);
   // .. and the sensor output functions
   _SCHED.add_task(&outAtti,  75);
   _SCHED.add_task(&outBaro,  1000);

@@ -480,19 +480,33 @@ BaroData Device::read_baro() {
 }
 
 BattData Device::read_bat() {
+  const unsigned int iRefVoltSamples = 25;
+  static unsigned int iRefVoltCounter = 0;
+  static float fRefVolt_V = 0.f;
+
   m_pBat->read();
 
   m_ContBat.voltage_V    = m_pBat->voltage();
   m_ContBat.current_A    = m_pBat->current_amps();
   m_ContBat.consumpt_mAh = m_pBat->current_total_mah();
 
-  if(m_ContBat.voltage_V < 6.0f) {
+  if(m_ContBat.voltage_V < BAT_MIN_VOLTAGE) {
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, VOLTAGE_LOW_F) );
   }
-  if(m_ContBat.voltage_V > 25.2f) {
+  if(m_ContBat.voltage_V > BAT_MAX_VOLTAGE) {
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, VOLTAGE_HIGH_F) );
   }
 
+  // Collect samples (iRefVoltSamples) for reference voltage (but only if readouts are valid)
+  if(iRefVoltCounter < iRefVoltSamples) {
+    if(m_ContBat.voltage_V <= BAT_MAX_VOLTAGE && m_ContBat.voltage_V >= BAT_MIN_VOLTAGE) {
+      iRefVoltCounter++;
+      fRefVolt_V += m_ContBat.voltage_V;
+    }
+  } else {
+    m_ContBat.refVoltage_V = fRefVolt_V / iRefVoltSamples;
+  }
+  
   return m_ContBat;
 }
 

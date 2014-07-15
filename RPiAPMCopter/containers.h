@@ -53,9 +53,11 @@ struct GPSPosition {
 
 // battery monitor
 struct BattData {
-  float       voltage_V;
-  float       current_A;
-  float       consumpt_mAh;
+  // Reference voltage of the battery (e.g. on startup)
+  float refVoltage_V;
+  float voltage_V;
+  float current_A;
+  float consumpt_mAh;
 
   BattData();
 };
