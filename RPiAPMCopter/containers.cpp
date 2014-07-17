@@ -45,4 +45,5 @@ BattData::BattData() {
   voltage_V    = 0.f;
   current_A    = 0.f;
   consumpt_mAh = 0.f;
+  power_W      = 0.f;
 }

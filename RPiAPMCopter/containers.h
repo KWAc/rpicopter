@@ -57,6 +57,7 @@ struct BattData {
   float refVoltage_V;
   float voltage_V;
   float current_A;
+  float power_W;
   float consumpt_mAh;
 
   BattData();

@@ -488,6 +488,7 @@ BattData Device::read_bat() {
 
   m_ContBat.voltage_V    = m_pBat->voltage();
   m_ContBat.current_A    = m_pBat->current_amps();
+  m_ContBat.power_W      = m_ContBat.voltage_V * m_ContBat.current_A;
   m_ContBat.consumpt_mAh = m_pBat->current_total_mah();
 
   if(m_ContBat.voltage_V < BAT_MIN_VOLTAGE) {
@@ -503,7 +504,9 @@ BattData Device::read_bat() {
       iRefVoltCounter++;
       fRefVolt_V += m_ContBat.voltage_V;
     }
-  } else {
+  } 
+  // Only update reference voltage if necessary
+  else if(m_ContBat.refVoltage_V < 0) {
     m_ContBat.refVoltage_V = fRefVolt_V / iRefVoltSamples;
   }
   

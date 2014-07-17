@@ -105,10 +105,11 @@ void send_gps() {
 ///////////////////////////////////////////////////////////
 void send_bat() {
   BattData bat = _HAL_BOARD.read_bat();
-  hal.console->printf("{\"type\":\"s_bat\",\"R\":%.1f,\"V\":%.1f,\"A\":%.1f,\"c_mAh\":%.1f}\n",
+  hal.console->printf("{\"type\":\"s_bat\",\"R\":%.1f,\"V\":%.1f,\"A\":%.1f,\"P\":%.1f,\"c_mAh\":%.1f}\n",
                       static_cast<double>(bat.refVoltage_V),
                       static_cast<double>(bat.voltage_V), 
-                      static_cast<double>(bat.current_A), 
+                      static_cast<double>(bat.current_A),
+                      static_cast<double>(bat.power_W), 
                       static_cast<double>(bat.consumpt_mAh) );
 }
 ///////////////////////////////////////////////////////////

@@ -13,21 +13,59 @@
 // A helper function:
 // Saving the current controls from the remote control into references
 ////////////////////////////////////////////////////////////////////////
-inline void set_channels(const Receiver *pRecvr, float &pit, float &rol, float &yaw, float &thr) {
-  rol = static_cast<float>(pRecvr->m_rgChannelsRC[RC_ROL]);
-  pit = static_cast<float>(pRecvr->m_rgChannelsRC[RC_PIT]);
-  thr = static_cast<float>(pRecvr->m_rgChannelsRC[RC_THR] > RC_THR_80P ? RC_THR_80P : pRecvr->m_rgChannelsRC[2]);
-  yaw = static_cast<float>(pRecvr->m_rgChannelsRC[RC_YAW]);
+void Frame::read_receiver() {
+  m_fRCRol = static_cast<float>(m_pReceiver->m_rgChannelsRC[RC_ROL]);
+  m_fRCPit = static_cast<float>(m_pReceiver->m_rgChannelsRC[RC_PIT]);
+  m_fRCThr = static_cast<float>(m_pReceiver->m_rgChannelsRC[RC_THR] > RC_THR_80P ? RC_THR_80P : m_pReceiver->m_rgChannelsRC[2]);
+  m_fRCYaw = static_cast<float>(m_pReceiver->m_rgChannelsRC[RC_YAW]);
+}
+
+void Frame::calc_tilt_comp() {
+  // For safety, always reset the correction term
+  m_fTiltComp = 1.f;
+
+  if( in_range(RC_ROL_MIN, RC_ROL_MAX, m_fRCRol) &&
+      in_range(RC_PIT_MIN, RC_PIT_MAX, m_fRCPit) ) 
+  {
+    m_fTiltComp = 1.f / (cos(ToRad(m_fRCRol) ) * cos(ToRad(m_fRCPit) ) );
+  }
+}
+
+void Frame::calc_batt_comp() {
+  // For safety, always reset the correction term
+  m_fBattComp = 1.f;
+
+  float fCurVoltage = m_pHalBoard->get_bat().voltage_V;
+  if( m_pHalBoard->get_bat().refVoltage_V > 0.f && 
+      in_range(BAT_MIN_VOLTAGE, BAT_MAX_VOLTAGE, fCurVoltage) )
+  {
+    m_fBattComp = m_pHalBoard->get_bat().refVoltage_V / fCurVoltage;
+  }
+}
+
+void Frame::apply_comps() {
+  float fCurThr = m_fRCThr - RC_THR_ACRO;
+  // Calculate new throttle output (tilt and battery compensated)
+  float fCompThr = fCurThr * (m_fTiltComp * m_fBattComp) + RC_THR_ACRO;
+  m_fRCThr = fCompThr <= RC_THR_80P ? fCompThr : RC_THR_80P;
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Abstract class implementation
 ////////////////////////////////////////////////////////////////////////
 Frame::Frame(Device *pDev, Receiver *pRecv, Exception *pExcp, UAVNav* pUAV) {
+  // Module pointers
   m_pHalBoard   = pDev;
   m_pReceiver   = pRecv;
   m_pExeption   = pExcp;
   m_pNavigation = pUAV;
+  // Float initialization
+  m_fRCRol      = 0.f;
+  m_fRCPit      = 0.f;
+  m_fRCYaw      = 0.f;
+  m_fRCThr      = 0.f;
+  m_fBattComp   = 0.f;
+  m_fTiltComp   = 0.f;
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -160,12 +198,12 @@ void M4XFrame::calc_altitude_hold() {
 /*
  * Fast and time critical loop for:
  * - controlling the quadrocopter
- * - fetching rc signals
+ * - fetching RC signals
  * - filtering and processing sensor data necessary for flight
  */
 void M4XFrame::calc_attitude_hold() {
   // additional filter or rc variables
-  static float targ_yaw = 0.f; // yaw target from rc
+  static float targ_yaw = 0.f; // Yaw target from RC
 
   // Wait if there is no new data (save ressources)
   while(!m_pHalBoard->m_pInert->wait_for_sample(MAIN_T_MS) );
@@ -173,9 +211,8 @@ void M4XFrame::calc_attitude_hold() {
   // Handle all defined problems (time-outs, broken gyrometer, GPS signal ..)
   m_pExeption->handle();
 
-  // Variables to store remote control commands plus "rcalt" for the desired altitude in cm
-  float rcpit, rcrol, rcyaw, rcthr;
-  set_channels(m_pReceiver, rcpit, rcrol, rcyaw, rcthr);
+  // Read from receiver module
+  read_receiver();
 
   // Update sensor information
   m_pHalBoard->update_attitude();
@@ -183,60 +220,40 @@ void M4XFrame::calc_attitude_hold() {
   Vector3f vGyro = m_pHalBoard->get_gyro_cor_deg(); // returns the sensor value from the gyrometer
 
   // Throttle raised, turn on stabilisation.
-  if(rcthr > RC_THR_ACRO) {
+  if(m_fRCThr > RC_THR_ACRO) {
     // Stabilise PIDS
-    float pit_stab_output = constrain_float(m_pHalBoard->m_rgPIDS[PID_PIT_STAB].get_pid(rcpit - vAtti.x, 1), -250, 250);
-    float rol_stab_output = constrain_float(m_pHalBoard->m_rgPIDS[PID_ROL_STAB].get_pid(rcrol - vAtti.y, 1), -250, 250);
+    float pit_stab_output = constrain_float(m_pHalBoard->m_rgPIDS[PID_PIT_STAB].get_pid(m_fRCPit - vAtti.x, 1), -250, 250);
+    float rol_stab_output = constrain_float(m_pHalBoard->m_rgPIDS[PID_ROL_STAB].get_pid(m_fRCRol - vAtti.y, 1), -250, 250);
     float yaw_stab_output = constrain_float(m_pHalBoard->m_rgPIDS[PID_YAW_STAB].get_pid(wrap180_f(targ_yaw - vAtti.z), 1), -360, 360);
 
-    // is pilot asking for yaw change - if so feed directly to rate pid (overwriting yaw stab output)
-    if(fabs(rcyaw ) > 5.f) {
-      yaw_stab_output = rcyaw;
+    // Is pilot asking for yaw change? - If so, feed directly to rate PID (overwriting yaw stab output)
+    if(fabs(m_fRCYaw ) > 5.f) {
+      yaw_stab_output = m_fRCYaw;
       targ_yaw = vAtti.z; // remember this yaw for when pilot stops
     }
 
-    // rate PIDS
+    // Rate PIDS
     int_fast16_t pit_output = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->m_rgPIDS[PID_PIT_RATE].get_pid(pit_stab_output - vGyro.x, 1), -500, 500) );
     int_fast16_t rol_output = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->m_rgPIDS[PID_ROL_RATE].get_pid(rol_stab_output - vGyro.y, 1), -500, 500) );
     int_fast16_t yaw_output = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->m_rgPIDS[PID_YAW_RATE].get_pid(yaw_stab_output - vGyro.z, 1), -500, 500) );
 
-    // Current delta PWM signal. E.g.: 1400 - RC_THR_ACRO = 175
-    float fCurThr = rcthr - RC_THR_ACRO;
-    
-    // Experimental altitude-/roll-/pitch-compensation
-    float fTiltCompThr = fCurThr / (cos(ToRad(rcpit) ) * cos(ToRad(rcrol) ) ) + RC_THR_ACRO;
-    rcthr = fTiltCompThr <= RC_THR_80P ? fTiltCompThr : RC_THR_80P;
-
-    // Experimental battery compensation
-    // Is the reference voltage already determined?
-    if(m_pHalBoard->get_bat().refVoltage_V > 0.f) {
-      float fCurVoltage = m_pHalBoard->get_bat().voltage_V;
-      float fdCurVoltage = fCurVoltage - m_pHalBoard->get_bat().refVoltage_V;
-      // Is the current voltage reasonable?
-      if( fCurVoltage <= BAT_MAX_VOLTAGE && // Measured voltage smaller than defined maximum
-          fCurVoltage >= BAT_MIN_VOLTAGE && // Measured voltage bigger than defined minimum
-          fdCurVoltage <= 1.0 && fdCurVoltage >= -4.0) // Delta of measured voltage and reference inside reasonable range
-      {
-        float fBatCompThr = fCurThr * (m_pHalBoard->get_bat().refVoltage_V / fCurVoltage) + RC_THR_ACRO;
-        // Don't go too high, if the battery is too low
-        rcthr = fBatCompThr <= RC_THR_80P ? fBatCompThr : RC_THR_80P;
-      }
-    }
+    // Tilt and battery voltage drop compensation algorithm
+    calc_tilt_comp(); // Calculate compensation term if model is tilted
+    calc_batt_comp(); // Calculate compensation term (voltage changes) if battery is stressed
+    apply_comps();    // Apply compensation terms, calculated above
 
     // Calculate the speed of the motors
-    int_fast16_t iFL = rcthr + rol_output + pit_output - yaw_output;
-    int_fast16_t iBL = rcthr + rol_output - pit_output + yaw_output;
-    int_fast16_t iFR = rcthr - rol_output + pit_output + yaw_output;
-    int_fast16_t iBR = rcthr - rol_output - pit_output - yaw_output;
+    int_fast16_t iFL = m_fRCThr + rol_output + pit_output - yaw_output;
+    int_fast16_t iBL = m_fRCThr + rol_output - pit_output + yaw_output;
+    int_fast16_t iFR = m_fRCThr - rol_output + pit_output + yaw_output;
+    int_fast16_t iBR = m_fRCThr - rol_output - pit_output - yaw_output;
 
     set(iFL, iBL, iFR, iBR);
-  }
-  else {
+  } else {
+    // Clear motor output
     clear();
-
     // reset yaw target so we maintain this on take-off
     targ_yaw = vAtti.z;
-
     // reset PID integrals whilst on the ground
     for(uint_fast8_t i = 0; i < NR_OF_PIDS; i++) {
       m_pHalBoard->m_rgPIDS[i].reset_I();

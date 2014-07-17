@@ -15,11 +15,27 @@ class UAVNav;
  */
 class Frame {
 protected:
+  // Receiver channel readings
+  float m_fRCRol;
+  float m_fRCPit;
+  float m_fRCYaw;
+  float m_fRCThr;
+  // Motor compensation terms (if model is tilted or battery voltage drops)
+  float m_fBattComp;
+  float m_fTiltComp;
+
   Device*    m_pHalBoard;
   Receiver*  m_pReceiver;
   Exception* m_pExeption;
   UAVNav*    m_pNavigation;
-
+  
+  // Read from receiver and copy into floats above
+  void read_receiver();
+  // Calculate and apply the motor compensation terms
+  void calc_batt_comp();
+  void calc_tilt_comp();
+  void apply_comps();
+  
 public:
   Frame(Device *, Receiver *, Exception *, UAVNav *);
 
@@ -32,11 +48,12 @@ public:
  */
 class M4XFrame : public Frame {
 private:
+  // Variables holding final motor output
   int_fast16_t _FL;
   int_fast16_t _BL;
   int_fast16_t _FR;
   int_fast16_t _BR;
-
+  
 protected:
   // Write to the motors
   void out();
