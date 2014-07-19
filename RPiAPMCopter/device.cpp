@@ -154,11 +154,11 @@ void Device::init_rf() {
       pRF->take_reading();
       // check health
       if (!pRF->healthy) {
-          m_pHAL->console->println("Initialisation failed\n");
+          m_pHAL->console->printf("Initialisation failed\n");
       }
     #endif
   #else
-    m_pHAL->console->println("No range finder installed\n");
+    m_pHAL->console->printf("No range finder installed\n");
   #endif
 }
 
@@ -311,7 +311,7 @@ void Device::init_compass() {
     m_pHAL->console->printf("HIL\n");
     break;
   case AP_COMPASS_TYPE_HMC5843:
-    m_pHAL->console->println("HMC5843\n");
+    m_pHAL->console->printf("HMC5843\n");
     break;
   case AP_COMPASS_TYPE_HMC5883L:
     m_pHAL->console->printf("HMC5883L\n");
@@ -352,7 +352,7 @@ void Device::init_batterymon() {
  */
 Vector3f Device::read_gyro_deg() {
   if(!m_pInert->healthy() ) {
-    m_pHAL->console->println("read_gyro_deg(): Inertial not healthy\n");
+    m_pHAL->console->printf("read_gyro_deg(): Inertial not healthy\n");
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, GYROMETER_F) );
     return m_vGyro_deg;
   }
@@ -376,7 +376,7 @@ Vector3f Device::read_gyro_deg() {
  */
 Vector3f Device::read_accl_deg() {
   if(!m_pInert->healthy() ) {
-    m_pHAL->console->println("read_accl_deg(): Inertial not healthy\n");
+    m_pHAL->console->printf("read_accl_deg(): Inertial not healthy\n");
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, ACCELEROMETR_F) );
     return m_vAccel_deg;
   }
@@ -413,7 +413,7 @@ Vector3f Device::get_accel_pg_cmss() {
  */
 float Device::read_comp_deg() {
   if (!m_pComp->use_for_yaw() ) {
-    //m_pHAL->console->println("read_comp_deg(): Compass not healthy\n");
+    //m_pHAL->console->printf("read_comp_deg(): Compass not healthy\n");
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, COMPASS_F) );
     return m_fCmpH;
   }
@@ -452,7 +452,7 @@ GPSData Device::read_gps() {
     m_ContGPS.time_week   = m_pGPS->time_week();
     m_ContGPS.time_week_s = m_pGPS->time_week_ms() / 1000.0;
   } else {
-    //m_pHAL->console->println("read_gps(): GPS not healthy\n");
+    //m_pHAL->console->printf("read_gps(): GPS not healthy\n");
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, GPS_F) );
   }
 
@@ -461,7 +461,7 @@ GPSData Device::read_gps() {
 
 BaroData Device::read_baro() {
   if (!m_pBaro->healthy) {
-    m_pHAL->console->println("read_baro(): Barometer not healthy\n");
+    m_pHAL->console->printf("read_baro(): Barometer not healthy\n");
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, BAROMETER_F) );
     return m_ContBaro;
   }
@@ -491,16 +491,16 @@ BattData Device::read_bat() {
   m_ContBat.power_W      = m_ContBat.voltage_V * m_ContBat.current_A;
   m_ContBat.consumpt_mAh = m_pBat->current_total_mah();
 
-  if(m_ContBat.voltage_V < BAT_MIN_VOLTAGE) {
+  if(m_ContBat.voltage_V < BATT_MIN_VOLTAGE) {
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, VOLTAGE_LOW_F) );
   }
-  if(m_ContBat.voltage_V > BAT_MAX_VOLTAGE) {
+  if(m_ContBat.voltage_V > BATT_MAX_VOLTAGE) {
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, VOLTAGE_HIGH_F) );
   }
 
   // Collect samples (iRefVoltSamples) for reference voltage (but only if readouts are valid)
   if(iRefVoltCounter < iRefVoltSamples) {
-    if(m_ContBat.voltage_V <= BAT_MAX_VOLTAGE && m_ContBat.voltage_V >= BAT_MIN_VOLTAGE) {
+    if(m_ContBat.voltage_V <= BATT_MAX_VOLTAGE && m_ContBat.voltage_V >= BATT_MIN_VOLTAGE) {
       iRefVoltCounter++;
       fRefVolt_V += m_ContBat.voltage_V;
     }

@@ -10,9 +10,23 @@
 
 
 ////////////////////////////////////////////////////////////////////////
-// A helper function:
-// Saving the current controls from the remote control into references
+// Abstract class implementation
 ////////////////////////////////////////////////////////////////////////
+Frame::Frame(Device *pDev, Receiver *pRecv, Exception *pExcp, UAVNav* pUAV) {
+  // Module pointers
+  m_pHalBoard   = pDev;
+  m_pReceiver   = pRecv;
+  m_pExeption   = pExcp;
+  m_pNavigation = pUAV;
+  // Float initialization
+  m_fRCRol      = 0.f;
+  m_fRCPit      = 0.f;
+  m_fRCYaw      = 0.f;
+  m_fRCThr      = 0.f;
+  m_fBattComp   = 0.f;
+  m_fTiltComp   = 0.f;
+}
+
 void Frame::read_receiver() {
   m_fRCRol = static_cast<float>(m_pReceiver->m_rgChannelsRC[RC_ROL]);
   m_fRCPit = static_cast<float>(m_pReceiver->m_rgChannelsRC[RC_PIT]);
@@ -37,35 +51,41 @@ void Frame::calc_batt_comp() {
 
   float fCurVoltage = m_pHalBoard->get_bat().voltage_V;
   if( m_pHalBoard->get_bat().refVoltage_V > 0.f && 
-      in_range(BAT_MIN_VOLTAGE, BAT_MAX_VOLTAGE, fCurVoltage) )
+      in_range(BATT_MIN_VOLTAGE, BATT_MAX_VOLTAGE, fCurVoltage) )
   {
     m_fBattComp = m_pHalBoard->get_bat().refVoltage_V / fCurVoltage;
   }
 }
 
-void Frame::apply_comps() {
+void Frame::apply_motor_compens() {
+  calc_tilt_comp();
+  calc_batt_comp();
+
   float fCurThr = m_fRCThr - RC_THR_ACRO;
   // Calculate new throttle output (tilt and battery compensated)
   float fCompThr = fCurThr * (m_fTiltComp * m_fBattComp) + RC_THR_ACRO;
   m_fRCThr = fCompThr <= RC_THR_80P ? fCompThr : RC_THR_80P;
 }
 
-////////////////////////////////////////////////////////////////////////
-// Abstract class implementation
-////////////////////////////////////////////////////////////////////////
-Frame::Frame(Device *pDev, Receiver *pRecv, Exception *pExcp, UAVNav* pUAV) {
-  // Module pointers
-  m_pHalBoard   = pDev;
-  m_pReceiver   = pRecv;
-  m_pExeption   = pExcp;
-  m_pNavigation = pUAV;
-  // Float initialization
-  m_fRCRol      = 0.f;
-  m_fRCPit      = 0.f;
-  m_fRCYaw      = 0.f;
-  m_fRCThr      = 0.f;
-  m_fBattComp   = 0.f;
-  m_fTiltComp   = 0.f;
+void Frame::run() {
+  // Wait if there is no new data (save ressources) ..
+  while(!m_pHalBoard->m_pInert->wait_for_sample(MAIN_T_MS) );
+  // .. and update inertial information
+  m_pHalBoard->update_attitude();
+  
+  // Handle all defined problems (time-outs, broken gyrometer, GPS signal ..)
+  m_pExeption->handle();
+
+  // Read from receiver module
+  read_receiver();
+  
+  // Must get called before altitude hold calculation
+  calc_attitude_hold();
+  calc_altitude_hold();
+  calc_gpsnavig_hold();
+  
+  // Output to the motors of the model
+  servo_out();
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -76,7 +96,7 @@ M4XFrame::M4XFrame(Device *pDev, Receiver *pRecv, Exception *pExcp, UAVNav* pUAV
   _FL = _BL = _FR = _BR = RC_THR_OFF;
 }
 
-void M4XFrame::out() {
+void M4XFrame::servo_out() {
   m_pHalBoard->m_pHAL->rcout->write(MOTOR_FL, _FL);
   m_pHalBoard->m_pHAL->rcout->write(MOTOR_BL, _BL);
   m_pHalBoard->m_pHAL->rcout->write(MOTOR_FR, _FR);
@@ -102,16 +122,6 @@ void M4XFrame::add(int_fast16_t FL, int_fast16_t BL, int_fast16_t FR, int_fast16
   _BL += BL;
   _FR += FR;
   _BR += BR;
-}
-
-void M4XFrame::run() {
-  // Must get called before altitude hold calculation
-  calc_attitude_hold();
-  calc_altitude_hold();
-  calc_gpsnavig_hold();
-  
-  // Output to the motors of the model
-  out();
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -204,18 +214,7 @@ void M4XFrame::calc_altitude_hold() {
 void M4XFrame::calc_attitude_hold() {
   // additional filter or rc variables
   static float targ_yaw = 0.f; // Yaw target from RC
-
-  // Wait if there is no new data (save ressources)
-  while(!m_pHalBoard->m_pInert->wait_for_sample(MAIN_T_MS) );
-
-  // Handle all defined problems (time-outs, broken gyrometer, GPS signal ..)
-  m_pExeption->handle();
-
-  // Read from receiver module
-  read_receiver();
-
-  // Update sensor information
-  m_pHalBoard->update_attitude();
+  
   Vector3f vAtti = m_pHalBoard->get_atti_cor_deg(); // returns the fused sensor value (gyrometer and accelerometer)
   Vector3f vGyro = m_pHalBoard->get_gyro_cor_deg(); // returns the sensor value from the gyrometer
 
@@ -237,10 +236,8 @@ void M4XFrame::calc_attitude_hold() {
     int_fast16_t rol_output = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->m_rgPIDS[PID_ROL_RATE].get_pid(rol_stab_output - vGyro.y, 1), -500, 500) );
     int_fast16_t yaw_output = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->m_rgPIDS[PID_YAW_RATE].get_pid(yaw_stab_output - vGyro.z, 1), -500, 500) );
 
-    // Tilt and battery voltage drop compensation algorithm
-    calc_tilt_comp(); // Calculate compensation term if model is tilted
-    calc_batt_comp(); // Calculate compensation term (voltage changes) if battery is stressed
-    apply_comps();    // Apply compensation terms, calculated above
+    // Apply: tilt- and battery-compensation algorithms
+    apply_motor_compens();
 
     // Calculate the speed of the motors
     int_fast16_t iFL = m_fRCThr + rol_output + pit_output - yaw_output;

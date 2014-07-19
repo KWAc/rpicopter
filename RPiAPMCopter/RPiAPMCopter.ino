@@ -57,7 +57,7 @@ inline void inav_loop();
 inline void batt_loop();
 
 Task taskINAV(&inav_loop, INAV_T_MS, 1);
-Task taskRBat(&batt_loop,  BAT_UT_MS, 1);
+Task taskRBat(&batt_loop, BATT_T_MS, 1);
 
 // Read the battery. 
 // The voltage is used for adjusting the motor speed,
@@ -105,18 +105,21 @@ void setup() {
   _SCHED.add_task(&taskINAV, 0);  // Inertial, GPS, Compass, Barometer sensor fusions (slow) ==> running at 50 Hz
   _SCHED.add_task(&taskRBat, 0);
   // .. and the sensor output functions
-  _SCHED.add_task(&outAtti,  75);
-  _SCHED.add_task(&outBaro,  1000);
+  _SCHED.add_task(&outAtti,  50);
+  _SCHED.add_task(&outBaro,  500);
+  _SCHED.add_task(&outBat,   750);
   _SCHED.add_task(&outGPS,   1000);
   _SCHED.add_task(&outComp,  1500);
-  _SCHED.add_task(&outBat,   1750);
   _SCHED.add_task(&outPIDAtt,2000);
   _SCHED.add_task(&outPIDAlt,2000);
 
+  // Wait for one second
+  hal.scheduler->delay(1000);
   // Set baud rate when connected to RPi
-  hal.uartA->begin(BAUD_RATE_A); // USB
-  hal.uartB->begin(BAUD_RATE_B); // GPS
-  hal.uartC->begin(BAUD_RATE_C); // RADIO
+  hal.uartA->begin(BAUD_RATE_A, 256, 256);  // USB
+  hal.uartB->begin(BAUD_RATE_B, 256, 16);   // GPS
+  hal.uartC->begin(BAUD_RATE_C, 128, 128);  // RADIO
+  
   hal.console->printf("Setup device ..\n");
 
   // Enable the motors and set at 490Hz update
