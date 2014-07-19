@@ -20,7 +20,7 @@ class AP_Baro;
 class AP_GPS;
 class AP_GPS_Auto;
 class BattMonitor;
-class RangeFinder;
+class AP_RangeFinder_Backend;
 
 class BaroData;
 class BattData;
@@ -69,28 +69,28 @@ public:
   // PID configuration and remote contro
   PID m_rgPIDS[NR_OF_PIDS];
   // Hardware abstraction library interface
-  const AP_HAL::HAL  *m_pHAL;
+  const AP_HAL::HAL      *m_pHAL;
   // MPU6050 accel/gyro chip
-  AP_InertialSensor  *m_pInert;
+  AP_InertialSensor      *m_pInert;
   // Magnetometer aka compass
-  Compass            *m_pComp;
+  Compass                *m_pComp;
   // Barometer
-  AP_Baro            *m_pBaro;
+  AP_Baro                *m_pBaro;
   // GPS
-  AP_GPS             *m_pGPS;
+  AP_GPS                 *m_pGPS;
   // battery monitor
-  BattMonitor        *m_pBat;
+  BattMonitor            *m_pBat;
   // Sonar
-  RangeFinder        *m_pRF;
+  AP_RangeFinder_Backend *m_pRF;
   // Inertial Navigation
-  AP_InertialNav     *m_pInertNav;
+  AP_InertialNav         *m_pInertNav;
   // Attitude heading reference system
-  AP_AHRS_DCM        *m_pAHRS;
+  AP_AHRS_DCM            *m_pAHRS;
   
 public:
   // Accepts pointers to abstract base classes to handle different sensor types
   Device( const AP_HAL::HAL *,
-          AP_InertialSensor *, Compass *, AP_Baro *, AP_GPS *, BattMonitor *, RangeFinder *, AP_AHRS_DCM *, AP_InertialNav *);
+          AP_InertialSensor *, Compass *, AP_Baro *, AP_GPS *, BattMonitor *, AP_RangeFinder_Backend *, AP_AHRS_DCM *, AP_InertialNav *);
 
   void init_barometer();
   void init_pids();
@@ -98,7 +98,7 @@ public:
   void init_inertial();
   void init_gps();
   void init_batterymon();
-  void init_rf();
+//  void init_rf();
   void init_inertial_nav();
 
   /* Update intertial navigation (accelerometer, barometer, GPS sensor fusion) */
@@ -112,11 +112,12 @@ public:
   float     read_comp_deg();
   GPSData   read_gps();
   BattData  read_bat();
+/*
 // Ensure, there is a compiler error if sonar is not installed, but function used
 #ifdef SONAR_TYPE
   int_fast32_t read_rf_cm();        // Altitude estimate using range finder
 #endif
-
+*/
   /* Return the Vector3f Inertial readouts */
   Vector3f get_atti_cor_deg();  // fused sensor values from accelerometer/gyrometer with m_fInertPitCor/m_fInertRolCor
   Vector3f get_atti_raw_deg();  // fused sensor values from accelerometer/gyrometer without m_fInertPitCor/m_fInertRolCor
@@ -135,10 +136,12 @@ public:
   BaroData get_baro();          // Just return the filtered barometer data
   GPSData  get_gps();           // Just return the last estimated gps data
   BattData get_bat();           // Just return the last estimated battery data
-// Ensure, there is a compiler error if sonar is not installed, but function used
+/*
+  // Ensure, there is a compiler error if sonar is not installed, but function used
 #ifdef SONAR_TYPE
   int_fast32_t get_rf_cm();     // Altitude estimate using range finder
 #endif
+*/
   // Setter and getter for inertial adjustments
   float get_pit_cor();
   float get_rol_cor();

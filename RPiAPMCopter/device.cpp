@@ -6,7 +6,7 @@
 #include <AP_GPS.h>             // ArduPilot GPS library
 
 #include <AP_BattMonitor.h>
-#include <AP_RangeFinder.h>
+#include <RangeFinder_Backend.h>
 #include <AP_BoardLED.h>
 
 #include "device.h"
@@ -100,7 +100,7 @@ void Device::update_attitude() {
 }
 
 Device::Device( const AP_HAL::HAL *pHAL,
-                AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, AP_GPS *pGPS, BattMonitor *pBat, RangeFinder *pRF, AP_AHRS_DCM *pAHRS, AP_InertialNav *pInertNav )
+                AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, AP_GPS *pGPS, BattMonitor *pBat, AP_RangeFinder_Backend *pRF, AP_AHRS_DCM *pAHRS, AP_InertialNav *pInertNav )
 {
   m_iAltitude_cm      = 0;
 
@@ -135,7 +135,7 @@ Device::Device( const AP_HAL::HAL *pHAL,
   // PIDs
   memset(m_rgPIDS, 0, sizeof(m_rgPIDS) );
 }
-
+/*
 void Device::init_rf() {
   #ifdef SONAR_TYPE
     #if SONAR_TYPE <= AP_RANGEFINDER_MAXSONARI2CXL
@@ -161,7 +161,7 @@ void Device::init_rf() {
     m_pHAL->console->printf("No range finder installed\n");
   #endif
 }
-
+*/
 void Device::init_inertial_nav() {
   m_pAHRS->set_compass(m_pComp);
 
@@ -174,7 +174,7 @@ void Device::init_inertial_nav() {
 
   m_t32Compass = m_t32Inertial = m_t32InertialNav = m_pHAL->scheduler->millis();
 }
-
+/*
 #ifdef SONAR_TYPE
 int_fast32_t Device::read_rf_cm() {
   m_iAltitude_cm = m_pRF->read();
@@ -187,7 +187,7 @@ int_fast32_t Device::get_rf_cm() {
   return m_iAltitude_cm;
 }
 #endif
-
+*/
 float Device::get_pit_cor() {
   return m_fInertPitCor;
 }
@@ -302,7 +302,7 @@ void Device::init_compass() {
 
   m_pComp->accumulate();
   m_pComp->motor_compensation_type(1);                              // throttle
-  m_pComp->set_offsets(0, 0, 0);                                    // set offsets to account for surrounding interference
+  m_pComp->set_and_save_offsets(0, 0, 0, 0);                        // set offsets to account for surrounding interference
   m_pComp->set_declination(ToRad(0.f) );                            // set local difference between magnetic north and true north
 
   m_pHAL->console->print("Compass auto-detected as: ");
@@ -541,6 +541,7 @@ float Device::get_altitude_cm(Device *pDev, bool &bOK) {
     fAltitude_cm = static_cast<float>(pDev->m_pInertNav->get_altitude() );
     bOK = true;
   }
+/*
 #ifdef SONAR_TYPE
   // Use the range finder for smaller altitudes
   float iAltitudeRF_cm = static_cast<float>(pDev->get_rf_cm() );
@@ -548,6 +549,7 @@ float Device::get_altitude_cm(Device *pDev, bool &bOK) {
     fAltitude_cm = iAltitudeRF_cm;
   }
 #endif
+*/
   return fAltitude_cm;
 }
 

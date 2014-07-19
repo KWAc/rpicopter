@@ -42,17 +42,17 @@
 
 #define NR_OF_PIDS           10
 // PID indices
-#define PID_PIT_RATE 	       0      // From Dr. Owen..
-#define PID_ROL_RATE 	       1
-#define PID_PIT_STAB 	       2
-#define PID_ROL_STAB 	       3
-#define PID_YAW_RATE 	       4
-#define PID_YAW_STAB 	       5
+#define PID_PIT_RATE         0      // From Dr. Owen..
+#define PID_ROL_RATE         1
+#define PID_PIT_STAB         2
+#define PID_ROL_STAB         3
+#define PID_YAW_RATE         4
+#define PID_YAW_STAB         5
 // Optional altitude hold
-#define PID_THR_RATE 	       6      // For my altitude hold implementation
-#define PID_THR_STAB 	       7      // For my altitude hold implementation
-#define PID_ACC_RATE 	       8      // For my altitude hold implementation
-#define PID_ACC_STAB 	       9      // For my altitude hold implementation
+#define PID_THR_RATE         6      // For my altitude hold implementation
+#define PID_THR_STAB         7      // For my altitude hold implementation
+#define PID_ACC_RATE         8      // For my altitude hold implementation
+#define PID_ACC_STAB         9      // For my altitude hold implementation
 
 // Motor numbers definitions for X configuration
 #define MOTOR_FR             0      // Front right  (CW)
@@ -122,18 +122,6 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 // Device module
 //////////////////////////////////////////////////////////////////////////////////////////
-#define AP_RANGEFINDER_PULSEDLIGHT 5
-#define AP_RANGEFINDER_SHARPEGP2Y  6
-
-//#define SONAR_TYPE AP_RANGEFINDER_MAXSONARXL      // 0 - XL (default)
-//#define SONAR_TYPE AP_RANGEFINDER_MAXSONARLV      // 1 - LV (cheaper)
-//#define SONAR_TYPE AP_RANGEFINDER_MAXSONARXLL     // 2 - XLL (XL with 10m range)
-//#define SONAR_TYPE AP_RANGEFINDER_MAXSONARHRLV    // 3 - HRLV-MaxSonar-EZ0 (5m range)
-//#define SONAR_TYPE AP_RANGEFINDER_MAXSONARI2CXL   // 4 - XLI2C (XL with I2C interface and 7m range)
-//#define SONAR_TYPE AP_RANGEFINDER_PULSEDLIGHT     // 5
-
-#define SONAR_SCALING        5
-
 #define INERT_FUSION_RATE    4.5f   // Sensor fusion rate: higher => faster annealing
 
 #define BAROM_LOWPATH_FILT_f 0.35f  // Filter constant for the barometer

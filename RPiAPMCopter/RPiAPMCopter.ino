@@ -29,7 +29,7 @@
 // Sensors
 ////////////////////////////////////////////////////////////////////////////////
 #include <AP_Compass.h>
-#include <AP_RangeFinder.h>
+#include <AP_RangeFinder_MaxsonarI2CXL.h>
 #include <AP_Baro.h>
 #include <AP_InertialSensor_MPU6000.h>
 #include <AP_InertialNav.h>
@@ -157,7 +157,7 @@ void setup() {
 
   // battery monitor initializing
   hal.console->printf("%.1f%%: Init range finder\n", progress_f(9, 10) );
-  _HAL_BOARD.init_rf();
+  //_HAL_BOARD.init_rf();
 
   hal.console->printf("%.1f%%: Init inertial navigation\n", progress_f(10, 10) );
   _HAL_BOARD.init_inertial_nav();
