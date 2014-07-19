@@ -23,8 +23,6 @@ Frame::Frame(Device *pDev, Receiver *pRecv, Exception *pExcp, UAVNav* pUAV) {
   m_fRCPit      = 0.f;
   m_fRCYaw      = 0.f;
   m_fRCThr      = 0.f;
-  m_fBattComp   = 0.f;
-  m_fTiltComp   = 0.f;
 }
 
 void Frame::read_receiver() {
@@ -32,39 +30,6 @@ void Frame::read_receiver() {
   m_fRCPit = static_cast<float>(m_pReceiver->m_rgChannelsRC[RC_PIT]);
   m_fRCThr = static_cast<float>(m_pReceiver->m_rgChannelsRC[RC_THR] > RC_THR_80P ? RC_THR_80P : m_pReceiver->m_rgChannelsRC[2]);
   m_fRCYaw = static_cast<float>(m_pReceiver->m_rgChannelsRC[RC_YAW]);
-}
-
-void Frame::calc_tilt_comp() {
-  // For safety, always reset the correction term
-  m_fTiltComp = 1.f;
-
-  if( in_range(RC_ROL_MIN, RC_ROL_MAX, m_fRCRol) &&
-      in_range(RC_PIT_MIN, RC_PIT_MAX, m_fRCPit) ) 
-  {
-    m_fTiltComp = 1.f / (cos(ToRad(m_fRCRol) ) * cos(ToRad(m_fRCPit) ) );
-  }
-}
-
-void Frame::calc_batt_comp() {
-  // For safety, always reset the correction term
-  m_fBattComp = 1.f;
-
-  float fCurVoltage = m_pHalBoard->get_bat().voltage_V;
-  if( m_pHalBoard->get_bat().refVoltage_V > 0.f && 
-      in_range(BATT_MIN_VOLTAGE, BATT_MAX_VOLTAGE, fCurVoltage) )
-  {
-    m_fBattComp = m_pHalBoard->get_bat().refVoltage_V / fCurVoltage;
-  }
-}
-
-void Frame::apply_motor_compens() {
-  calc_tilt_comp();
-  calc_batt_comp();
-
-  float fCurThr = m_fRCThr - RC_THR_ACRO;
-  // Calculate new throttle output (tilt and battery compensated)
-  float fCompThr = fCurThr * (m_fTiltComp * m_fBattComp) + RC_THR_ACRO;
-  m_fRCThr = fCompThr <= RC_THR_80P ? fCompThr : RC_THR_80P;
 }
 
 void Frame::run() {
@@ -94,6 +59,8 @@ void Frame::run() {
 M4XFrame::M4XFrame(Device *pDev, Receiver *pRecv, Exception *pExcp, UAVNav* pUAV) : Frame(pDev, pRecv, pExcp, pUAV)
 {
   _FL = _BL = _FR = _BR = RC_THR_OFF;
+  m_fBattComp   = 0.f;
+  m_fTiltComp   = 0.f;
 }
 
 void M4XFrame::servo_out() {
@@ -122,6 +89,39 @@ void M4XFrame::add(int_fast16_t FL, int_fast16_t BL, int_fast16_t FR, int_fast16
   _BL += BL;
   _FR += FR;
   _BR += BR;
+}
+
+void M4XFrame::calc_tilt_comp() {
+  // For safety, always reset the correction term
+  m_fTiltComp = 1.f;
+
+  if( in_range(RC_ROL_MIN, RC_ROL_MAX, m_fRCRol) &&
+      in_range(RC_PIT_MIN, RC_PIT_MAX, m_fRCPit) ) 
+  {
+    m_fTiltComp = 1.f / (cos(ToRad(m_fRCRol) ) * cos(ToRad(m_fRCPit) ) );
+  }
+}
+
+void M4XFrame::calc_batt_comp() {
+  // For safety, always reset the correction term
+  m_fBattComp = 1.f;
+
+  float fCurVoltage = m_pHalBoard->get_bat().voltage_V;
+  if( m_pHalBoard->get_bat().refVoltage_V > 0.f && 
+      in_range(BATT_MIN_VOLTAGE, BATT_MAX_VOLTAGE, fCurVoltage) )
+  {
+    m_fBattComp = m_pHalBoard->get_bat().refVoltage_V / fCurVoltage;
+  }
+}
+
+void M4XFrame::apply_motor_compens() {
+  calc_tilt_comp();
+  calc_batt_comp();
+
+  float fCurThr = m_fRCThr - RC_THR_ACRO;
+  // Calculate new throttle output (tilt and battery compensated)
+  float fCompThr = fCurThr * (m_fTiltComp * m_fBattComp) + RC_THR_ACRO;
+  m_fRCThr = fCompThr <= RC_THR_80P ? fCompThr : RC_THR_80P;
 }
 
 ////////////////////////////////////////////////////////////////////////

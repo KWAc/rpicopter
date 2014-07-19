@@ -11,49 +11,46 @@ class UAVNav;
 
 /*
  * Abstract class:
- * Overload run() - This function is called in the main loop.
+ * Basic functions for all copter-frame types and 
+ * some pure virtual functions which are specific for certain frames
  */
 class Frame {
 private:
-  // Motor compensation terms (if model is tilted or battery voltage drops)
-  float m_fBattComp;
-  float m_fTiltComp;
-
-  // Calculate and apply the motor compensation terms
-  void calc_batt_comp(); // battery voltage drop compensation
-  void calc_tilt_comp(); // motor compensation if model is tilted
-
   // Read from receiver and copy into floats above
   void read_receiver();
   
 protected:
-  // Receiver channel readings
+  // Current roll, pitch, throttle and yaw readouts from the receiver module
   float m_fRCRol;
   float m_fRCPit;
   float m_fRCYaw;
   float m_fRCThr;
 
+  // Device module pointers for high level hardware access
   Device*    m_pHalBoard;
   Receiver*  m_pReceiver;
   Exception* m_pExeption;
   UAVNav*    m_pNavigation;
   
-  // calls: calc_batt_comp()
-  // calls: calc_tilt_comp()
-  // Applies the correction terms to "m_fRCThr"
-  void apply_motor_compens();
-  
   // Function must be overloaded for basic (and frame dependent) flight control
-  virtual void servo_out() = 0;
-  virtual void calc_attitude_hold() = 0;
-  virtual void calc_altitude_hold() = 0;
-  virtual void calc_gpsnavig_hold() = 0;
+  virtual void servo_out() = 0;           // Send outputs to the motors (Nr. of motors is frame dependent)
+  virtual void calc_attitude_hold() = 0;  // Calculate here, how the copter can hold attitude automatically
+  virtual void calc_altitude_hold() = 0;  // Calculate here, how the copter can hold altitude automatically
+  virtual void calc_gpsnavig_hold() = 0;  // Here the basic Auto-GPS navigation should be implemented
   
 public:
   Frame(Device *, Receiver *, Exception *, UAVNav *);
 
-  // Update all the sensors, read from  receiver and handle exceptions
-  // Calls: calc_attitude_hold(), calc_altitude_hold(), calc_gpsnavig_hold() and servo_out()
+  /*
+   * Updates all the necessary sensors, reads from receiver 
+   * and handles exceptions.
+   * Function calls: 
+   * - read_receiver()
+   * - calc_attitude_hold()
+   * - calc_altitude_hold()
+   * - calc_gpsnavig_hold()
+   * - servo_out()
+   */
   virtual void run();
 };
 
@@ -62,21 +59,27 @@ public:
  */
 class M4XFrame : public Frame {
 private:
-  // Variables holding final motor output
+  // Variables holding final servo output
   int_fast16_t _FL;
   int_fast16_t _BL;
   int_fast16_t _FR;
   int_fast16_t _BR;
   
-  // Set the values to the defined minimum (see config.h)
-  void clear();
-  // Define speed for each motor
-  void set(int_fast16_t, int_fast16_t, int_fast16_t, int_fast16_t);
-  // Add a certain value to the rating of the motors
-  void add(int_fast16_t, int_fast16_t, int_fast16_t, int_fast16_t);
+  // Motor compensation terms (if model is tilted or battery voltage drops)
+  float m_fBattComp;
+  float m_fTiltComp;
+  
+  // Calculate and apply the motor compensation terms
+  void calc_batt_comp();                  // battery voltage drop compensation
+  void calc_tilt_comp();                  // motor compensation if model is tilted
+  void apply_motor_compens();             // This functions applies motor compensation terms (e.g. battery and tilt) to the output of the servos
+  
+  // Helper functions for regulating the servo output
+  void clear();                                                     // Set the values to the defined minimum (see config.h)
+  void set(int_fast16_t, int_fast16_t, int_fast16_t, int_fast16_t); // Set a value for each servo
+  void add(int_fast16_t, int_fast16_t, int_fast16_t, int_fast16_t); // Add a certain value to the current value of the servo
   
 protected:
-  // Write to the motors
   void servo_out();
   void calc_attitude_hold();
   void calc_altitude_hold();
