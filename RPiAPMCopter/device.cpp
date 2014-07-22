@@ -6,7 +6,7 @@
 #include <AP_GPS.h>             // ArduPilot GPS library
 
 #include <AP_BattMonitor.h>
-#include <RangeFinder_Backend.h>
+#include <AP_RangeFinder.h>
 #include <AP_BoardLED.h>
 
 #include "device.h"
@@ -100,7 +100,7 @@ void Device::update_attitude() {
 }
 
 Device::Device( const AP_HAL::HAL *pHAL,
-                AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, AP_GPS *pGPS, BattMonitor *pBat, AP_RangeFinder_Backend *pRF, AP_AHRS_DCM *pAHRS, AP_InertialNav *pInertNav )
+                AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, AP_GPS *pGPS, BattMonitor *pBat, RangeFinder *pRF, AP_AHRS_DCM *pAHRS, AP_InertialNav *pInertNav )
 {
   m_iAltitude_cm      = 0;
 
@@ -135,33 +135,13 @@ Device::Device( const AP_HAL::HAL *pHAL,
   // PIDs
   memset(m_rgPIDS, 0, sizeof(m_rgPIDS) );
 }
-/*
+
 void Device::init_rf() {
-  #ifdef SONAR_TYPE
-    #if SONAR_TYPE <= AP_RANGEFINDER_MAXSONARI2CXL
-      // type conversion
-      AP_RangeFinder_MaxsonarXL *pRF = (AP_RangeFinder_MaxsonarXL*)m_pRF;
-      // init scaler
-      pRF->calculate_scaler(SONAR_TYPE, SONAR_SCALING);
-    #elif SONAR_TYPE == AP_RANGEFINDER_PULSEDLIGHT
-        // type conversion
-      AP_RangeFinder_PulsedLightLRF *pRF = (AP_RangeFinder_PulsedLightLRF*)m_pRF;
-      // ensure i2c is slow
-      hal.i2c->setHighSpeed(false);
-      // initialise sensor
-      pRF->init();
-      // kick off one reading
-      pRF->take_reading();
-      // check health
-      if (!pRF->healthy) {
-          m_pHAL->console->printf("Initialisation failed\n");
-      }
-    #endif
-  #else
-    m_pHAL->console->printf("No range finder installed\n");
-  #endif
+  AP_Param::set_object_value(m_pRF, m_pRF->var_info, "_TYPE",     RangeFinder::RangeFinder_TYPE_AUTO);
+  AP_Param::set_object_value(m_pRF, m_pRF->var_info, "_PIN",      RANGE_FINDER_PIN);
+  AP_Param::set_object_value(m_pRF, m_pRF->var_info, "_SCALING",  RANGE_FINDER_SCALE);
 }
-*/
+
 void Device::init_inertial_nav() {
   m_pAHRS->set_compass(m_pComp);
 
@@ -174,34 +154,21 @@ void Device::init_inertial_nav() {
 
   m_t32Compass = m_t32Inertial = m_t32InertialNav = m_pHAL->scheduler->millis();
 }
-/*
-#ifdef SONAR_TYPE
+
 int_fast32_t Device::read_rf_cm() {
-  m_iAltitude_cm = m_pRF->read();
+  if(m_pRF->healthy() ) {
+    m_iAltitude_cm = m_pRF->distance_cm();
+  }
   return m_iAltitude_cm;
 }
-#endif
 
-#ifdef SONAR_TYPE
 int_fast32_t Device::get_rf_cm() {
   return m_iAltitude_cm;
 }
-#endif
-*/
-float Device::get_pit_cor() {
-  return m_fInertPitCor;
-}
 
-float Device::get_rol_cor() {
-  return m_fInertRolCor;
-}
-
-void Device::set_pit_cor(float fValDeg) {
-  m_fInertPitCor = fValDeg;
-}
-
-void Device::set_rol_cor(float fValDeg) {
-  m_fInertRolCor = fValDeg;
+void Device::set_trims(float fRoll_deg, float fPitch_deg) {
+  m_fInertRolCor = fRoll_deg;
+  m_fInertPitCor = fPitch_deg;
 }
 
 Vector3f Device::get_atti_cor_deg() {
@@ -530,8 +497,9 @@ BattData Device::get_bat() {
 }
 
 float Device::get_altitude_cm(Device *pDev, bool &bOK) {
-  bOK = false;
+  bOK = true;
   if(!pDev) {
+    bOK = false;
     return 0.f;
   }
 
@@ -539,18 +507,16 @@ float Device::get_altitude_cm(Device *pDev, bool &bOK) {
   // Barometer and GPS usable
   if(pDev->m_pInertNav->altitude_ok() ) {
     fAltitude_cm = static_cast<float>(pDev->m_pInertNav->get_altitude() );
-    bOK = true;
   }
-/*
-#ifdef SONAR_TYPE
+
   // Use the range finder for smaller altitudes
-  float iAltitudeRF_cm = static_cast<float>(pDev->get_rf_cm() );
-  if(iAltitudeRF_cm <= 600) {
-    fAltitude_cm = iAltitudeRF_cm;
+  if(!pDev->m_pRF->healthy() ) {
+    bOK = false;
+    return fAltitude_cm;
   }
-#endif
-*/
-  return fAltitude_cm;
+  
+  float iAltitudeRF_cm = static_cast<float>(pDev->get_rf_cm() );
+  return iAltitudeRF_cm <= 600 ? iAltitudeRF_cm : fAltitude_cm;
 }
 
 float Device::get_accel_x_g(Device *pDev, bool &bOK) {
@@ -616,10 +582,10 @@ float Device::get_accel_z_g(Device *pDev, bool &bOK) {
   return fGForce;
 }
 
-void Device::set_update_rate_ms(const uint_fast8_t rate) {
+void Device::set_refr_rate(const uint_fast8_t rate) {
   m_iUpdateRate = rate;
 }
 
-uint_fast8_t Device::get_update_rate_ms() const {
+uint_fast8_t Device::get_refr_rate() const {
   return m_iUpdateRate;
 }

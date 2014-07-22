@@ -24,11 +24,7 @@ AP_InertialSensor_MPU6000      _INERT;                                          
 AP_Compass_HMC5843             _COMP;                                                             // Magnetometer aka compass
 AP_Baro_MS5611                 _BARO      (&AP_Baro_MS5611::spi);                                 // Barometer
 BattMonitor                    _BAT;                                                              // battery monitor
-
-RangeFinder                    _SON_RANGER;
-uint8_t                        _SON_INSTANCE;
-RangeFinder::RangeFinder_State _SON_STATE;
-AP_RangeFinder_MaxsonarI2CXL   _SON(_SON_RANGER, _SON_INSTANCE, _SON_STATE);                      // Sonar
+RangeFinder                    _SON_RF;
 
 AP_GPS                         _GPS;                                                              // GPS
 GPS_Glitch                     _GPS_GLITCH(_GPS);
@@ -42,13 +38,13 @@ AP_InertialNav                 _INERT_NAV (_AHRS, _BARO, _GPS_GLITCH);
 // to circumvent the usage of AP_Param for changing settings
 ///////////////////////////////////////////////////////////
 Scheduler                      _SCHED     (&hal);
-Device                         _HAL_BOARD (&hal, &_INERT, &_COMP, &_BARO, &_GPS, &_BAT, &_SON, &_AHRS, &_INERT_NAV);
+Device                         _HAL_BOARD (&hal, &_INERT, &_COMP, &_BARO, &_GPS, &_BAT, &_SON_RF, &_AHRS, &_INERT_NAV);
 Receiver                       _RECVR     (&_HAL_BOARD);
 Exception                      _EXCP      (&_HAL_BOARD, &_RECVR);
 
 // Currently just a quad-copter with X-frame is implemented
 UAVNav                         _UAV       (&_HAL_BOARD, &_RECVR, &_EXCP);
-M4XFrame                      _MODEL     (&_HAL_BOARD, &_RECVR, &_EXCP, &_UAV);
+M4XFrame                       _MODEL     (&_HAL_BOARD, &_RECVR, &_EXCP, &_UAV);
 
 #endif
 

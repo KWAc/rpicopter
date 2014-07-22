@@ -2,6 +2,8 @@
 #include <AP_AHRS.h>
 #include <RC_Channel.h>     // RC Channel Library
 
+#include <float.h>
+
 #include "receiver.h"
 #include "device.h"
 #include "BattMonitor.h"
@@ -90,6 +92,8 @@ bool Receiver::parse_gyr_cor(char* buffer) {
   char *chk = strtok(NULL, "*");                    // chk = chksum
   bool bRet = false;
 
+  float fRol = FLT_MAX;
+  float fPit = FLT_MAX;
   if(verf_chksum(str, chk) ) {                      // if chksum OK
     char *cstr;
 
@@ -100,17 +104,25 @@ bool Receiver::parse_gyr_cor(char* buffer) {
 
       switch(i) {
         case 0:
-          m_pHalBoard->set_rol_cor(atof(cstr) );
-          m_pHalBoard->set_rol_cor(m_pHalBoard->get_rol_cor()  > 10.f ? 10.f : m_pHalBoard->get_rol_cor() < -10.f ? -10.f : m_pHalBoard->get_rol_cor() );
+          fRol = atof(cstr);
           break;
         case 1:
-          m_pHalBoard->set_pit_cor(atof(cstr) );
-          m_pHalBoard->set_pit_cor(m_pHalBoard->get_pit_cor()  > 10.f ? 10.f : m_pHalBoard->get_pit_cor() < -10.f ? -10.f : m_pHalBoard->get_pit_cor() );
+          fPit = atof(cstr);
           bRet = true;
           break;
       }
     }
   }
+
+  // First simple check
+  if(!in_range(-10.f, 10.f, fRol) || !in_range(-10.f, 10.f, fPit) ) {
+    bRet = false;
+  }
+  // Second check
+  if(bRet) {
+    m_pHalBoard->set_trims(fRol, fPit);
+  }
+
   return bRet;
 }
 
@@ -488,7 +500,7 @@ bool Receiver::try_any() {
     bOK = read_uartA(m_pHalBoard->m_pHAL->uartA->available() );
     // Reset the loop rate, if a valid package arrived from this port again
     if(bOK) {
-      m_pHalBoard->set_update_rate_ms(MAIN_T_MS); 
+      m_pHalBoard->set_refr_rate(MAIN_T_MS); 
     }
   }
   #endif
@@ -500,7 +512,7 @@ bool Receiver::try_any() {
     // If currently in other modes, radio could be still helpful
     if(!chk_fset(m_Waypoint.mode, GPSPosition::GPS_NAVIGATN_F) ) {
       #if !BENCH_OUT
-      m_pHalBoard->set_update_rate_ms(FALB_T_MS);
+      m_pHalBoard->set_refr_rate(FALB_T_MS);
       #endif
     }
     bOK = read_uartC(m_pHalBoard->m_pHAL->uartC->available() );

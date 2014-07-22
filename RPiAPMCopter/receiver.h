@@ -19,7 +19,6 @@ class RC_Channel;
 class Receiver : public AbsErrorDevice {
 private:
   char    m_cBuffer[256];
-
   Device  *m_pHalBoard;
 
   uint_fast32_t m_iSParseTimer;   // Last successful read timer of command string from radio or wifi

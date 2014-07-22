@@ -29,7 +29,7 @@
 // Sensors
 ////////////////////////////////////////////////////////////////////////////////
 #include <AP_Compass.h>
-#include <AP_RangeFinder_MaxsonarI2CXL.h>
+#include <AP_RangeFinder.h>
 #include <AP_Baro.h>
 #include <AP_InertialSensor_MPU6000.h>
 #include <AP_InertialNav.h>
@@ -75,7 +75,7 @@ void main_loop() {
   static uint_fast16_t timer = 0;
   uint_fast16_t time = _HAL_BOARD.m_pHAL->scheduler->millis();
   
-  if(time - timer >= _HAL_BOARD.get_update_rate_ms() ) {
+  if(time - timer >= _HAL_BOARD.get_refr_rate() ) {
     _MODEL.run();
     timer = time;
   }
@@ -84,9 +84,7 @@ void main_loop() {
 // Altitude estimation and AHRS system (yaw correction with GPS, barometer, ..)
 void inav_loop() {  
   _HAL_BOARD.update_inav();
-#ifdef SONAR_TYPE
-  _HAL_BOARD.read_rf_m();
-#endif
+  _HAL_BOARD.read_rf_cm();
 }
 
 void load_settings() {
