@@ -138,7 +138,7 @@
 #define COMPASS_UPDATE_T     100
 
 #define RANGE_FINDER_PIN     13
-#define RANGE_FINDER_SCALE   3.1f
+#define RANGE_FINDER_SCALE   1.0f
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Error handling

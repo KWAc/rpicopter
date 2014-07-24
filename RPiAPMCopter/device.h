@@ -85,7 +85,7 @@ public /*functions*/:
 // Container for sensor data and sensor configuration
 ///////////////////////////////////////////////////////////
 class Device : public DeviceInit {
-private:
+private /*variables*/:
   // Used with low path filter
   Vector3f m_vAccelPG_cmss;         // acceleration readout
   Vector3f m_vAccelMG_cmss;         // acceleration readout minus G constant (~9.81)
@@ -97,6 +97,11 @@ private:
   float m_fCmpH;                    // Compass heading
   float m_fGpsH;                    // GPS heading  
 
+private /*functions*/:
+  // Not updating the inertial, to avoid double updates on other spots in the code
+  Vector3f     read_gyro_deg();        // converts sensor relative readout to absolute attitude in degrees and saves in m_vGyro_deg
+  Vector3f     read_accl_deg();        // converts sensor relative readout to absolute attitude and saves in m_vAccel_deg
+  
 protected /*variables*/:
   // x = pitch, y = roll, z = yaw
   Vector3f     m_vGyro_deg;
@@ -108,17 +113,12 @@ protected /*variables*/:
   GPSData      m_ContGPS;
   BattData     m_ContBat;
   
-protected /*functions*/:
-  // Not updating the inertial, to avoid double updates on other spots in the code
-  Vector3f     read_gyro_deg();        // converts sensor relative readout to absolute attitude in degrees and saves in m_vGyro_deg
-  Vector3f     read_accl_deg();        // converts sensor relative readout to absolute attitude and saves in m_vAccel_deg
-  
 public:
   // Accepts pointers to abstract base classes to handle different sensor types
   Device(const AP_HAL::HAL *, AP_InertialSensor *, Compass *, AP_Baro *, AP_GPS *, BattMonitor *, RangeFinder *, AP_AHRS_DCM *, AP_InertialNav *);
 
   // Setter and getter for inertial adjustments
-  void         set_trims      (float fRoll_deg, float fPitch_deg);
+  void         set_trims(float fRoll_deg, float fPitch_deg);
   
   void         update_inav();       // Update inertial navigation (accelerometer, barometer, GPS sensor fusion)
   void         update_attitude();   // Calls: read_gyro_deg() and read_accl_deg() and saves results to m_vAtti_deg, m_vGyro_deg and m_vAccel_deg
@@ -133,8 +133,10 @@ public:
   // Return the Vector3f Inertial readouts
   Vector3f     get_atti_cor_deg();   // fused sensor values from accelerometer/gyrometer with m_fInertPitCor/m_fInertRolCor
   Vector3f     get_atti_raw_deg();   // fused sensor values from accelerometer/gyrometer without m_fInertPitCor/m_fInertRolCor
+  
   Vector3f     get_gyro_cor_deg();   // gyrometer sensor readout with m_fInertPitCor/m_fInertRolCor
   Vector3f     get_gyro_raw_deg();   // gyrometer sensor readout without m_fInertPitCor/m_fInertRolCor
+  
   Vector3f     get_accel_cor_deg();  // accelerometer sensor readout with m_fInertPitCor/m_fInertRolCor
   Vector3f     get_accel_raw_deg();  // accelerometer sensor readout without m_fInertPitCor/m_fInertRolCor
   Vector3f     get_accel_pg_cmss();  // Acceleration with the G-const

@@ -2,8 +2,8 @@
 #include <AP_Baro.h>
 #include <AP_InertialSensor.h>
 #include <AP_InertialNav.h>
-//#include <AP_InertialNav_NavEKF.h>
-#include <AP_GPS.h>             // ArduPilot GPS library
+#include <AP_RangeFinder_MaxsonarI2CXL.h>
+#include <AP_GPS.h>
 
 #include <AP_BattMonitor.h>
 #include <AP_RangeFinder.h>
@@ -543,7 +543,7 @@ float Device::get_altitude_cm(Device *pDev, bool &bOK) {
   }
   
   float iAltitudeRF_cm = static_cast<float>(pDev->get_rf_cm() );
-  return iAltitudeRF_cm <= 600 ? iAltitudeRF_cm : fAltitude_cm;
+  return iAltitudeRF_cm <= AP_RANGE_FINDER_MAXSONARI2CXL_MAX_DISTANCE ? iAltitudeRF_cm : fAltitude_cm;
 }
 
 float Device::get_accel_x_g(Device *pDev, bool &bOK) {
