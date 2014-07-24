@@ -116,10 +116,10 @@ void send_bat() {
 // remote control
 ///////////////////////////////////////////////////////////
 void send_rc() {
-  int_fast16_t rcthr = _RECVR.m_rgChannelsRC[RC_THR];
-  int_fast16_t rcyaw = _RECVR.m_rgChannelsRC[RC_YAW];
-  int_fast16_t rcpit = _RECVR.m_rgChannelsRC[RC_PIT];
-  int_fast16_t rcrol = _RECVR.m_rgChannelsRC[RC_ROL];
+  int_fast16_t rcthr = _RECVR.get_channel(RC_THR);
+  int_fast16_t rcyaw = _RECVR.get_channel(RC_YAW);
+  int_fast16_t rcpit = _RECVR.get_channel(RC_PIT);
+  int_fast16_t rcrol = _RECVR.get_channel(RC_ROL);
 
   hal.console->printf("{\"type\":\"rc_in\",\"r\":%d,\"p\":%d,\"t\":%d,\"y\":%d}\n",
                       rcrol, rcpit, rcthr, rcyaw);

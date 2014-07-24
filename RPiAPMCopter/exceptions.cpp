@@ -8,6 +8,7 @@
 #include "device.h"
 #include "absdevice.h"
 
+
 /*
  * Calculate time necessary to reduce the throttle until the value "THR_TAKE_OFF"
  * The higher the quadcopter is the longer it will take, because the take-down speed should be constant (MAX_FALL_SPEED_MS: ~0.833 m/s)
@@ -22,32 +23,70 @@ inline float go_down_t(float altitude_m, float fThr) {
   return fTime2Ground_ms / fdThr;
 }
 
-Exception::Exception(Device *pDevice, Receiver *pReceiver) {
+///////////////////////////////////////////////////////////////////////////////////////
+// ExeptionDevice
+///////////////////////////////////////////////////////////////////////////////////////
+bool ExeptionDevice::read_recvr() {
+  if(m_bRcvrLock == true) {
+    return m_bRcvrLock;
+  }
+  memcpy(m_rgChannelsRC, m_pReceiver->get_channels(), sizeof(m_rgChannelsRC) );
+  m_bRcvrLock = true;
+  return m_bRcvrLock;
+}
+
+bool ExeptionDevice::write_recvr() {
+  if(m_bRcvrLock != true)  {
+    return m_bRcvrLock;
+  }
+  m_bRcvrLock = false;
+  m_pReceiver->set_errors(AbsErrorDevice::NOTHING_F);
+  memset(m_rgChannelsRC, 0, sizeof(m_rgChannelsRC) );
+  return m_bRcvrLock;
+}
+
+ExeptionDevice::ExeptionDevice(Device *pDevice, Receiver *pReceiver) {
   m_pHalBoard    = pDevice;
   m_pReceiver    = pReceiver;
+  m_bRcvrLock    = false;
+  memcpy(m_rgChannelsRC, m_pReceiver->get_channels(), sizeof(m_rgChannelsRC) );
+}
 
+void ExeptionDevice::dsbl_althld_recvr() {
+  if(m_pReceiver->get_waypoint()->mode == GPSPosition::HLD_ALTITUDE_F) {
+    m_pReceiver->get_waypoint()->mode = GPSPosition::NOTHING_F;
+  }
+}
+
+void ExeptionDevice::dsbl_gpsnav_recvr() {
+  if(m_pReceiver->get_waypoint()->mode == GPSPosition::GPS_NAVIGATN_F) {
+    m_pReceiver->get_waypoint()->mode = GPSPosition::NOTHING_F;
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Exception
+///////////////////////////////////////////////////////////////////////////////////////
+Exception::Exception(Device *pDevice, Receiver *pReceiver) : ExeptionDevice(pDevice, pReceiver) {
   m_bPauseTD     = false;
   m_iPauseTDTime = 0;
 
   m_t32Pause = m_t32Altitude = m_t32Device = m_pHalBoard->m_pHAL->scheduler->millis();
-
-  memcpy(m_rgChannelsRC, m_pReceiver->m_rgChannelsRC, sizeof(m_pReceiver->m_rgChannelsRC) );
 }
 
 void Exception::dev_take_down() {
   static bool bInertTimer = false;
-  static bool bIgnRcvr    = false;
   
   // If motors do not spin: reset & return
-  if(m_pReceiver->m_rgChannelsRC[RC_THR] == RC_THR_OFF) {
+  if(m_pReceiver->get_channel(RC_THR) == RC_THR_OFF) {
     bInertTimer = false;
     m_pHalBoard->set_errors(AbsErrorDevice::NOTHING_F);
-    m_pReceiver->m_Waypoint.mode = GPSPosition::NOTHING_F;
-    rls_recvr(bIgnRcvr);
+    m_pReceiver->get_waypoint()->mode = GPSPosition::NOTHING_F;
+    write_recvr();
     return;
   } else {
     // Set the flag that copter is in controlled take down mode
-    m_pReceiver->m_Waypoint.mode = GPSPosition::CONTRLD_DOWN_F;
+    m_pReceiver->get_waypoint()->mode = GPSPosition::CONTRLD_DOWN_F;
   }
   
   // Don't reduce speed of the motors if pause set
@@ -61,26 +100,23 @@ void Exception::dev_take_down() {
     bInertTimer = true;
   }
   // Override the receiver, no matter what happens
-  lck_recvr(bIgnRcvr);
-  if(bIgnRcvr == true) {
+  if(read_recvr() ) {
     reduce_thr(m_pHalBoard->m_pHAL->scheduler->millis() - m_t32Device - m_iPauseTDTime);
   }
 }
 
-void Exception::rcvr_take_down() {
-  static bool bIgnRcvr    = false;
-  
+void Exception::rcvr_take_down() {  
   // Get time to calculate how much the motors should be reduced
   uint_fast32_t packet_t = m_pReceiver->last_parse_t32(); // Measure time elapsed since last successful package from WiFi or radio
   // If motors do not spin or a new packet arrived: reset & return
-  if(m_pReceiver->m_rgChannelsRC[RC_THR] == RC_THR_OFF || packet_t <= COM_PKT_TIMEOUT ) {
+  if(m_pReceiver->get_channel(RC_THR) == RC_THR_OFF || packet_t <= COM_PKT_TIMEOUT ) {
     m_pReceiver->set_errors(AbsErrorDevice::NOTHING_F);
-    m_pReceiver->m_Waypoint.mode = GPSPosition::NOTHING_F;
-    rls_recvr(bIgnRcvr);
+    m_pReceiver->get_waypoint()->mode = GPSPosition::NOTHING_F;
+    write_recvr();
     return;
   } else {
     // Set the flag that copter is in controlled take down mode
-    m_pReceiver->m_Waypoint.mode = GPSPosition::CONTRLD_DOWN_F;
+    m_pReceiver->get_waypoint()->mode = GPSPosition::CONTRLD_DOWN_F;
   }
   
   // Don't reduce speed of the motors if pause set
@@ -88,38 +124,8 @@ void Exception::rcvr_take_down() {
     return;
   }
   // Remove the override if there was a new package within the interval
-  lck_recvr(bIgnRcvr); // Copy the last command into a temporary
-  if(bIgnRcvr == true) {
+  if(read_recvr() ) {
     reduce_thr(packet_t - COM_PKT_TIMEOUT - m_iPauseTDTime);
-  }
-}
-
-void Exception::lck_recvr(bool &bSwitch) {
-  if(bSwitch == true) {
-    return;
-  }
-  memcpy(m_rgChannelsRC, m_pReceiver->m_rgChannelsRC, sizeof(m_pReceiver->m_rgChannelsRC) );
-  bSwitch = true;
-}
-
-void Exception::rls_recvr(bool &bSwitch) {
-  if(bSwitch != true)  {
-    return;
-  }
-  bSwitch = false;
-  m_pReceiver->set_errors(AbsErrorDevice::NOTHING_F);
-  memset(m_rgChannelsRC, 0, sizeof(m_rgChannelsRC) );
-}
-
-void Exception::disable_alti_hold() {
-  if(m_pReceiver->m_Waypoint.mode == GPSPosition::HLD_ALTITUDE_F) {
-    m_pReceiver->m_Waypoint.mode = GPSPosition::NOTHING_F;
-  }
-}
-
-void Exception::disable_gps_navigation() {
-  if(m_pReceiver->m_Waypoint.mode == GPSPosition::GPS_NAVIGATN_F) {
-    m_pReceiver->m_Waypoint.mode = GPSPosition::NOTHING_F;
   }
 }
 
@@ -148,13 +154,13 @@ bool Exception::handle() {
     m_pHalBoard->m_pHAL->console->printf("barometer exception - disable hold altitude\n");
     #endif
     
-    disable_alti_hold();
+    dsbl_althld_recvr();
   }
   if(m_pHalBoard->get_errors() & AbsErrorDevice::COMPASS_F) {       // If Compass not working, the GPS navigation shouldn't be used
-    disable_gps_navigation();
+    dsbl_gpsnav_recvr();
   }
   if(m_pHalBoard->get_errors() & AbsErrorDevice::GPS_F) {           // And if GPS not working, the GPS navigation shouldn't be used at all :D
-    disable_gps_navigation();
+    dsbl_gpsnav_recvr();
   }
   if(m_pHalBoard->get_errors() & AbsErrorDevice::VOLTAGE_HIGH_F) {
   }
@@ -186,22 +192,8 @@ bool Exception::handle() {
   return false;
 }
 
-void Exception::pause_take_down() {
-  m_bPauseTD = true;
-  m_t32Pause = m_pHalBoard->m_pHAL->scheduler->millis();
-}
-
-void Exception::continue_take_down() {
-  if(m_bPauseTD == false) {
-    return;
-  }
-
-  m_bPauseTD = false;
-  m_iPauseTDTime += m_pHalBoard->m_pHAL->scheduler->millis() - m_t32Pause;
-}
-
 void Exception::reduce_thr(float fTime) {
-  static float fStepC           = 15.f;   // Default step size
+  static float fStepC = 15.f;   // Default step size
 
   // The speed of decreasing the throttle is dependent on the height
   uint_fast32_t iAltitudeTime = m_pHalBoard->m_pHAL->scheduler->millis() - m_t32Altitude;
@@ -225,9 +217,23 @@ void Exception::reduce_thr(float fTime) {
   #endif
   
   // reduce throttle..
-  m_pReceiver->m_rgChannelsRC[RC_THR] = fThr >= RC_THR_ACRO ? fThr : RC_THR_OFF; // throttle
+  m_pReceiver->set_channel(RC_THR, fThr >= RC_THR_ACRO ? fThr : RC_THR_OFF); // throttle
   // reset yaw, pitch and roll
-  m_pReceiver->m_rgChannelsRC[RC_YAW] = 0;                                      // yaw
-  m_pReceiver->m_rgChannelsRC[RC_PIT] = 0;                                      // pitch
-  m_pReceiver->m_rgChannelsRC[RC_ROL] = 0;                                      // roll
+  m_pReceiver->set_channel(RC_YAW, 0);                                       // yaw
+  m_pReceiver->set_channel(RC_PIT, 0);                                       // pitch
+  m_pReceiver->set_channel(RC_ROL, 0);                                       // roll
+}
+
+void Exception::pause_take_down() {
+  m_bPauseTD = true;
+  m_t32Pause = m_pHalBoard->m_pHAL->scheduler->millis();
+}
+
+void Exception::cont_take_down() {
+  if(m_bPauseTD == false) {
+    return;
+  }
+
+  m_bPauseTD = false;
+  m_iPauseTDTime += m_pHalBoard->m_pHAL->scheduler->millis() - m_t32Pause;
 }

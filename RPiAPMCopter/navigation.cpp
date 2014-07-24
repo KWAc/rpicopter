@@ -58,8 +58,8 @@ float UAVNav::calc_error_deg() {
   float fLatHome_deg = static_cast<float>(m_pHalBoard->m_pInertNav->get_latitude() ) / M_AP_INT2FLOAT_DEG;
   float fLonHome_deg = static_cast<float>(m_pHalBoard->m_pInertNav->get_longitude() ) / M_AP_INT2FLOAT_DEG;
 
-  float fLatTarg_deg = static_cast<float>(m_pReceiver->m_Waypoint.latitude) / M_AP_INT2FLOAT_DEG;
-  float fLonTarg_deg = static_cast<float>(m_pReceiver->m_Waypoint.longitude) / M_AP_INT2FLOAT_DEG;
+  float fLatTarg_deg = static_cast<float>(m_pReceiver->get_waypoint()->latitude) / M_AP_INT2FLOAT_DEG;
+  float fLonTarg_deg = static_cast<float>(m_pReceiver->get_waypoint()->longitude) / M_AP_INT2FLOAT_DEG;
 
   float fXHome = dist_2_greenw_m(fLatHome_deg, fLonHome_deg);
   float fYHome = dist_2_equat_m(fLatHome_deg);
@@ -99,7 +99,7 @@ int_fast16_t UAVNav::calc_yaw() {
 
   if(fError_deg > 1.f) {
     // Set pitch zero if orientation wrong
-    m_pReceiver->m_rgChannelsRC[RC_PIT] = 0;
+    m_pReceiver->set_channel(RC_PIT, 0);
   }
   // Anneal to correct yaw
   return static_cast<int_fast16_t>(m_fTargetYaw_deg);

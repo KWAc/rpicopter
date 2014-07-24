@@ -10,20 +10,107 @@
 #include "arithmetics.h"
 
 
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Functions
+///////////////////////////////////////////////////////////////////////////////////////
+inline uint_fast8_t calc_chksum(char *str) {
+  uint_fast8_t nc = 0;
+  for(size_t i = 0; i < strlen(str); i++) {
+    nc = (nc + str[i]) << 1;
+  }
+  return nc;
+}
+
+//checksum verifier
+inline bool verf_chksum(char *str, char *chk) {
+  uint_fast8_t  nc  = calc_chksum(str);
+  long chkl = strtol(chk, NULL, 16);  // supplied chksum to long
+  if(chkl == static_cast<long>(nc) ) {              // compare
+    return true;
+  }
+  return false;
+}
+
+inline void run_calibration(Device *pHalBoard) {
+  float roll_trim, pitch_trim;
+  while(pHalBoard->m_pHAL->console->available() ) {
+    pHalBoard->m_pHAL->console->read();
+  }
+
+#if !defined( __AVR_ATmega1280__ )
+  AP_InertialSensor_UserInteractStream interact(pHalBoard->m_pHAL->console);
+  pHalBoard->m_pInert->calibrate_accel(&interact, roll_trim, pitch_trim);
+  // Adjust AHRS
+  pHalBoard->m_pAHRS->set_trim(Vector3f(roll_trim, pitch_trim, 0) );
+#else
+	pHalBoard->m_pHAL->console->println_P(PSTR("calibrate_accel not available on 1280") );
+#endif
+}
+
+inline float *parse_pid_substr(char* buffer) {
+  static float rgfPIDS[PID_BUFFER_S] = { 0 };
+  char rgcPIDS[PID_BUFFER_S][32];
+  memset(rgfPIDS, 0, sizeof(rgfPIDS) );
+  memset(rgcPIDS, 0, sizeof(rgcPIDS) );
+
+  size_t i = 0, iPIDcstr = 0, iPID = 0;
+  for(; i < strlen(buffer); i++) {
+    // String ended here
+    if(buffer[i] == '\0') {
+      break;
+    }
+    // Avoid buffer overflow
+    else if(iPID >= PID_BUFFER_S) {
+      break;
+    }
+    // Reached new variable; Go over to next char
+    else if(buffer[i] == ',') {
+      iPID++;
+      iPIDcstr = 0;
+      continue;
+    }
+    // Read the current variable
+    else {
+      rgcPIDS[iPID][iPIDcstr]   = buffer[i];
+      rgcPIDS[iPID][++iPIDcstr] = '\0';
+    }
+  }
+  for (size_t i = 0; i <= iPID; i++) {
+    rgfPIDS[i] = atof(rgcPIDS[i]);
+  }
+  return rgfPIDS;
+}
+
+inline bool check_input(int_fast16_t iRol, int_fast16_t iPit, int_fast16_t iThr, int_fast16_t iYaw) {
+  if(!in_range(RC_PIT_MIN, RC_PIT_MAX, iPit) ) {
+    return false;
+  }
+  if(!in_range(RC_ROL_MIN, RC_ROL_MAX, iRol) ) {
+    return false;
+  }
+  if(!in_range(RC_THR_OFF, RC_THR_MAX, iThr) ) {
+    return false;
+  }
+  if(!in_range(RC_YAW_MIN, RC_YAW_MAX, iYaw) ) {
+    return false;
+  }
+  return true;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Receiver
+///////////////////////////////////////////////////////////////////////////////////////
 Receiver::Receiver(Device *pHalBoard) {
   m_pHalBoard = pHalBoard;
 
   memset(m_cBuffer, 0, sizeof(m_cBuffer) );
   memset(m_rgChannelsRC, 0, sizeof(m_rgChannelsRC) );
-
+  
   m_iPPMTimer = m_iSParseTimer_A = m_iSParseTimer_C = m_iSParseTimer = m_pHalBoard->m_pHAL->scheduler->millis();
-  m_iPPMTime = m_iSParseTime_A = m_iSParseTime_C  = m_iSParseTime  = 0;
-
-  m_eErrors = NOTHING_F;
-  init_radio();
-}
-
-void Receiver::init_radio() {
+  m_iPPMTime  = m_iSParseTime_A  = m_iSParseTime_C  = m_iSParseTime  = 0;
+  m_eErrors   = NOTHING_F;
+  
   m_pRCRol = new RC_Channel(RC_ROL);
   m_pRCPit = new RC_Channel(RC_PIT);
   m_pRCThr = new RC_Channel(RC_THR);
@@ -46,22 +133,53 @@ void Receiver::init_radio() {
   m_pRCYaw->set_angle(RC_YAW_MAX*100);
 }
 
-uint_fast8_t Receiver::calc_chksum(char *str) {
-  uint_fast8_t nc = 0;
-  for(size_t i = 0; i < strlen(str); i++) {
-    nc = (nc + str[i]) << 1;
+void Receiver::set_channel(uint_fast8_t index, int_fast32_t value) {
+  if(index >= APM_IOCHAN_CNT) {
+    return;
   }
-  return nc;
+
+  m_rgChannelsRC[index] = value;
 }
 
-//checksum verifier
-bool Receiver::verf_chksum(char *str, char *chk) {
-  uint_fast8_t  nc  = calc_chksum(str);
-  long chkl = strtol(chk, NULL, 16);  // supplied chksum to long
-  if(chkl == static_cast<long>(nc) ) {              // compare
-    return true;
+int_fast32_t Receiver::get_channel(uint_fast8_t index) const {
+  if(index >= APM_IOCHAN_CNT) {
+    return 0;
   }
-  return false;
+
+  return m_rgChannelsRC[index];
+}
+
+int_fast32_t *Receiver::get_channels() {
+  return &m_rgChannelsRC[0];
+}
+
+GPSPosition *Receiver::get_waypoint() {
+  return &m_Waypoint;
+}
+
+uint_fast32_t Receiver::last_parse_t32() {
+  m_iSParseTime = m_pHalBoard->m_pHAL->scheduler->millis() - m_iSParseTimer;
+
+  if(m_iSParseTime > COM_PKT_TIMEOUT) {
+    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, UART_TIMEOUT_F) );
+  }
+
+  return m_iSParseTime;
+}
+
+uint_fast32_t Receiver::last_parse_uartA_t32() {
+  m_iSParseTime_A = m_pHalBoard->m_pHAL->scheduler->millis() - m_iSParseTimer_A;
+  return m_iSParseTime_A;
+}
+
+uint_fast32_t Receiver::last_parse_uartC_t32() {
+  m_iSParseTime_C = m_pHalBoard->m_pHAL->scheduler->millis() - m_iSParseTimer_C;
+  return m_iSParseTime_C;
+}
+
+uint_fast32_t Receiver::last_rcin_t32() {
+  m_iPPMTime = m_pHalBoard->m_pHAL->scheduler->millis() - m_iPPMTimer;
+  return m_iPPMTime;
 }
 
 // remote control stuff
@@ -182,22 +300,6 @@ bool Receiver::parse_waypoint(char *buffer) {
   return bRet;
 }
 
-void Receiver::run_calibration() {
-  float roll_trim, pitch_trim;
-  while(m_pHalBoard->m_pHAL->console->available() ) {
-    m_pHalBoard->m_pHAL->console->read();
-  }
-
-#if !defined( __AVR_ATmega1280__ )
-  AP_InertialSensor_UserInteractStream interact(m_pHalBoard->m_pHAL->console);
-  m_pHalBoard->m_pInert->calibrate_accel(&interact, roll_trim, pitch_trim);
-  // Adjust AHRS
-  m_pHalBoard->m_pAHRS->set_trim(Vector3f(roll_trim, pitch_trim, 0) );
-#else
-	m_pHalBoard->m_pHAL->console->println_P(PSTR("calibrate_accel not available on 1280") );
-#endif
-}
-
 bool Receiver::parse_gyr_cal(char* buffer) {
   // If motors run: Do nothing!
   if(m_rgChannelsRC == NULL || m_pHalBoard == NULL) {
@@ -215,7 +317,7 @@ bool Receiver::parse_gyr_cal(char* buffer) {
     // only if quadro is _not_ armed
     if(bcalib) {
       // This functions checks whether model is ready for a calibration
-      run_calibration();
+      run_calibration(m_pHalBoard);
     }
   }
 
@@ -238,40 +340,6 @@ bool Receiver::parse_bat_type(char* buffer) {
     m_pHalBoard->m_pBat->setup_source(type);
   }
   return true;
-}
-
-float *Receiver::parse_pid_substr(char* buffer) {
-  static float rgfPIDS[PID_BUFFER_S] = { 0 };
-  char rgcPIDS[PID_BUFFER_S][32];
-  memset(rgfPIDS, 0, sizeof(rgfPIDS) );
-  memset(rgcPIDS, 0, sizeof(rgcPIDS) );
-
-  size_t i = 0, iPIDcstr = 0, iPID = 0;
-  for(; i < strlen(buffer); i++) {
-    // String ended here
-    if(buffer[i] == '\0') {
-      break;
-    }
-    // Avoid buffer overflow
-    else if(iPID >= PID_BUFFER_S) {
-      break;
-    }
-    // Reached new variable; Go over to next char
-    else if(buffer[i] == ',') {
-      iPID++;
-      iPIDcstr = 0;
-      continue;
-    }
-    // Read the current variable
-    else {
-      rgcPIDS[iPID][iPIDcstr]   = buffer[i];
-      rgcPIDS[iPID][++iPIDcstr] = '\0';
-    }
-  }
-  for (size_t i = 0; i <= iPID; i++) {
-    rgfPIDS[i] = atof(rgcPIDS[i]);
-  }
-  return rgfPIDS;
 }
 
 bool Receiver::parse_pid_conf(char* buffer) {
@@ -341,22 +409,6 @@ bool Receiver::parse_pid_conf(char* buffer) {
   return bRet;
 }
 
-bool Receiver::check_input(int_fast16_t iRol, int_fast16_t iPit, int_fast16_t iThr, int_fast16_t iYaw) {
-  if(!in_range(RC_PIT_MIN, RC_PIT_MAX, iPit) ) {
-    return false;
-  }
-  if(!in_range(RC_ROL_MIN, RC_ROL_MAX, iRol) ) {
-    return false;
-  }
-  if(!in_range(RC_THR_OFF, RC_THR_MAX, iThr) ) {
-    return false;
-  }
-  if(!in_range(RC_YAW_MIN, RC_YAW_MAX, iYaw) ) {
-    return false;
-  }
-  return true;
-}
-
 /*
  * Compact remote control packet system for the radio on Uart2,
  * Everything fits into 7 bytes
@@ -392,6 +444,40 @@ bool Receiver::parse_radio(char *buffer) {
 
   m_iSParseTimer = m_pHalBoard->m_pHAL->scheduler->millis();           // update last valid packet
   return true;
+}
+
+// Parse incoming text
+// str = "%d,%d,%d,%d * checksum" % (p['roll'], p['pitch'], p['thr'], p['yaw'])
+// str = "%d,%d,%d; %d,%d,%d; %d,%d,%d * checksum"
+bool Receiver::parse(char *buffer) {
+  if(buffer == NULL) {
+    return false;
+  }
+
+  char *ctype = strtok(buffer, "#");                // type of string
+  char *command = strtok(NULL, "#");                // command string
+
+  // process cmd
+  if(strcmp(ctype, "RC") == 0) {
+    return parse_ctrl_com(command);
+  }
+  if(strcmp(ctype, "PID") == 0) {
+    return parse_pid_conf(command);
+  }
+  if(strcmp(ctype, "CMP") == 0) {
+    return parse_gyr_cor(command);
+  }
+  if(strcmp(ctype, "GYR") == 0) {
+    return parse_gyr_cal(command);
+  }
+  if(strcmp(ctype, "BAT") == 0) {
+    return parse_bat_type(command);
+  }
+  if(strcmp(ctype, "UAV") == 0) {
+    return parse_waypoint(command);
+  }
+
+  return false;
 }
 
 bool Receiver::read_uartA(uint_fast16_t bytesAvail) {
@@ -447,40 +533,6 @@ bool Receiver::read_uartC(uint_fast16_t bytesAvail) {
   }
 
   return bRet;
-}
-
-// Parse incoming text
-// str = "%d,%d,%d,%d * checksum" % (p['roll'], p['pitch'], p['thr'], p['yaw'])
-// str = "%d,%d,%d; %d,%d,%d; %d,%d,%d * checksum"
-bool Receiver::parse(char *buffer) {
-  if(buffer == NULL) {
-    return false;
-  }
-
-  char *ctype = strtok(buffer, "#");                // type of string
-  char *command = strtok(NULL, "#");                // command string
-
-  // process cmd
-  if(strcmp(ctype, "RC") == 0) {
-    return parse_ctrl_com(command);
-  }
-  if(strcmp(ctype, "PID") == 0) {
-    return parse_pid_conf(command);
-  }
-  if(strcmp(ctype, "CMP") == 0) {
-    return parse_gyr_cor(command);
-  }
-  if(strcmp(ctype, "GYR") == 0) {
-    return parse_gyr_cal(command);
-  }
-  if(strcmp(ctype, "BAT") == 0) {
-    return parse_bat_type(command);
-  }
-  if(strcmp(ctype, "UAV") == 0) {
-    return parse_waypoint(command);
-  }
-
-  return false;
 }
 
 // In addition to the attitude control loop,
@@ -554,29 +606,4 @@ bool Receiver::read_rcin() {
   // Update timers
   m_iSParseTimer = m_iPPMTimer = m_pHalBoard->m_pHAL->scheduler->millis();           // update last valid packet
   return true;
-}
-
-uint_fast32_t Receiver::last_parse_t32() {
-  m_iSParseTime = m_pHalBoard->m_pHAL->scheduler->millis() - m_iSParseTimer;
-
-  if(m_iSParseTime > COM_PKT_TIMEOUT) {
-    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, UART_TIMEOUT_F) );
-  }
-
-  return m_iSParseTime;
-}
-
-uint_fast32_t Receiver::last_parse_uartA_t32() {
-  m_iSParseTime_A = m_pHalBoard->m_pHAL->scheduler->millis() - m_iSParseTimer_A;
-  return m_iSParseTime_A;
-}
-
-uint_fast32_t Receiver::last_parse_uartC_t32() {
-  m_iSParseTime_C = m_pHalBoard->m_pHAL->scheduler->millis() - m_iSParseTimer_C;
-  return m_iSParseTime_C;
-}
-
-uint_fast32_t Receiver::last_rcin_t32() {
-  m_iPPMTime = m_pHalBoard->m_pHAL->scheduler->millis() - m_iPPMTimer;
-  return m_iPPMTime;
 }

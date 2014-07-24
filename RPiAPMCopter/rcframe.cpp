@@ -26,10 +26,10 @@ Frame::Frame(Device *pDev, Receiver *pRecv, Exception *pExcp, UAVNav* pUAV) {
 }
 
 void Frame::read_receiver() {
-  m_fRCRol = static_cast<float>(m_pReceiver->m_rgChannelsRC[RC_ROL]);
-  m_fRCPit = static_cast<float>(m_pReceiver->m_rgChannelsRC[RC_PIT]);
-  m_fRCThr = static_cast<float>(m_pReceiver->m_rgChannelsRC[RC_THR] > RC_THR_80P ? RC_THR_80P : m_pReceiver->m_rgChannelsRC[2]);
-  m_fRCYaw = static_cast<float>(m_pReceiver->m_rgChannelsRC[RC_YAW]);
+  m_fRCRol = static_cast<float>(m_pReceiver->get_channel(RC_ROL) );
+  m_fRCPit = static_cast<float>(m_pReceiver->get_channel(RC_PIT) );
+  m_fRCThr = static_cast<float>(m_pReceiver->get_channel(RC_THR) > RC_THR_80P ? RC_THR_80P : m_pReceiver->get_channel(2) );
+  m_fRCYaw = static_cast<float>(m_pReceiver->get_channel(RC_YAW) );
 }
 
 void Frame::run() {
@@ -132,12 +132,12 @@ void M4XFrame::apply_motor_compens() {
 ////////////////////////////////////////////////////////////////////////
 void M4XFrame::calc_gpsnavig_hold() {
   // Break this function if there was not the proper UAV-mode set
-  if(!chk_fset(m_pReceiver->m_Waypoint.mode, GPSPosition::GPS_NAVIGATN_F) ) {
+  if(!chk_fset(m_pReceiver->get_waypoint()->mode, GPSPosition::GPS_NAVIGATN_F) ) {
     return;
   }
   
   // Set yaw in remote control
-  m_pReceiver->m_rgChannelsRC[RC_YAW] = m_pNavigation->calc_yaw();
+  m_pReceiver->set_channel(RC_YAW, m_pNavigation->calc_yaw() );
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -154,13 +154,13 @@ void M4XFrame::calc_altitude_hold() {
   int_fast16_t iAccZOutput = 0; // Accelerometer
 
   // return if in standard remote control mode
-  if(m_pReceiver->m_Waypoint.mode == GPSPosition::NOTHING_F) {
+  if(m_pReceiver->get_waypoint()->mode == GPSPosition::NOTHING_F) {
     return;
   }
 
   // Return estimated altitude by GPS and barometer
   bool bOK_H, bOK_G;
-  float fTargAlti_cm  = static_cast<float>(m_pReceiver->m_Waypoint.altitude_cm);
+  float fTargAlti_cm  = static_cast<float>(m_pReceiver->get_waypoint()->altitude_cm);
   float fCurrAlti_cm  = Device::get_altitude_cm(m_pHalBoard, bOK_H);
   float fClmbRate_cms = m_pHalBoard->m_pInertNav->get_velocity_z();
   // Get the acceleration in g
@@ -172,20 +172,20 @@ void M4XFrame::calc_altitude_hold() {
 
   // Calculate the motor speed changes by the error from the height estimate and the current climb rates
   // If the quadro is going down, because of an device error, then this code is not used
-  if(m_pReceiver->m_Waypoint.mode != GPSPosition::CONTRLD_DOWN_F) {
+  if(m_pReceiver->get_waypoint()->mode != GPSPosition::CONTRLD_DOWN_F) {
     float fAltZStabOut = m_pHalBoard->m_rgPIDS[PID_THR_STAB].get_pid(fTargAlti_cm - fCurrAlti_cm, 1);
     iAltZOutput        = m_pHalBoard->m_rgPIDS[PID_THR_RATE].get_pid(fAltZStabOut - fClmbRate_cms, 1);
   }
 
-  if(m_pReceiver->m_rgChannelsRC[RC_ROL] > RC_THR_OFF) {
+  if(m_pReceiver->get_channel(RC_ROL) > RC_THR_OFF) {
     // If the quad-copter is going down too fast, fAcceleration_g becomes greater
-    if(m_pReceiver->m_Waypoint.mode == GPSPosition::CONTRLD_DOWN_F && fAccel_g > fBias_g) {
+    if(m_pReceiver->get_waypoint()->mode == GPSPosition::CONTRLD_DOWN_F && fAccel_g > fBias_g) {
       m_pExeption->pause_take_down();
     }
 
     // else: the fAcceleration_g becomes smaller
-    if(m_pReceiver->m_Waypoint.mode == GPSPosition::CONTRLD_DOWN_F && fAccel_g <= fBias_g) {
-      m_pExeption->continue_take_down();
+    if(m_pReceiver->get_waypoint()->mode == GPSPosition::CONTRLD_DOWN_F && fAccel_g <= fBias_g) {
+      m_pExeption->cont_take_down();
     }
   }
 
