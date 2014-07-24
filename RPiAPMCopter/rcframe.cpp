@@ -173,8 +173,8 @@ void M4XFrame::calc_altitude_hold() {
   // Calculate the motor speed changes by the error from the height estimate and the current climb rates
   // If the quadro is going down, because of an device error, then this code is not used
   if(m_pReceiver->get_waypoint()->mode != GPSPosition::CONTRLD_DOWN_F) {
-    float fAltZStabOut = m_pHalBoard->m_rgPIDS[PID_THR_STAB].get_pid(fTargAlti_cm - fCurrAlti_cm, 1);
-    iAltZOutput        = m_pHalBoard->m_rgPIDS[PID_THR_RATE].get_pid(fAltZStabOut - fClmbRate_cms, 1);
+    float fAltZStabOut = m_pHalBoard->get_pid(PID_THR_STAB).get_pid(fTargAlti_cm - fCurrAlti_cm, 1);
+    iAltZOutput        = m_pHalBoard->get_pid(PID_THR_RATE).get_pid(fAltZStabOut - fClmbRate_cms, 1);
   }
 
   if(m_pReceiver->get_channel(RC_ROL) > RC_THR_OFF) {
@@ -192,8 +192,8 @@ void M4XFrame::calc_altitude_hold() {
   // Don't change the throttle if acceleration is below a certain bias
   if(fabs(fAccel_g) >= fBias_g) {
     //fAccel_g         = sign_f(fAccel_g) * (abs(fAccel_g) - fBias_g) * fScaleF_g;
-    float fAccZStabOut = m_pHalBoard->m_rgPIDS[PID_ACC_STAB].get_pid(fAccel_g, 1);
-    iAccZOutput        = m_pHalBoard->m_rgPIDS[PID_ACC_RATE].get_pid(fAccZStabOut, 1);
+    float fAccZStabOut = m_pHalBoard->get_pid(PID_ACC_STAB).get_pid(fAccel_g, 1);
+    iAccZOutput        = m_pHalBoard->get_pid(PID_ACC_RATE).get_pid(fAccZStabOut, 1);
   }
 
   // Modify the speed of the motors to hold the altitude
@@ -221,9 +221,9 @@ void M4XFrame::calc_attitude_hold() {
   // Throttle raised, turn on stabilisation.
   if(m_fRCThr > RC_THR_ACRO) {
     // Stabilise PIDS
-    float pit_stab_output = constrain_float(m_pHalBoard->m_rgPIDS[PID_PIT_STAB].get_pid(m_fRCPit - vAtti.x, 1), -250, 250);
-    float rol_stab_output = constrain_float(m_pHalBoard->m_rgPIDS[PID_ROL_STAB].get_pid(m_fRCRol - vAtti.y, 1), -250, 250);
-    float yaw_stab_output = constrain_float(m_pHalBoard->m_rgPIDS[PID_YAW_STAB].get_pid(wrap180_f(targ_yaw - vAtti.z), 1), -360, 360);
+    float pit_stab_output = constrain_float(m_pHalBoard->get_pid(PID_PIT_STAB).get_pid(m_fRCPit - vAtti.x, 1), -250, 250);
+    float rol_stab_output = constrain_float(m_pHalBoard->get_pid(PID_ROL_STAB).get_pid(m_fRCRol - vAtti.y, 1), -250, 250);
+    float yaw_stab_output = constrain_float(m_pHalBoard->get_pid(PID_YAW_STAB).get_pid(wrap180_f(targ_yaw - vAtti.z), 1), -360, 360);
 
     // Is pilot asking for yaw change? - If so, feed directly to rate PID (overwriting yaw stab output)
     if(fabs(m_fRCYaw ) > 5.f) {
@@ -232,9 +232,9 @@ void M4XFrame::calc_attitude_hold() {
     }
 
     // Rate PIDS
-    int_fast16_t pit_output = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->m_rgPIDS[PID_PIT_RATE].get_pid(pit_stab_output - vGyro.x, 1), -500, 500) );
-    int_fast16_t rol_output = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->m_rgPIDS[PID_ROL_RATE].get_pid(rol_stab_output - vGyro.y, 1), -500, 500) );
-    int_fast16_t yaw_output = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->m_rgPIDS[PID_YAW_RATE].get_pid(yaw_stab_output - vGyro.z, 1), -500, 500) );
+    int_fast16_t pit_output = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->get_pid(PID_PIT_RATE).get_pid(pit_stab_output - vGyro.x, 1), -500, 500) );
+    int_fast16_t rol_output = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->get_pid(PID_ROL_RATE).get_pid(rol_stab_output - vGyro.y, 1), -500, 500) );
+    int_fast16_t yaw_output = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->get_pid(PID_YAW_RATE).get_pid(yaw_stab_output - vGyro.z, 1), -500, 500) );
 
     // Apply: tilt- and battery-compensation algorithms
     apply_motor_compens();
@@ -253,7 +253,7 @@ void M4XFrame::calc_attitude_hold() {
     targ_yaw = vAtti.z;
     // reset PID integrals whilst on the ground
     for(uint_fast8_t i = 0; i < NR_OF_PIDS; i++) {
-      m_pHalBoard->m_rgPIDS[i].reset_I();
+      m_pHalBoard->get_pid(i).reset_I();
     }
   }
 }

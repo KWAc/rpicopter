@@ -29,50 +29,19 @@ class GPSData;
 class PID;
 
 
-///////////////////////////////////////////////////////////
-// Container for sensor data and sensor configuration
-///////////////////////////////////////////////////////////
-class Device : public AbsErrorDevice {
-private:
-  uint_fast8_t m_iUpdateRate;       // Suggested update rate of the main loop, dependent on the usage of the 3DR radio on uartC
+class DeviceInit : public AbsErrorDevice {
+protected:
+  // PID configuration and remote contro
+  PID m_rgPIDS[NR_OF_PIDS];
 
   uint_fast32_t m_t32Inertial;      // For calculating the derivative of the angular changes
   uint_fast32_t m_t32InertialNav;
   uint_fast32_t m_t32Compass;
+  uint_fast8_t  m_iUpdateRate;      // Suggested update rate of the main loop, dependent on the usage of the 3DR radio on uartC
 
-  // Used with low path filter
-  Vector3f m_vAccelPG_cmss;         // acceleration readout
-  Vector3f m_vAccelMG_cmss;         // acceleration readout minus G constant (~9.81)
-  
-  // User set correction variables
-  float m_fInertPitCor;             // +/-: left to right or right to left
-  float m_fInertRolCor;             // +/-: front to back or back to front
-  
-  float m_fCmpH;                    // Compass heading
-  float m_fGpsH;                    // GPS heading  
-
-protected:
-  // x = pitch, y = roll, z = yaw
-  Vector3f     m_vGyro_deg;
-  Vector3f     m_vAccel_deg;
-  Vector3f     m_vAtti_deg;
-  int_fast16_t m_iAltitude_cm;
-  // misc
-  BaroData     m_ContBaro;
-  GPSData      m_ContGPS;
-  BattData     m_ContBat;
-
-  /* Not updating the intertial, to avoid double updates on other spots in the code :( Not elegant so far */
-  Vector3f     read_gyro_deg();        // converts sensor relative readout to absolute attitude in degrees and saves in m_vGyro_deg
-  Vector3f     read_accl_deg();        // converts sensor relative readout to absolute attitude and saves in m_vAccel_deg
-
-public:
-  // PID configuration and remote contro
-  PID               m_rgPIDS[NR_OF_PIDS];
-
+public /*objects*/: 
   // Hardware abstraction library interface
   const AP_HAL::HAL *m_pHAL;
-
   // MPU6050 accel/gyro chip
   AP_InertialSensor *m_pInert;
   // Magnetometer aka compass
@@ -89,10 +58,9 @@ public:
   AP_InertialNav    *m_pInertNav;
   // Attitude heading reference system
   AP_AHRS_DCM       *m_pAHRS;
-  
-public:
-  // Accepts pointers to abstract base classes to handle different sensor types
-  Device(const AP_HAL::HAL *, AP_InertialSensor *, Compass *, AP_Baro *, AP_GPS *, BattMonitor *, RangeFinder *, AP_AHRS_DCM *, AP_InertialNav *);
+
+public /*functions*/:
+  DeviceInit(const AP_HAL::HAL *, AP_InertialSensor *, Compass *, AP_Baro *, AP_GPS *, BattMonitor *, RangeFinder *, AP_AHRS_DCM *, AP_InertialNav *);
 
   void         init_barometer();
   void         init_pids();
@@ -102,10 +70,57 @@ public:
   void         init_batterymon();
   void         init_rf();
   void         init_inertial_nav();
+  
+  PID          get_pid(uint_fast8_t) const;
+  void         set_pid(uint_fast8_t, PID);
+  
+  // Suggests an update rate in ms for the main loop
+  // The rate is linked with the usage of the 3DR radio
+  // The 3DR radio is only working if the CPU load is low
+  void         set_refr_rate(const uint_fast8_t time_ms);
+  uint_fast8_t get_refr_rate() const;
+};
 
-  // Update inertial navigation (accelerometer, barometer, GPS sensor fusion)
-  void         update_inav();
-  // Updating the inertial and calculates the attitude from fused sensor values
+///////////////////////////////////////////////////////////
+// Container for sensor data and sensor configuration
+///////////////////////////////////////////////////////////
+class Device : public DeviceInit {
+private:
+  // Used with low path filter
+  Vector3f m_vAccelPG_cmss;         // acceleration readout
+  Vector3f m_vAccelMG_cmss;         // acceleration readout minus G constant (~9.81)
+  
+  // User set correction variables
+  float m_fInertPitCor;             // +/-: left to right or right to left
+  float m_fInertRolCor;             // +/-: front to back or back to front
+  
+  float m_fCmpH;                    // Compass heading
+  float m_fGpsH;                    // GPS heading  
+
+protected /*variables*/:
+  // x = pitch, y = roll, z = yaw
+  Vector3f     m_vGyro_deg;
+  Vector3f     m_vAccel_deg;
+  Vector3f     m_vAtti_deg;
+  int_fast16_t m_iAltitude_cm;
+  // misc
+  BaroData     m_ContBaro;
+  GPSData      m_ContGPS;
+  BattData     m_ContBat;
+  
+protected /*functions*/:
+  // Not updating the inertial, to avoid double updates on other spots in the code
+  Vector3f     read_gyro_deg();        // converts sensor relative readout to absolute attitude in degrees and saves in m_vGyro_deg
+  Vector3f     read_accl_deg();        // converts sensor relative readout to absolute attitude and saves in m_vAccel_deg
+  
+public:
+  // Accepts pointers to abstract base classes to handle different sensor types
+  Device(const AP_HAL::HAL *, AP_InertialSensor *, Compass *, AP_Baro *, AP_GPS *, BattMonitor *, RangeFinder *, AP_AHRS_DCM *, AP_InertialNav *);
+
+  // Setter and getter for inertial adjustments
+  void         set_trims      (float fRoll_deg, float fPitch_deg);
+  
+  void         update_inav();       // Update inertial navigation (accelerometer, barometer, GPS sensor fusion)
   void         update_attitude();   // Calls: read_gyro_deg() and read_accl_deg() and saves results to m_vAtti_deg, m_vGyro_deg and m_vAccel_deg
 
   // updating the sensors
@@ -118,14 +133,10 @@ public:
   // Return the Vector3f Inertial readouts
   Vector3f     get_atti_cor_deg();   // fused sensor values from accelerometer/gyrometer with m_fInertPitCor/m_fInertRolCor
   Vector3f     get_atti_raw_deg();   // fused sensor values from accelerometer/gyrometer without m_fInertPitCor/m_fInertRolCor
-
   Vector3f     get_gyro_cor_deg();   // gyrometer sensor readout with m_fInertPitCor/m_fInertRolCor
   Vector3f     get_gyro_raw_deg();   // gyrometer sensor readout without m_fInertPitCor/m_fInertRolCor
-
   Vector3f     get_accel_cor_deg();  // accelerometer sensor readout with m_fInertPitCor/m_fInertRolCor
   Vector3f     get_accel_raw_deg();  // accelerometer sensor readout without m_fInertPitCor/m_fInertRolCor
-
-  // Negative if falling down and positive if going up
   Vector3f     get_accel_pg_cmss();  // Acceleration with the G-const
   Vector3f     get_accel_mg_cmss();  // Acceleration without the G-const (filtered out)
 
@@ -134,23 +145,12 @@ public:
   GPSData      get_gps();            // Just return the last estimated gps data
   BattData     get_bat();            // Just return the last estimated battery data
   int_fast32_t get_rf_cm();          // Altitude estimate using range finder
-  
-  // Setter and getter for inertial adjustments
-  void         set_trims      (float fRoll_deg, float fPitch_deg);
 
-  // Static functions
   // Altitude estimation in cm with support for sonar
   static float get_altitude_cm(Device *pDev, bool &bOK);
-  // Filtered acceleration in g:
   static float get_accel_x_g  (Device *pDev, bool &bOK);
   static float get_accel_y_g  (Device *pDev, bool &bOK);
   static float get_accel_z_g  (Device *pDev, bool &bOK);
-  
-  // Suggests an update rate in ms for the main loop
-  // The rate is linked with the usage of the 3DR radio
-  // The 3DR radio is only working if the CPU load is low
-  void         set_refr_rate(const uint_fast8_t time_ms);
-  uint_fast8_t get_refr_rate() const;
 };
 
 #endif

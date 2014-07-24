@@ -36,6 +36,170 @@ inline float atti_f(float fX, float fSlope) {
   return (4.f * pow2_f(fVal) );  // x^4; 0 <= y <= 1.0
 }
 
+///////////////////////////////////////////////////////////
+// DeviceInit
+///////////////////////////////////////////////////////////
+void DeviceInit::init_pids() {
+  // Rate PIDs
+  m_rgPIDS[PID_PIT_RATE].kP(0.65);
+  m_rgPIDS[PID_PIT_RATE].kI(0.35);
+  m_rgPIDS[PID_PIT_RATE].kD(0.015);
+  m_rgPIDS[PID_PIT_RATE].imax(50);
+
+  m_rgPIDS[PID_ROL_RATE].kP(0.65);
+  m_rgPIDS[PID_ROL_RATE].kI(0.35);
+  m_rgPIDS[PID_ROL_RATE].kD(0.015);
+  m_rgPIDS[PID_ROL_RATE].imax(50);
+
+  m_rgPIDS[PID_YAW_RATE].kP(0.75);
+  m_rgPIDS[PID_YAW_RATE].kI(0.15);
+  m_rgPIDS[PID_YAW_RATE].kD(0.0f);
+  m_rgPIDS[PID_YAW_RATE].imax(50);
+
+  m_rgPIDS[PID_THR_RATE].kP(0.75);  // For altitude hold
+  m_rgPIDS[PID_THR_RATE].kI(0.25);  // For altitude hold
+  m_rgPIDS[PID_THR_RATE].kD(0.0f);  // For altitude hold
+  m_rgPIDS[PID_THR_RATE].imax(100); // For altitude hold
+
+  m_rgPIDS[PID_ACC_RATE].kP(1.50);  // For altitude hold
+  m_rgPIDS[PID_ACC_RATE].kI(0.75);  // For altitude hold
+  m_rgPIDS[PID_ACC_RATE].kD(0.0f);  // For altitude hold
+  m_rgPIDS[PID_ACC_RATE].imax(100); // For altitude hold
+
+  // STAB PIDs
+  m_rgPIDS[PID_PIT_STAB].kP(4.25);
+  m_rgPIDS[PID_ROL_STAB].kP(4.25);
+  m_rgPIDS[PID_YAW_STAB].kP(4.25);
+  m_rgPIDS[PID_THR_STAB].kP(5.50);  // For altitude hold
+  m_rgPIDS[PID_ACC_STAB].kP(15.50); // For altitude hold
+}
+
+void DeviceInit::init_rf() {
+  AP_Param::set_object_value(m_pRF, m_pRF->var_info, "_TYPE",     RangeFinder::RangeFinder_TYPE_AUTO);
+  AP_Param::set_object_value(m_pRF, m_pRF->var_info, "_PIN",      RANGE_FINDER_PIN);
+  AP_Param::set_object_value(m_pRF, m_pRF->var_info, "_SCALING",  RANGE_FINDER_SCALE);
+  m_pRF->init();
+}
+
+void DeviceInit::init_inertial_nav() {
+  m_pAHRS->set_compass(m_pComp);
+
+  m_pInertNav->init();
+  m_pInertNav->set_velocity_xy(0.f, 0.f);
+  m_pInertNav->set_velocity_z(0.f);
+
+  m_pInertNav->setup_home_position();
+  m_pInertNav->set_altitude(0.f);
+
+  m_t32Compass = m_t32Inertial = m_t32InertialNav = m_pHAL->scheduler->millis();
+}
+
+void DeviceInit::init_barometer() {
+  m_pBaro->init();
+  m_pBaro->calibrate();
+
+#ifdef APM2_HARDWARE
+  // we need to stop the barometer from holding the SPI bus
+  m_pHAL->gpio->pinMode(40, GPIO_OUTPUT);
+  m_pHAL->gpio->write(40, HIGH);
+#endif
+}
+
+void DeviceInit::init_compass() {
+  if(!m_pComp->init() ) {
+    m_pHAL->console->printf("Init compass failed!\n");
+  }
+
+  m_pComp->accumulate();
+  m_pComp->motor_compensation_type(1);                              // throttle
+  m_pComp->set_and_save_offsets(0, 0, 0, 0);                        // set offsets to account for surrounding interference
+  m_pComp->set_declination(ToRad(0.f) );                            // set local difference between magnetic north and true north
+
+  m_pHAL->console->print("Compass auto-detected as: ");
+  switch( m_pComp->product_id ) {
+  case AP_COMPASS_TYPE_HIL:
+    m_pHAL->console->printf("HIL\n");
+    break;
+  case AP_COMPASS_TYPE_HMC5843:
+    m_pHAL->console->printf("HMC5843\n");
+    break;
+  case AP_COMPASS_TYPE_HMC5883L:
+    m_pHAL->console->printf("HMC5883L\n");
+    break;
+  case AP_COMPASS_TYPE_PX4:
+    m_pHAL->console->printf("PX4\n");
+    break;
+  default:
+    m_pHAL->console->printf("unknown\n");
+    break;
+  }
+
+  m_t32Compass = m_pHAL->scheduler->millis();
+}
+
+void DeviceInit::init_inertial() {
+  // Turn on MPU6050
+  m_pInert->init(AP_InertialSensor::COLD_START, AP_InertialSensor::RATE_200HZ);
+
+  // Calibrate the inertial
+  m_t32Inertial = m_pHAL->scheduler->millis();
+}
+
+void DeviceInit::init_gps() {
+  // Init the GPS without logging
+  m_pGPS->init(NULL);
+  // Initialise the LEDs
+  board_led.init();
+}
+
+void DeviceInit::init_batterymon() {
+  // initialise the battery monitor for ATTO180 sensor by default :D
+  m_pBat->setup_source(ATTO180);
+}
+
+DeviceInit::DeviceInit( const AP_HAL::HAL *pHAL, AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, AP_GPS *pGPS, BattMonitor *pBat, RangeFinder *pRF, AP_AHRS_DCM *pAHRS, AP_InertialNav *pInertNav ) 
+{
+  m_pHAL              = pHAL;
+  m_pInert            = pInert;
+  m_pComp             = pComp;
+  m_pBaro             = pBar;
+  m_pGPS              = pGPS;
+  m_pBat              = pBat;
+  m_pRF               = pRF;
+  m_pAHRS             = pAHRS;
+  m_pInertNav         = pInertNav;
+  m_iUpdateRate       = MAIN_T_MS;
+  m_eErrors           = NOTHING_F;
+  m_t32Compass = m_t32InertialNav = m_t32Inertial = m_pHAL->scheduler->millis();
+  // PIDs
+  memset(m_rgPIDS, 0, sizeof(m_rgPIDS) );
+}
+
+PID DeviceInit::get_pid(uint_fast8_t index) const {
+  if(index >= NR_OF_PIDS) {
+    return m_rgPIDS[NR_OF_PIDS-1];
+  }
+  return m_rgPIDS[index];
+}
+
+void DeviceInit::set_pid(uint_fast8_t index, PID pid) {
+  if(index >= NR_OF_PIDS) {
+    m_rgPIDS[NR_OF_PIDS-1] = pid;
+  }
+  m_rgPIDS[index] = pid;
+}
+
+void DeviceInit::set_refr_rate(const uint_fast8_t rate) {
+  m_iUpdateRate = rate;
+}
+
+uint_fast8_t DeviceInit::get_refr_rate() const {
+  return m_iUpdateRate;
+}
+
+///////////////////////////////////////////////////////////
+// Device
+///////////////////////////////////////////////////////////
 void Device::update_attitude() {
   m_pAHRS->update();
 
@@ -99,8 +263,8 @@ void Device::update_attitude() {
 #endif
 }
 
-Device::Device( const AP_HAL::HAL *pHAL,
-                AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, AP_GPS *pGPS, BattMonitor *pBat, RangeFinder *pRF, AP_AHRS_DCM *pAHRS, AP_InertialNav *pInertNav )
+Device::Device( const AP_HAL::HAL *pHAL, AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, AP_GPS *pGPS, BattMonitor *pBat, RangeFinder *pRF, AP_AHRS_DCM *pAHRS, AP_InertialNav *pInertNav ) : 
+DeviceInit(pHAL, pInert, pComp, pBar, pGPS,  pBat, pRF, pAHRS, pInertNav) 
 {
   m_iAltitude_cm      = 0;
 
@@ -113,49 +277,10 @@ Device::Device( const AP_HAL::HAL *pHAL,
 
   m_fCmpH             = 0.f;
   m_fGpsH             = 0.f;
-
-  m_iUpdateRate       = MAIN_T_MS;
-  m_eErrors           = NOTHING_F;
-
-  // HAL
-  m_pHAL              = pHAL;
-  // Sensors
-  m_pInert            = pInert;
-  m_pComp             = pComp;
-  m_pBaro             = pBar;
-  m_pGPS              = pGPS;
-  m_pBat              = pBat;
-  m_pRF               = pRF;
-  m_pAHRS             = pAHRS;
-  m_pInertNav         = pInertNav;
-
-  // Timers
-  m_t32Compass = m_t32InertialNav = m_t32Inertial = m_pHAL->scheduler->millis();
-
-  // PIDs
-  memset(m_rgPIDS, 0, sizeof(m_rgPIDS) );
-}
-
-void Device::init_rf() {
-  AP_Param::set_object_value(m_pRF, m_pRF->var_info, "_TYPE",     RangeFinder::RangeFinder_TYPE_AUTO);
-  AP_Param::set_object_value(m_pRF, m_pRF->var_info, "_PIN",      RANGE_FINDER_PIN);
-  AP_Param::set_object_value(m_pRF, m_pRF->var_info, "_SCALING",  RANGE_FINDER_SCALE);
-}
-
-void Device::init_inertial_nav() {
-  m_pAHRS->set_compass(m_pComp);
-
-  m_pInertNav->init();
-  m_pInertNav->set_velocity_xy(0.f, 0.f);
-  m_pInertNav->set_velocity_z(0.f);
-
-  m_pInertNav->setup_home_position();
-  m_pInertNav->set_altitude(0.f);
-
-  m_t32Compass = m_t32Inertial = m_t32InertialNav = m_pHAL->scheduler->millis();
 }
 
 int_fast32_t Device::read_rf_cm() {
+  m_pRF->update();
   if(m_pRF->healthy() ) {
     m_iAltitude_cm = m_pRF->distance_cm();
   }
@@ -201,17 +326,6 @@ Vector3f Device::get_accel_raw_deg() {
   return m_vAccel_deg;
 }
 
-void Device::init_barometer() {
-  m_pBaro->init();
-  m_pBaro->calibrate();
-
-#ifdef APM2_HARDWARE
-  // we need to stop the barometer from holding the SPI bus
-  m_pHAL->gpio->pinMode(40, GPIO_OUTPUT);
-  m_pHAL->gpio->write(40, HIGH);
-#endif
-}
-
 void Device::update_inav() {
   if(!m_pGPS) {
     return;
@@ -225,93 +339,6 @@ void Device::update_inav() {
   float fTime_s = (t32CurrentTime - m_t32InertialNav) / 1000.f;
   m_pInertNav->update(fTime_s);
   m_t32InertialNav = t32CurrentTime;
-}
-
-void Device::init_pids() {
-  // Rate PIDs
-  m_rgPIDS[PID_PIT_RATE].kP(0.65);
-  m_rgPIDS[PID_PIT_RATE].kI(0.35);
-  m_rgPIDS[PID_PIT_RATE].kD(0.015);
-  m_rgPIDS[PID_PIT_RATE].imax(50);
-
-  m_rgPIDS[PID_ROL_RATE].kP(0.65);
-  m_rgPIDS[PID_ROL_RATE].kI(0.35);
-  m_rgPIDS[PID_ROL_RATE].kD(0.015);
-  m_rgPIDS[PID_ROL_RATE].imax(50);
-
-  m_rgPIDS[PID_YAW_RATE].kP(0.75);
-  m_rgPIDS[PID_YAW_RATE].kI(0.15);
-  m_rgPIDS[PID_YAW_RATE].kD(0.0f);
-  m_rgPIDS[PID_YAW_RATE].imax(50);
-
-  m_rgPIDS[PID_THR_RATE].kP(0.75);  // For altitude hold
-  m_rgPIDS[PID_THR_RATE].kI(0.25);  // For altitude hold
-  m_rgPIDS[PID_THR_RATE].kD(0.0f);  // For altitude hold
-  m_rgPIDS[PID_THR_RATE].imax(100); // For altitude hold
-
-  m_rgPIDS[PID_ACC_RATE].kP(1.50);  // For altitude hold
-  m_rgPIDS[PID_ACC_RATE].kI(0.75);  // For altitude hold
-  m_rgPIDS[PID_ACC_RATE].kD(0.0f);  // For altitude hold
-  m_rgPIDS[PID_ACC_RATE].imax(100); // For altitude hold
-
-  // STAB PIDs
-  m_rgPIDS[PID_PIT_STAB].kP(4.25);
-  m_rgPIDS[PID_ROL_STAB].kP(4.25);
-  m_rgPIDS[PID_YAW_STAB].kP(4.25);
-  m_rgPIDS[PID_THR_STAB].kP(5.50);  // For altitude hold
-  m_rgPIDS[PID_ACC_STAB].kP(15.50); // For altitude hold
-}
-
-void Device::init_compass() {
-  if(!m_pComp->init() ) {
-    m_pHAL->console->printf("Init compass failed!\n");
-  }
-
-  m_pComp->accumulate();
-  m_pComp->motor_compensation_type(1);                              // throttle
-  m_pComp->set_and_save_offsets(0, 0, 0, 0);                        // set offsets to account for surrounding interference
-  m_pComp->set_declination(ToRad(0.f) );                            // set local difference between magnetic north and true north
-
-  m_pHAL->console->print("Compass auto-detected as: ");
-  switch( m_pComp->product_id ) {
-  case AP_COMPASS_TYPE_HIL:
-    m_pHAL->console->printf("HIL\n");
-    break;
-  case AP_COMPASS_TYPE_HMC5843:
-    m_pHAL->console->printf("HMC5843\n");
-    break;
-  case AP_COMPASS_TYPE_HMC5883L:
-    m_pHAL->console->printf("HMC5883L\n");
-    break;
-  case AP_COMPASS_TYPE_PX4:
-    m_pHAL->console->printf("PX4\n");
-    break;
-  default:
-    m_pHAL->console->printf("unknown\n");
-    break;
-  }
-
-  m_t32Compass = m_pHAL->scheduler->millis();
-}
-
-void Device::init_inertial() {
-  // Turn on MPU6050
-  m_pInert->init(AP_InertialSensor::COLD_START, AP_InertialSensor::RATE_200HZ);
-
-  // Calibrate the inertial
-  m_t32Inertial = m_pHAL->scheduler->millis();
-}
-
-void Device::init_gps() {
-  // Init the GPS without logging
-  m_pGPS->init(NULL);
-  // Initialise the LEDs
-  board_led.init();
-}
-
-void Device::init_batterymon() {
-  // initialise the battery monitor for ATTO180 sensor by default :D
-  m_pBat->setup_source(ATTO180);
 }
 
 /*
@@ -580,12 +607,4 @@ float Device::get_accel_z_g(Device *pDev, bool &bOK) {
 
   bOK = true;
   return fGForce;
-}
-
-void Device::set_refr_rate(const uint_fast8_t rate) {
-  m_iUpdateRate = rate;
-}
-
-uint_fast8_t Device::get_refr_rate() const {
-  return m_iUpdateRate;
 }

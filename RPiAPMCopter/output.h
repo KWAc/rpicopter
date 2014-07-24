@@ -129,24 +129,24 @@ void send_rc() {
 ///////////////////////////////////////////////////////////
 void send_pids_attitude() {
   // Capture values
-  float pit_rkp   = _HAL_BOARD.m_rgPIDS[PID_PIT_RATE].kP();
-  float pit_rki   = _HAL_BOARD.m_rgPIDS[PID_PIT_RATE].kI();
-  float pit_rkd   = _HAL_BOARD.m_rgPIDS[PID_PIT_RATE].kD();
-  float pit_rimax = _HAL_BOARD.m_rgPIDS[PID_PIT_RATE].imax();
+  float pit_rkp   = _HAL_BOARD.get_pid(PID_PIT_RATE).kP();
+  float pit_rki   = _HAL_BOARD.get_pid(PID_PIT_RATE).kI();
+  float pit_rkd   = _HAL_BOARD.get_pid(PID_PIT_RATE).kD();
+  float pit_rimax = _HAL_BOARD.get_pid(PID_PIT_RATE).imax();
 
-  float rol_rkp   = _HAL_BOARD.m_rgPIDS[PID_ROL_RATE].kP();
-  float rol_rki   = _HAL_BOARD.m_rgPIDS[PID_ROL_RATE].kI();
-  float rol_rkd   = _HAL_BOARD.m_rgPIDS[PID_ROL_RATE].kD();
-  float rol_rimax = _HAL_BOARD.m_rgPIDS[PID_ROL_RATE].imax();
+  float rol_rkp   = _HAL_BOARD.get_pid(PID_ROL_RATE).kP();
+  float rol_rki   = _HAL_BOARD.get_pid(PID_ROL_RATE).kI();
+  float rol_rkd   = _HAL_BOARD.get_pid(PID_ROL_RATE).kD();
+  float rol_rimax = _HAL_BOARD.get_pid(PID_ROL_RATE).imax();
 
-  float yaw_rkp   = _HAL_BOARD.m_rgPIDS[PID_YAW_RATE].kP();
-  float yaw_rki   = _HAL_BOARD.m_rgPIDS[PID_YAW_RATE].kI();
-  float yaw_rkd   = _HAL_BOARD.m_rgPIDS[PID_YAW_RATE].kD();
-  float yaw_rimax = _HAL_BOARD.m_rgPIDS[PID_YAW_RATE].imax();
+  float yaw_rkp   = _HAL_BOARD.get_pid(PID_YAW_RATE).kP();
+  float yaw_rki   = _HAL_BOARD.get_pid(PID_YAW_RATE).kI();
+  float yaw_rkd   = _HAL_BOARD.get_pid(PID_YAW_RATE).kD();
+  float yaw_rimax = _HAL_BOARD.get_pid(PID_YAW_RATE).imax();
 
-  float pit_skp   = _HAL_BOARD.m_rgPIDS[PID_PIT_STAB].kP();
-  float rol_skp   = _HAL_BOARD.m_rgPIDS[PID_ROL_STAB].kP();
-  float yaw_skp   = _HAL_BOARD.m_rgPIDS[PID_YAW_STAB].kP();
+  float pit_skp   = _HAL_BOARD.get_pid(PID_PIT_STAB).kP();
+  float rol_skp   = _HAL_BOARD.get_pid(PID_ROL_STAB).kP();
+  float yaw_skp   = _HAL_BOARD.get_pid(PID_YAW_STAB).kP();
 
   hal.console->printf("{\"type\":\"pid_cnf\","
                       "\"p_rkp\":%.2f,\"p_rki\":%.2f,\"p_rkd\":%.4f,\"p_rimax\":%.2f,"
@@ -161,18 +161,18 @@ void send_pids_attitude() {
 
 void send_pids_altitude() {
   // Capture values
-  float thr_rkp   = _HAL_BOARD.m_rgPIDS[PID_THR_RATE].kP();
-  float thr_rki   = _HAL_BOARD.m_rgPIDS[PID_THR_RATE].kI();
-  float thr_rkd   = _HAL_BOARD.m_rgPIDS[PID_THR_RATE].kD();
-  float thr_rimax = _HAL_BOARD.m_rgPIDS[PID_THR_RATE].imax();
+  float thr_rkp   = _HAL_BOARD.get_pid(PID_THR_RATE).kP();
+  float thr_rki   = _HAL_BOARD.get_pid(PID_THR_RATE).kI();
+  float thr_rkd   = _HAL_BOARD.get_pid(PID_THR_RATE).kD();
+  float thr_rimax = _HAL_BOARD.get_pid(PID_THR_RATE).imax();
 
-  float acc_rkp   = _HAL_BOARD.m_rgPIDS[PID_ACC_RATE].kP();
-  float acc_rki   = _HAL_BOARD.m_rgPIDS[PID_ACC_RATE].kI();
-  float acc_rkd   = _HAL_BOARD.m_rgPIDS[PID_ACC_RATE].kD();
-  float acc_rimax = _HAL_BOARD.m_rgPIDS[PID_ACC_RATE].imax();
+  float acc_rkp   = _HAL_BOARD.get_pid(PID_ACC_RATE).kP();
+  float acc_rki   = _HAL_BOARD.get_pid(PID_ACC_RATE).kI();
+  float acc_rkd   = _HAL_BOARD.get_pid(PID_ACC_RATE).kD();
+  float acc_rimax = _HAL_BOARD.get_pid(PID_ACC_RATE).imax();
 
-  float thr_skp   = _HAL_BOARD.m_rgPIDS[PID_THR_STAB].kP();
-  float acc_skp   = _HAL_BOARD.m_rgPIDS[PID_ACC_STAB].kP();
+  float thr_skp   = _HAL_BOARD.get_pid(PID_THR_STAB).kP();
+  float acc_skp   = _HAL_BOARD.get_pid(PID_ACC_STAB).kP();
 
   hal.console->printf("{\"type\":\"pid_cnf\","
                       "\"t_rkp\":%.2f,\"t_rki\":%.2f,\"t_rkd\":%.4f,\"t_rimax\":%.2f,"
