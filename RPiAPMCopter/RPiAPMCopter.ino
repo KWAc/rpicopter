@@ -20,6 +20,7 @@
 #include <AP_Vehicle.h>
 #include <AP_Declination.h>
 #include <RC_Channel.h>     // RC Channel Library
+#include <AP_Terrain.h> 
 
 #include <GCS_MAVLink.h>
 #include <DataFlash.h>
@@ -50,22 +51,13 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Declarations
 ////////////////////////////////////////////////////////////////////////////////
-inline void load_settings();
-
 inline void main_loop();
 inline void inav_loop();
 inline void batt_loop();
+inline void load_settings();
 
 Task taskINAV(&inav_loop, INAV_T_MS, 1);
 Task taskRBat(&batt_loop, BATT_T_MS, 1);
-
-// Read the battery. 
-// The voltage is used for adjusting the motor speed,
-// as the speed is dependent on the voltage 
-void batt_loop() {
-  _HAL_BOARD.read_bat();
-}
-
 
 // Attitude-, Altitude and Navigation control loop
 void main_loop() {
@@ -85,6 +77,13 @@ void main_loop() {
 void inav_loop() {  
   _HAL_BOARD.update_inav();
   _HAL_BOARD.read_rf_cm();
+}
+
+// Read the battery. 
+// The voltage is used for adjusting the motor speed,
+// as the speed is dependent on the voltage 
+void batt_loop() {
+  _HAL_BOARD.read_bat();
 }
 
 void load_settings() {

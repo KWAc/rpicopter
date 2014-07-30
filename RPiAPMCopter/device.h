@@ -71,8 +71,8 @@ public /*functions*/:
   void         init_rf();
   void         init_inertial_nav();
   
-  PID          get_pid(uint_fast8_t) const;
-  void         set_pid(uint_fast8_t, PID);
+  PID          &get_pid(uint_fast8_t);
+  void         set_pid(uint_fast8_t, const PID &);
   
   // Suggests an update rate in ms for the main loop
   // The rate is linked with the usage of the 3DR radio

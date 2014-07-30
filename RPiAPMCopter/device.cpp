@@ -75,7 +75,7 @@ void DeviceInit::init_pids() {
 }
 
 void DeviceInit::init_rf() {
-  AP_Param::set_object_value(m_pRF, m_pRF->var_info, "_TYPE",     RangeFinder::RangeFinder_TYPE_AUTO);
+  AP_Param::set_object_value(m_pRF, m_pRF->var_info, "_TYPE",     RangeFinder::RangeFinder_TYPE_ANALOG);
   AP_Param::set_object_value(m_pRF, m_pRF->var_info, "_PIN",      RANGE_FINDER_PIN);
   AP_Param::set_object_value(m_pRF, m_pRF->var_info, "_SCALING",  RANGE_FINDER_SCALE);
   m_pRF->init();
@@ -175,14 +175,14 @@ DeviceInit::DeviceInit( const AP_HAL::HAL *pHAL, AP_InertialSensor *pInert, Comp
   memset(m_rgPIDS, 0, sizeof(m_rgPIDS) );
 }
 
-PID DeviceInit::get_pid(uint_fast8_t index) const {
+PID &DeviceInit::get_pid(uint_fast8_t index) {
   if(index >= NR_OF_PIDS) {
     return m_rgPIDS[NR_OF_PIDS-1];
   }
   return m_rgPIDS[index];
 }
 
-void DeviceInit::set_pid(uint_fast8_t index, PID pid) {
+void DeviceInit::set_pid(uint_fast8_t index, const PID &pid) {
   if(index >= NR_OF_PIDS) {
     m_rgPIDS[NR_OF_PIDS-1] = pid;
   }
