@@ -134,7 +134,7 @@
 
 #define INERT_G_CONST        9.81f
 
-#define SIGM_FOR_ATTITUDE    1      // A little bit slower than standard method, but anneals faster to accelerometer in valid angle range (0-60°)
+#define SIGM_FOR_ATTITUDE    0      // A little bit slower than standard method, but anneals faster to accelerometer in valid angle range (0-60°)
 #define COMPASS_UPDATE_T     100
 
 #define RANGE_FINDER_PIN     13

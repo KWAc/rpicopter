@@ -216,9 +216,6 @@ void Device::update_attitude() {
 #endif
 
 #if SIGM_FOR_ATTITUDE
-  // Use "m_pInert->update()" only if "m_pAHRS->update()" is not used
-  //m_pInert->update();
-
   // Calculate time (in s) passed
   uint_fast32_t t32CurrentTime = m_pHAL->scheduler->millis();
   float dT = static_cast<float>((t32CurrentTime - m_t32Inertial) ) / 1000.f;
@@ -333,7 +330,6 @@ void Device::update_inav() {
 
   read_gps();
   read_comp_deg();
-  //m_pAHRS->update(); // AHRS system is already updated at 100 Hz in the attitude update function
 
   uint_fast32_t t32CurrentTime = m_pHAL->scheduler->millis();
   float fTime_s = (t32CurrentTime - m_t32InertialNav) / 1000.f;
@@ -356,6 +352,7 @@ Vector3f Device::read_gyro_deg() {
   float fRol = ToDeg(m_vGyro_deg.x); // in comparison to the accelerometer data swapped
   float fPit = ToDeg(m_vGyro_deg.y); // in comparison to the accelerometer data swapped
   float fYaw = ToDeg(m_vGyro_deg.z);
+  
   // Put them into the right order
   m_vGyro_deg.x = fPit; // PITCH
   m_vGyro_deg.y = fRol; // ROLL

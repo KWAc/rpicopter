@@ -2,51 +2,48 @@
 // Header includes
 ////////////////////////////////////////////////////////////////////////////////
 #include <stdio.h>
+
 ////////////////////////////////////////////////////////////////////////////////
 // Ardu pilot library includes
 ////////////////////////////////////////////////////////////////////////////////
-#include <AP_Notify.h>
-#include <AP_Mission.h>
-#include <AP_Buffer.h>
-#include <AP_Common.h>
-#include <AP_Math.h>
-#include <AP_Param.h>
-#include <AP_Progmem.h>
 #include <AP_ADC.h>
-#include <AP_HAL.h>
-#include <AP_HAL_AVR.h>
+#include <AP_ADC_AnalogSource.h>
 #include <AP_AHRS.h>
 #include <AP_Airspeed.h>
-#include <AP_Vehicle.h>
+#include <AP_Baro.h>
+#include <AP_BattMonitor.h>
+#include <AP_Buffer.h>
+#include <AP_Common.h>
+#include <AP_Compass.h>
 #include <AP_Declination.h>
-#include <RC_Channel.h>     // RC Channel Library
+#include <AP_GPS.h>
+#include <AP_GPS_Glitch.h>
+#include <AP_HAL.h>
+#include <AP_HAL_AVR.h>
+#include <AP_InertialSensor_MPU6000.h>
+#include <AP_InertialNav.h>
+#include <AP_Math.h>
+#include <AP_Mission.h>
+#include <AP_Notify.h>
+#include <AP_Param.h>
+#include <AP_Progmem.h>
+#include <AP_RangeFinder.h>
 #include <AP_Terrain.h> 
+#include <AP_Vehicle.h>
+
+#include <RC_Channel.h>     // RC Channel Library
 
 #include <GCS_MAVLink.h>
 #include <DataFlash.h>
 #include <Filter.h>
 #include <PID.h>
-////////////////////////////////////////////////////////////////////////////////
-// Sensors
-////////////////////////////////////////////////////////////////////////////////
-#include <AP_Compass.h>
-#include <AP_RangeFinder.h>
-#include <AP_Baro.h>
-#include <AP_InertialSensor_MPU6000.h>
-#include <AP_InertialNav.h>
-#include <AP_InertialNav_NavEKF.h>
-#include <AP_GPS.h>
-#include <AP_GPS_Glitch.h>
-#include <AP_AHRS.h>
-#include <AP_ADC_AnalogSource.h>
-#include <AP_BattMonitor.h>
+
 ////////////////////////////////////////////////////////////////////////////////
 // Own includes
 ////////////////////////////////////////////////////////////////////////////////
 #include "output.h"
 #include "global.h"
 #include "arithmetics.h"
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // Declarations
@@ -170,7 +167,6 @@ void loop() {
 }
 
 AP_HAL_MAIN();
-
 
 
 
