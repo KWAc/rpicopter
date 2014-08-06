@@ -19,22 +19,6 @@
 // create board led object
 AP_BoardLED board_led;
 
-/*
- * Gaussian bell function
- */
-inline float atti_f(float fX, float fSlope) {
-  // Calculate the slope of the function ..
-  // .. dependent on the angular range which is allowed (for the accelerometer)
-  fSlope = 180.f / INERT_ANGLE_BIAS;
-
-  // Calculate the output rating
-  float fVal = (180.f - fabs(fSlope * fX) ) / 180.f;
-  fVal /= sqrt(1.f + pow2_f(fVal) );
-  
-  // Limit the function: be always >= zero
-  fVal = fVal < 0.f ? 0.f : pow2_f(fVal);
-  return (4.f * pow2_f(fVal) );  // x^4; 0 <= y <= 1.0
-}
 
 ///////////////////////////////////////////////////////////
 // DeviceInit
@@ -215,49 +199,9 @@ void Device::update_attitude() {
   }
 #endif
 
-#if SIGM_FOR_ATTITUDE
-  // Calculate time (in s) passed
-  uint_fast32_t t32CurrentTime = m_pHAL->scheduler->millis();
-  float dT = static_cast<float>((t32CurrentTime - m_t32Inertial) ) / 1000.f;
-  m_t32Inertial = t32CurrentTime;
-
-  // Calculate attitude from relative gyrometer changes
-  m_vAtti_deg  += read_gyro_deg() * dT;
-  m_vAtti_deg   = wrap180_V3f(m_vAtti_deg);
-  m_vAtti_deg.z = ToDeg(m_pAHRS->yaw); // Use AHRS for the yaw
-
-  // Use a temporary instead of the member variable for acceleration data
-  Vector3f vRef_deg = read_accl_deg();
-
-  #if DEBUG_OUT
-  static int iDTimer = 0;
-  int iDCurTime = m_pHAL->scheduler->millis();
-  if(iDCurTime - iDTimer >= 35) {
-    iDTimer = iDCurTime;
-  
-    m_pHAL->console->printf("Attitude - x: %.3f/%.3f, y: %.3f/%.3f, z: %.1f\n", m_vAtti_deg.x, vRef_deg.x, m_vAtti_deg.y, vRef_deg.y, m_vAtti_deg.z);
-    //m_pHAL->console->printf("Acceleration - x: %.3f, y: %.3f, z: %.3f\n", m_vAccelPG_cmss.x, m_vAccelPG_cmss.y, m_vAccelPG_cmss.z);
-  }
-  #endif
- 
-  // Some sanity checks, before annealing to the accelerometer readouts
-  if( abs(m_vAccelPG_cmss.z) < INERT_FFALL_BIAS ||        // Free fall
-      abs(vRef_deg.x)        > INERT_ANGLE_BIAS ||        // Out of range (roll  > 60°)
-      abs(vRef_deg.y)        > INERT_ANGLE_BIAS)          // Out of range (pitch > 60°)
-  {
-    #if DEBUG_OUT
-    m_pHAL->console->printf("Attitude estimation out of range or free fall: Don't anneal to accelerometer.\n");
-    #endif
-    return;
-  }
- 
-  m_vAtti_deg.x = SFilter::transff_filt_f(m_vAtti_deg.x, vRef_deg.x-m_vAtti_deg.x, dT*INERT_FUSION_RATE, Functor_f(&atti_f, vRef_deg.x) );
-  m_vAtti_deg.y = SFilter::transff_filt_f(m_vAtti_deg.y, vRef_deg.y-m_vAtti_deg.y, dT*INERT_FUSION_RATE, Functor_f(&atti_f, vRef_deg.y) );
-#else
   m_vAtti_deg.x = ToDeg(m_pAHRS->pitch);
   m_vAtti_deg.y = ToDeg(m_pAHRS->roll);
   m_vAtti_deg.z = ToDeg(m_pAHRS->yaw);
-#endif
 }
 
 Device::Device( const AP_HAL::HAL *pHAL, AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, AP_GPS *pGPS, BattMonitor *pBat, RangeFinder *pRF, AP_AHRS_DCM *pAHRS, AP_InertialNav *pInertNav ) : 
@@ -303,13 +247,26 @@ Vector3f Device::get_atti_raw_deg() {
   return m_vAtti_deg;
 }
 
-Vector3f Device::get_gyro_cor_deg() {
-  return Vector3f(m_vGyro_deg.x - m_fInertPitCor, // Pitch correction for inbalances
-                  m_vGyro_deg.y - m_fInertRolCor, // Roll correction for inbalances
-                  m_vGyro_deg.z);                 // Yaw is without correction on that point, because compass/GPS is thought to do that job, but not here
-}
+Vector3f Device::get_gyro_degs() {
+  if(!m_pInert->healthy() ) {
+    m_pHAL->console->printf("read_gyro_deg(): Inertial not healthy\n");
+    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, GYROMETER_F) );
+    return m_vGyro_deg;
+  }
+  
+  // Read the current gyrometer value
+  m_vGyro_deg = m_pInert->get_gyro();
+  
+  // Save values
+  float fRol = ToDeg(m_vGyro_deg.x); // in comparison to the accelerometer data swapped
+  float fPit = ToDeg(m_vGyro_deg.y); // in comparison to the accelerometer data swapped
+  float fYaw = ToDeg(m_vGyro_deg.z);
+  
+  // Put them into the right order
+  m_vGyro_deg.x = fPit; // PITCH
+  m_vGyro_deg.y = fRol; // ROLL
+  m_vGyro_deg.z = fYaw; // YAW
 
-Vector3f Device::get_gyro_raw_deg() {
   return m_vGyro_deg;
 }
 
@@ -335,30 +292,6 @@ void Device::update_inav() {
   float fTime_s = (t32CurrentTime - m_t32InertialNav) / 1000.f;
   m_pInertNav->update(fTime_s);
   m_t32InertialNav = t32CurrentTime;
-}
-
-/*
- * Reads the current altitude changes from the gyroscope in degrees and returns it as a 3D vector
- */
-Vector3f Device::read_gyro_deg() {
-  if(!m_pInert->healthy() ) {
-    m_pHAL->console->printf("read_gyro_deg(): Inertial not healthy\n");
-    m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, GYROMETER_F) );
-    return m_vGyro_deg;
-  }
-
-  m_vGyro_deg = m_pInert->get_gyro();
-  // Save values
-  float fRol = ToDeg(m_vGyro_deg.x); // in comparison to the accelerometer data swapped
-  float fPit = ToDeg(m_vGyro_deg.y); // in comparison to the accelerometer data swapped
-  float fYaw = ToDeg(m_vGyro_deg.z);
-  
-  // Put them into the right order
-  m_vGyro_deg.x = fPit; // PITCH
-  m_vGyro_deg.y = fRol; // ROLL
-  m_vGyro_deg.z = fYaw; // YAW
-
-  return m_vGyro_deg;
 }
 
 /*
