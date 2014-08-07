@@ -19,10 +19,10 @@ class Compass;
 class AP_Baro;
 class AP_GPS;
 class AP_GPS_Auto;
-class BattMonitor;
 class RangeFinder;
 
 class BaroData;
+class BattMonitor;
 class BattData;
 class GPSData;
 
@@ -98,7 +98,7 @@ private /*variables*/:
   float m_fGpsH;                    // GPS heading  
 
 private /*functions*/:
-  Vector3f     read_accl_deg();        // converts sensor relative readout to absolute attitude and saves in m_vAccel_deg
+  void         calc_acceleration(); // Filters (LPF) and calculates the current acceleration with and without 'g'
   
 protected /*variables*/:
   // x = pitch, y = roll, z = yaw
@@ -132,7 +132,7 @@ public:
   Vector3f     get_atti_cor_deg();   // fused sensor values from accelerometer/gyrometer with m_fInertPitCor/m_fInertRolCor
   Vector3f     get_atti_raw_deg();   // fused sensor values from accelerometer/gyrometer without m_fInertPitCor/m_fInertRolCor
   
-  Vector3f     get_gyro_degs();      // gyrometer sensor readout in degree per second
+  Vector3f     get_gyro_degps();     // gyrometer sensor readout in degree per second
   
   Vector3f     get_accel_cor_deg();  // accelerometer sensor readout with m_fInertPitCor/m_fInertRolCor
   Vector3f     get_accel_raw_deg();  // accelerometer sensor readout without m_fInertPitCor/m_fInertRolCor

@@ -99,7 +99,7 @@ void setup() {
   _SCHED.add_task(&taskINAV, 0);  // Inertial, GPS, Compass, Barometer sensor fusions (slow) ==> running at 50 Hz
   _SCHED.add_task(&taskRBat, 0);
   // .. and the sensor output functions
-  _SCHED.add_task(&outAtti,  50);
+  _SCHED.add_task(&outAtti,  30);
   _SCHED.add_task(&outBaro,  500);
   _SCHED.add_task(&outBat,   750);
   _SCHED.add_task(&outGPS,   1000);

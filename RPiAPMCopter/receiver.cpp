@@ -335,7 +335,8 @@ bool Receiver::parse_bat_type(char* buffer) {
 
   if(verf_chksum(str, chk) ) {                    // if chksum OK
     int type = atoi(str);
-    m_pHalBoard->m_pBat->setup_source(type);
+    m_pHalBoard->m_pBat->setup_type(type);
+    m_pHalBoard->m_pBat->init();
   }
   return true;
 }

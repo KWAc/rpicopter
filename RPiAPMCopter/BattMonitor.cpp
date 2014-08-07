@@ -1,38 +1,44 @@
 #include "BattMonitor.h"
 
 
-void BattMonitor::setup_source(int_fast8_t volt_pin,
-                        int_fast8_t curr_pin,
-                        float volt_multiplier,
-                        float curr_amp_per_volt,
-                        int_fast32_t pack_capacity,
-                        float curr_amp_offset,
-                        int_fast8_t monitoring )
-{
-  _monitoring         = monitoring;
-  _volt_pin           = volt_pin;
-  _curr_pin           = curr_pin;
-  _volt_multiplier    = volt_multiplier;
-  _curr_amp_per_volt  = curr_amp_per_volt;
-  _curr_amp_offset    = curr_amp_offset;
-  _pack_capacity      = pack_capacity;
-
-  init();
+void BattMonitor::setup_mon(const int iType) {
+  _monitoring = iType;
 }
 
-void BattMonitor::setup_source(const int &t) {
+void BattMonitor::setup_cap(const int iCap) {
+  _pack_capacity = iCap;
+}
+
+void BattMonitor::setup_pins(const int iVolt, const int iCur) {
+  _volt_pin = iVolt;
+  _curr_pin = iCur;
+}
+
+void BattMonitor::setup_type(const int t) {
   switch (t) {
     case ATTO45:
-      setup_source(AP_ATTO_VOLT_PIN, AP_ATTO_CURR_PIN, AP_BATT_VOLTDIVIDER_ATTO45, AP_BATT_CURR_AMP_PERVOLT_ATTO45, AP_BATT_CAPACITY_DEFAULT, 0, AP_BATT_MONITOR_VOLTAGE_AND_CURRENT);
+      _volt_multiplier   = AP_BATT_VOLTDIVIDER_ATTO45;
+      _curr_amp_per_volt = AP_BATT_CURR_AMP_PERVOLT_ATTO45;
+      setup_pins(AP_ATTO_VOLT_PIN, AP_ATTO_CURR_PIN);
+      setup_mon(AP_BATT_MONITOR_VOLTAGE_AND_CURRENT);
     break;
     case ATTO90:
-      setup_source(AP_ATTO_VOLT_PIN, AP_ATTO_CURR_PIN, AP_BATT_VOLTDIVIDER_ATTO90, AP_BATT_CURR_AMP_PERVOLT_ATTO90, AP_BATT_CAPACITY_DEFAULT, 0, AP_BATT_MONITOR_VOLTAGE_AND_CURRENT);
+      _volt_multiplier   = AP_BATT_VOLTDIVIDER_ATTO90;
+      _curr_amp_per_volt = AP_BATT_CURR_AMP_PERVOLT_ATTO90;
+      setup_pins(AP_ATTO_VOLT_PIN, AP_ATTO_CURR_PIN);
+      setup_mon(AP_BATT_MONITOR_VOLTAGE_AND_CURRENT);
     break;
     case ATTO180:
-      setup_source(AP_ATTO_VOLT_PIN, AP_ATTO_CURR_PIN, AP_BATT_VOLTDIVIDER_ATTO180, AP_BATT_CURR_AMP_PERVOLT_ATTO180, AP_BATT_CAPACITY_DEFAULT, 0, AP_BATT_MONITOR_VOLTAGE_AND_CURRENT);
+      _volt_multiplier   = AP_BATT_VOLTDIVIDER_ATTO180;
+      _curr_amp_per_volt = AP_BATT_CURR_AMP_PERVOLT_ATTO180;
+      setup_pins(AP_ATTO_VOLT_PIN, AP_ATTO_CURR_PIN);
+      setup_mon(AP_BATT_MONITOR_VOLTAGE_AND_CURRENT);
     break;
     default:
-      setup_source(AP_BATT_VOLT_PIN, AP_BATT_CURR_PIN, AP_BATT_VOLTDIVIDER_DEFAULT, AP_BATT_CURR_AMP_PERVOLT_DEFAULT, AP_BATT_CAPACITY_DEFAULT, 0, AP_BATT_MONITOR_VOLTAGE_AND_CURRENT);
+      _volt_multiplier   = AP_BATT_VOLTDIVIDER_DEFAULT;
+      _curr_amp_per_volt = AP_BATT_CURR_AMP_PERVOLT_DEFAULT;
+      setup_pins(AP_BATT_VOLT_PIN, AP_BATT_CURR_PIN);
+      setup_mon(AP_BATT_MONITOR_DISABLED);
     break;
   }
 }

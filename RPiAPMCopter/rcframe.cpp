@@ -216,7 +216,7 @@ void M4XFrame::calc_attitude_hold() {
   static float targ_yaw = 0.f; // Yaw target from RC
   
   Vector3f vAtti = m_pHalBoard->get_atti_cor_deg(); // returns the fused sensor value (gyrometer and accelerometer)
-  Vector3f vGyro = m_pHalBoard->get_gyro_degs();    // returns the sensor value from the gyrometer
+  Vector3f vGyro = m_pHalBoard->get_gyro_degps();   // returns the sensor value from the gyrometer
 
   // Throttle raised, turn on stabilisation.
   if(m_fRCThr > RC_THR_ACRO) {

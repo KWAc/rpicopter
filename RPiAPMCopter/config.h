@@ -33,6 +33,7 @@
 #define BATT_MIN_VOLTAGE     9.0    // 3 cells @ 3.0 V
 #define BATT_MAX_VOLTAGE     25.2   // 6 cells @ 3.7 V
 #define BATT_T_MS            100
+#define BATT_CAP_mAh         10000
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // General settings

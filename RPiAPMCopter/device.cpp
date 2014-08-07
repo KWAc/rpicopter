@@ -5,16 +5,14 @@
 #include <AP_RangeFinder_MaxsonarI2CXL.h>
 #include <AP_GPS.h>
 
-#include <AP_BattMonitor.h>
 #include <AP_RangeFinder.h>
 #include <AP_BoardLED.h>
 
-#include "device.h"
-#include "config.h"
-#include "BattMonitor.h"
 #include "arithmetics.h"
+#include "BattMonitor.h"
+#include "config.h"
+#include "device.h"
 #include "filter.h"
-
 
 // create board led object
 AP_BoardLED board_led;
@@ -137,8 +135,9 @@ void DeviceInit::init_gps() {
 }
 
 void DeviceInit::init_batterymon() {
-  // initialise the battery monitor for ATTO180 sensor by default :D
-  m_pBat->setup_source(ATTO180);
+  m_pBat->setup_type(BattMonitor::ATTO180);
+  m_pBat->setup_cap(BATT_CAP_mAh);
+  m_pBat->init();
 }
 
 DeviceInit::DeviceInit( const AP_HAL::HAL *pHAL, AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, AP_GPS *pGPS, BattMonitor *pBat, RangeFinder *pRF, AP_AHRS_DCM *pAHRS, AP_InertialNav *pInertNav ) 
@@ -185,7 +184,10 @@ uint_fast8_t DeviceInit::get_refr_rate() const {
 // Device
 ///////////////////////////////////////////////////////////
 void Device::update_attitude() {
+  // Update the inertial and calculate attitude
   m_pAHRS->update();
+  // Calculate the attitude based on the accelerometer
+  calc_acceleration();
 
 #if BENCH_OUT
   static int iBCounter = 0;
@@ -247,7 +249,7 @@ Vector3f Device::get_atti_raw_deg() {
   return m_vAtti_deg;
 }
 
-Vector3f Device::get_gyro_degs() {
+Vector3f Device::get_gyro_degps() {
   if(!m_pInert->healthy() ) {
     m_pHAL->console->printf("read_gyro_deg(): Inertial not healthy\n");
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, GYROMETER_F) );
@@ -294,32 +296,16 @@ void Device::update_inav() {
   m_t32InertialNav = t32CurrentTime;
 }
 
-/*
- * Reads the current attitude from the accelerometer in degrees and returns it as a 3D vector
- * From: "Tilt Sensing Using a Three-Axis Accelerometer"
- */
-Vector3f Device::read_accl_deg() {
+void Device::calc_acceleration() {
   if(!m_pInert->healthy() ) {
-    m_pHAL->console->printf("read_accl_deg(): Inertial not healthy\n");
+    m_pHAL->console->printf("calc_acceleration(): Inertial not healthy\n");
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, ACCELEROMETR_F) );
-    return m_vAccel_deg;
   }
-
   // Low Pass SFilter
   Vector3f vAccelCur_cmss = m_pInert->get_accel() * 100.f;
-  m_vAccel_deg = m_vAccelPG_cmss = SFilter::low_pass_filt_V3f(vAccelCur_cmss, m_vAccelPG_cmss, INERT_LOWPATH_FILT_f);
-
+  m_vAccelPG_cmss = SFilter::low_pass_filt_V3f(vAccelCur_cmss, m_vAccelPG_cmss, INERT_LOWPATH_FILT_f);
   // Calculate G-const. corrected acceleration
   m_vAccelMG_cmss = vAccelCur_cmss - m_vAccelPG_cmss;
-
-  // Calculate roll and pitch in degrees from the filtered acceleration readouts (attitude)
-  float fpYZ = sqrt(pow2_f(m_vAccel_deg.y) + pow2_f(m_vAccel_deg.z) );
-  // Pitch
-  m_vAccel_deg.x = ToDeg(atan2(m_vAccel_deg.x, fpYZ) );
-  // Roll
-  m_vAccel_deg.y = ToDeg(atan2(-m_vAccel_deg.y, -m_vAccel_deg.z) );
-
-  return m_vAccel_deg;
 }
 
 Vector3f Device::get_accel_mg_cmss() {
