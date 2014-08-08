@@ -87,15 +87,15 @@ public /*functions*/:
 class Device : public DeviceInit {
 private /*variables*/:
   // Used with low path filter
-  Vector3f m_vAccelPG_cmss;         // acceleration readout
-  Vector3f m_vAccelMG_cmss;         // acceleration readout minus G constant (~9.81)
+  Vector3f     m_vAccelPG_cmss;         // acceleration readout
+  Vector3f     m_vAccelMG_cmss;         // acceleration readout minus G constant (~9.81)
   
   // User set correction variables
-  float m_fInertPitCor;             // +/-: left to right or right to left
-  float m_fInertRolCor;             // +/-: front to back or back to front
+  float        m_fInertPitCor;          // +/-: left to right or right to left
+  float        m_fInertRolCor;          // +/-: front to back or back to front
   
-  float m_fCmpH;                    // Compass heading
-  float m_fGpsH;                    // GPS heading  
+  float        m_fCmpH;                 // Compass heading
+  float        m_fGpsH;                 // GPS heading  
 
 private /*functions*/:
   void         calc_acceleration(); // Filters (LPF) and calculates the current acceleration with and without 'g'
@@ -103,7 +103,6 @@ private /*functions*/:
 protected /*variables*/:
   // x = pitch, y = roll, z = yaw
   Vector3f     m_vGyro_deg;
-  Vector3f     m_vAccel_deg;
   Vector3f     m_vAtti_deg;
   int_fast16_t m_iAltitude_cm;
   // misc

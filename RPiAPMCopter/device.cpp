@@ -272,16 +272,6 @@ Vector3f Device::get_gyro_degps() {
   return m_vGyro_deg;
 }
 
-Vector3f Device::get_accel_cor_deg() {
-  return Vector3f(m_vAccel_deg.x - m_fInertPitCor, // Pitch correction for inbalances
-                  m_vAccel_deg.y - m_fInertRolCor, // Roll correction for inbalances
-                  m_vAccel_deg.z);                 // Yaw is without correction on that point, because compass/GPS is thought to do that job, but not here
-}
-
-Vector3f Device::get_accel_raw_deg() {
-  return m_vAccel_deg;
-}
-
 void Device::update_inav() {
   if(!m_pGPS) {
     return;
@@ -302,7 +292,7 @@ void Device::calc_acceleration() {
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, ACCELEROMETR_F) );
   }
   // Low Pass SFilter
-  Vector3f vAccelCur_cmss = m_pInert->get_accel() * 100.f;
+  Vector3f vAccelCur_cmss = m_pAHRS->get_accel_ef() * 100.f;
   m_vAccelPG_cmss = SFilter::low_pass_filt_V3f(vAccelCur_cmss, m_vAccelPG_cmss, INERT_LOWPATH_FILT_f);
   // Calculate G-const. corrected acceleration
   m_vAccelMG_cmss = vAccelCur_cmss - m_vAccelPG_cmss;
