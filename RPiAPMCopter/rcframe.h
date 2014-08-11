@@ -33,10 +33,10 @@ protected:
   UAVNav*    m_pNavigation;
   
   // Function must be overloaded for basic (and frame dependent) flight control
-  virtual void servo_out() = 0;           // Send outputs to the motors (Nr. of motors is frame dependent)
-  virtual void calc_attitude_hold() = 0;  // Calculate here, how the copter can hold attitude automatically
-  virtual void calc_altitude_hold() = 0;  // Calculate here, how the copter can hold altitude automatically
-  virtual void calc_gpsnavig_hold() = 0;  // Here the basic Auto-GPS navigation should be implemented
+  virtual void servo_out()     = 0;  // Send outputs to the motors (Nr. of motors is frame dependent)
+  virtual void attitude_hold() = 0;  // Calculate here, how the copter can hold attitude automatically
+  virtual void altitude_hold() = 0;  // Calculate here, how the copter can hold altitude automatically
+  virtual void auto_navigate() = 0;  // Here the basic Auto-GPS navigation should be implemented
   
 public:
   Frame(Device *, Receiver *, Exception *, UAVNav *);
@@ -59,6 +59,9 @@ public:
  */
 class M4XFrame : public Frame {
 private:
+  uint_fast32_t m_iAltAccTimer;
+
+private:
   // Variables holding final servo output
   int_fast16_t _FL;
   int_fast16_t _BL;
@@ -70,9 +73,9 @@ private:
   float m_fTiltComp;
   
   // Calculate and apply the motor compensation terms
-  void calc_batt_comp();                  // battery voltage drop compensation
-  void calc_tilt_comp();                  // motor compensation if model is tilted
-  void apply_motor_compens();             // This functions applies motor compensation terms (e.g. battery and tilt) to the output of the servos
+  void calc_batt_comp();                                            // battery voltage drop compensation
+  void calc_tilt_comp();                                            // motor compensation if model is tilted
+  void apply_motor_compens();                                       // This functions applies motor compensation terms (e.g. battery and tilt) to the output of the servos
   
   // Helper functions for regulating the servo output
   void clear();                                                     // Set the values to the defined minimum (see config.h)
@@ -81,9 +84,9 @@ private:
   
 protected:
   void servo_out();
-  void calc_attitude_hold();
-  void calc_altitude_hold();
-  void calc_gpsnavig_hold();
+  void attitude_hold();
+  void altitude_hold();
+  void auto_navigate();
 
 public:
   M4XFrame(Device *, Receiver *, Exception *, UAVNav *);

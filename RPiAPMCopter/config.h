@@ -127,8 +127,7 @@
 
 #define BAROM_LOWPATH_FILT_f 0.35f  // Filter constant for the barometer
 #define COMPA_LOWPATH_FILT_f 0.25f  // Filter constant for the compass
-#define INERT_LOWPATH_FILT_f 0.15f  // Filter constant for the accelerometer
-#define ACCEL_LOWPATH_FILT_f 0.025f // Filter constant for the accelerometer
+#define INERT_LOWPATH_FILT_f 0.05f  // Filter constant for the accelerometer
 
 #define INERT_FFALL_BIAS     75     // Accelerometer bias in cm/s². If z-axis values are less than 0.75 m/s², break annealing to accelerometer for attitude estimation
 #define INERT_ANGLE_BIAS     60

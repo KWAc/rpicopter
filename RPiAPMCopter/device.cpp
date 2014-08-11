@@ -38,8 +38,8 @@ void DeviceInit::init_pids() {
   m_rgPIDS[PID_YAW_RATE].kD(0.0f);
   m_rgPIDS[PID_YAW_RATE].imax(50);
 
-  m_rgPIDS[PID_THR_RATE].kP(0.75);  // For altitude hold
-  m_rgPIDS[PID_THR_RATE].kI(0.25);  // For altitude hold
+  m_rgPIDS[PID_THR_RATE].kP(0.25);  // For altitude hold
+  m_rgPIDS[PID_THR_RATE].kI(0.50);  // For altitude hold
   m_rgPIDS[PID_THR_RATE].kD(0.0f);  // For altitude hold
   m_rgPIDS[PID_THR_RATE].imax(100); // For altitude hold
 
@@ -466,9 +466,7 @@ float Device::get_accel_x_g(Device *pDev, bool &bOK) {
   }
 
   float fCFactor = 100.f * INERT_G_CONST;
-  float fG       = pDev->get_accel_mg_cmss().x / fCFactor;
-  fGForce        = SFilter::low_pass_filt_f(fG, fGForce, ACCEL_LOWPATH_FILT_f);
-
+  fGForce       = pDev->get_accel_mg_cmss().x / fCFactor;
   bOK = true;
   return fGForce;
 }
@@ -487,9 +485,7 @@ float Device::get_accel_y_g(Device *pDev, bool &bOK) {
   }
 
   float fCFactor = 100.f * INERT_G_CONST;
-  float fG       = pDev->get_accel_mg_cmss().y / fCFactor;
-  fGForce        = SFilter::low_pass_filt_f(fG, fGForce, ACCEL_LOWPATH_FILT_f);
-
+  fGForce       = pDev->get_accel_mg_cmss().y / fCFactor;
   bOK = true;
   return fGForce;
 }
@@ -508,9 +504,7 @@ float Device::get_accel_z_g(Device *pDev, bool &bOK) {
   }
 
   float fCFactor = 100.f * INERT_G_CONST;
-  float fG       = -pDev->get_accel_mg_cmss().z / fCFactor;
-  fGForce        = SFilter::low_pass_filt_f(fG, fGForce, ACCEL_LOWPATH_FILT_f);
-
+  fGForce       = pDev->get_accel_mg_cmss().z / fCFactor;
   bOK = true;
   return fGForce;
 }
