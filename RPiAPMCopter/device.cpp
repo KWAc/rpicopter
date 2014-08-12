@@ -43,8 +43,8 @@ void DeviceInit::init_pids() {
   m_rgPIDS[PID_THR_RATE].kD(0.0f);  // For altitude hold
   m_rgPIDS[PID_THR_RATE].imax(100); // For altitude hold
 
-  m_rgPIDS[PID_ACC_RATE].kP(1.50);  // For altitude hold
-  m_rgPIDS[PID_ACC_RATE].kI(0.75);  // For altitude hold
+  m_rgPIDS[PID_ACC_RATE].kP(0.035); // For altitude hold
+  m_rgPIDS[PID_ACC_RATE].kI(0.070); // For altitude hold
   m_rgPIDS[PID_ACC_RATE].kD(0.0f);  // For altitude hold
   m_rgPIDS[PID_ACC_RATE].imax(100); // For altitude hold
 
@@ -53,7 +53,7 @@ void DeviceInit::init_pids() {
   m_rgPIDS[PID_ROL_STAB].kP(4.25);
   m_rgPIDS[PID_YAW_STAB].kP(4.25);
   m_rgPIDS[PID_THR_STAB].kP(5.50);  // For altitude hold
-  m_rgPIDS[PID_ACC_STAB].kP(15.50); // For altitude hold
+  m_rgPIDS[PID_ACC_STAB].kP(4.25);  // For altitude hold
 }
 
 void DeviceInit::init_rf() {
@@ -121,7 +121,7 @@ void DeviceInit::init_compass() {
 
 void DeviceInit::init_inertial() {
   // Turn on MPU6050
-  m_pInert->init(AP_InertialSensor::COLD_START, AP_InertialSensor::RATE_200HZ);
+  m_pInert->init(AP_InertialSensor::COLD_START, AP_InertialSensor::RATE_100HZ);
 
   // Calibrate the inertial
   m_t32Inertial = m_pHAL->scheduler->millis();

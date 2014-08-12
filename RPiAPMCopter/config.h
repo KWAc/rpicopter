@@ -103,33 +103,33 @@
 #define RC_THR               2
 #define RC_YAW               3
 
-#define RADIO_MAX_OFFS       7      // Maximum length of command message via radio without stop bit
+#define RADIO_MAX_OFFS       7        // Maximum length of command message via radio without stop bit
 #define APM_IOCHAN_CNT 	     8
 
-#define USE_RCIN             0      // This firmware is not using any PPM radio as default
-#define USE_UART_A           1      // This is the standard input source (USB from Raspberry Pi)
-#define USE_UART_C           1      // And this is the fall-back option (3DR Radio 433 or 900 MHz)
+#define USE_RCIN             0        // This firmware is not using any PPM radio as default
+#define USE_UART_A           1        // This is the standard input source (USB from Raspberry Pi)
+#define USE_UART_C           1        // And this is the fall-back option (3DR Radio 433 or 900 MHz)
 
-#define COM_PKT_TIMEOUT      500    // Time-out in ms; If the time-out is triggered the machine will go down
-#define RCIN_TIMEOUT         200    // Time-out of the ppm radio in ms; If time-out is triggered the firmware tries to receive packets via the USB port on uartA
-#define UART_A_TIMEOUT       250    // Time-out of the console serial port in ms; If time-out is triggered the firmware tries to receive packets via the 3DR radio on uartC
+#define COM_PKT_TIMEOUT      500      // Time-out in ms; If the time-out is triggered the machine will go down
+#define RCIN_TIMEOUT         200      // Time-out of the ppm radio in ms; If time-out is triggered the firmware tries to receive packets via the USB port on uartA
+#define UART_A_TIMEOUT       250      // Time-out of the console serial port in ms; If time-out is triggered the firmware tries to receive packets via the 3DR radio on uartC
 
-#define PID_ARGS             6      // Nr of arguments for PID configuration
+#define PID_ARGS             6        // Nr of arguments for PID configuration
 #define PID_BUFFER_S         5
 
-#define COMP_ARGS            4      // Nr. of arguments for on-flight drift compensation
-#define GPSP_ARGS            4      // Nr. of arguments for GPSPosition structure
+#define COMP_ARGS            4        // Nr. of arguments for on-flight drift compensation
+#define GPSP_ARGS            4        // Nr. of arguments for GPSPosition structure
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Device module
 //////////////////////////////////////////////////////////////////////////////////////////
-#define INERT_FUSION_RATE    4.5f   // Sensor fusion rate: higher => faster annealing
+#define INERT_FUSION_RATE    4.5f     // Sensor fusion rate: higher => faster annealing
 
-#define BAROM_LOWPATH_FILT_f 0.35f  // Filter constant for the barometer
-#define COMPA_LOWPATH_FILT_f 0.25f  // Filter constant for the compass
-#define INERT_LOWPATH_FILT_f 0.05f  // Filter constant for the accelerometer
+#define BAROM_LOWPATH_FILT_f 0.35f    // Filter constant for the barometer
+#define COMPA_LOWPATH_FILT_f 0.25f    // Filter constant for the compass
+#define INERT_LOWPATH_FILT_f 0.10f    // Filter constant for the accelerometer
 
-#define INERT_FFALL_BIAS     75     // Accelerometer bias in cm/s². If z-axis values are less than 0.75 m/s², break annealing to accelerometer for attitude estimation
+#define INERT_FFALL_BIAS     75       // Accelerometer bias in cm/s². If z-axis values are less than 0.75 m/s², break annealing to accelerometer for attitude estimation
 #define INERT_ANGLE_BIAS     60
 
 #define INERT_G_CONST        9.81f
@@ -142,8 +142,8 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 // Error handling
 //////////////////////////////////////////////////////////////////////////////////////////
-#define VOLTAGE_ALARM_LOW    10.f   // 2.5V per LiPo cell is already close to death of the cell
-#define VOLTAGE_ALARM_HIGH   21.f   // 5 * 4.2 V (my setup)
+#define VOLTAGE_ALARM_LOW    10.f     // 2.5V per LiPo cell is already close to death of the cell
+#define VOLTAGE_ALARM_HIGH   21.f     // 5 * 4.2 V (my setup)
 #define THR_MOD_STEP_S       1.25f
 #define THR_TAKE_OFF         1300
 #define THR_MIN_STEP_S       25.f
@@ -159,5 +159,8 @@
 #define YAW_CTRL_SLOPE       5.0f
 #define YAW_CTRL_MOD         1.0f
 #define YAW_ERROR_RATE       5.0f
+
+#define HLD_ALTITUDE_TIMER   20    // 50 Hz
+#define HLD_ALTITUDE_ZBIAS   0.5f  // 0.5 g
 
 #endif /*DEFS_h*/

@@ -61,6 +61,8 @@ M4XFrame::M4XFrame(Device *pDev, Receiver *pRecv, Exception *pExcp, UAVNav* pUAV
   _FL = _BL = _FR = _BR = RC_THR_OFF;
   m_fBattComp   = 0.f;
   m_fTiltComp   = 0.f;
+  
+  m_iAltAccTimer = pDev->m_pHAL->scheduler->millis();
 }
 
 void M4XFrame::servo_out() {
@@ -148,12 +150,13 @@ void M4XFrame::auto_navigate() {
 ////////////////////////////////////////////////////////////////////////
 void M4XFrame::altitude_hold() {
   // Do only change thrust if copter is armed!
+#if !BENCH_OUT 
   if(m_fRCThr < RC_THR_ACRO) {
     return;
   }
+#endif
 
-  const float fBias_g   = 0.25f;
-  const float fScaleF_g = -50.0f;
+  const float fScaleF_g2cmss = 100.f * INERT_G_CONST;
   
   int_fast16_t iAltZOutput = 0; // Barometer & Sonar
   int_fast16_t iAccZOutput = 0; // Accelerometer
@@ -166,8 +169,17 @@ void M4XFrame::altitude_hold() {
     return;
   }
     
-  // Return estimated altitude by GPS and barometer
+  // Limit altitude control if in remote control mode
   bool bUseAltHold = m_pReceiver->get_waypoint()->mode == GPSPosition::NOTHING_F ? false : true;
+  
+  // Limit this loop to 50 Hz
+  uint_fast32_t iHldAltTime_ms = m_pHalBoard->m_pHAL->scheduler->millis() - m_iAltAccTimer;
+  if(iHldAltTime_ms >= HLD_ALTITUDE_TIMER) {
+    m_iAltAccTimer = m_pHalBoard->m_pHAL->scheduler->millis();
+  } else {
+    bUseAltHold = false;
+  }
+  
   if(bUseAltHold) { 
     bool bOK_H;
     float fTargAlti_cm  = static_cast<float>(m_pReceiver->get_waypoint()->altitude_cm);
@@ -187,20 +199,21 @@ void M4XFrame::altitude_hold() {
 
     if(m_pReceiver->get_channel(RC_ROL) > RC_THR_OFF) {
       // If the quad-copter is going down too fast, fAcceleration_g becomes greater
-      if(m_pReceiver->get_waypoint()->mode == GPSPosition::CONTRLD_DOWN_F && fAccel_g > fBias_g) {
+      if(m_pReceiver->get_waypoint()->mode == GPSPosition::CONTRLD_DOWN_F && fAccel_g > HLD_ALTITUDE_ZBIAS) {
         m_pExeption->pause_take_down();
       }
 
       // else: the fAcceleration_g becomes smaller
-      if(m_pReceiver->get_waypoint()->mode == GPSPosition::CONTRLD_DOWN_F && fAccel_g <= fBias_g) {
+      if(m_pReceiver->get_waypoint()->mode == GPSPosition::CONTRLD_DOWN_F && fAccel_g <= HLD_ALTITUDE_ZBIAS) {
         m_pExeption->cont_take_down();
       }
     }
   }
   
-  // Don't change the throttle if acceleration is below a certain bias or the user made an input to change the throttle
-  if(fabs(fAccel_g) >= fBias_g) {
-    iAccZOutput = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->get_pid(PID_ACC_STAB).get_pid(fAccel_g*fScaleF_g, 1), -500, 500) );
+  // Don't change the throttle if acceleration is below a certain bias
+  if(fabs(fAccel_g) >= HLD_ALTITUDE_ZBIAS) {
+    float fAccZ_cmss = sign_f(fAccel_g) * (fabs(fAccel_g) - HLD_ALTITUDE_ZBIAS) * fScaleF_g2cmss;
+    iAccZOutput = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->get_pid(PID_ACC_RATE).get_pid(-fAccZ_cmss, 1), -250, 250) );
   }
 
   // Modify the speed of the motors to hold the altitude
@@ -224,9 +237,10 @@ void M4XFrame::attitude_hold() {
   
   Vector3f vAtti = m_pHalBoard->get_atti_cor_deg(); // returns the fused sensor value (gyrometer and accelerometer)
   Vector3f vGyro = m_pHalBoard->get_gyro_degps();   // returns the sensor value from the gyrometer
-
+#if !BENCH_OUT 
   // Throttle raised, turn on stabilisation.
   if(m_fRCThr >= RC_THR_ACRO) {
+#endif
     // Stabilise PIDS
     float pit_stab_output = constrain_float(m_pHalBoard->get_pid(PID_PIT_STAB).get_pid(m_fRCPit - vAtti.x, 1), -250, 250);
     float rol_stab_output = constrain_float(m_pHalBoard->get_pid(PID_ROL_STAB).get_pid(m_fRCRol - vAtti.y, 1), -250, 250);
@@ -253,6 +267,7 @@ void M4XFrame::attitude_hold() {
     int_fast16_t iBR = m_fRCThr - rol_output - pit_output - yaw_output;
 
     set(iFL, iBL, iFR, iBR);
+#if !BENCH_OUT 
   } else {
     // Clear motor output
     clear();
@@ -263,4 +278,5 @@ void M4XFrame::attitude_hold() {
       m_pHalBoard->get_pid(i).reset_I();
     }
   }
+#endif
 }
