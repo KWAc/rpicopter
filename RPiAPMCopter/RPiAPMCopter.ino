@@ -49,12 +49,14 @@
 // Declarations
 ////////////////////////////////////////////////////////////////////////////////
 inline void main_loop();
+inline void rcvr_loop();
 inline void inav_loop();
 inline void batt_loop();
 inline void load_settings();
 
-Task taskINAV(&inav_loop, INAV_T_MS, 1);
-Task taskRBat(&batt_loop, BATT_T_MS, 1);
+Task taskRCVR(&rcvr_loop, 0, 1);
+Task taskINAV(&inav_loop, 0, 1);
+Task taskRBat(&batt_loop, 0, 1);
 
 // Attitude-, Altitude and Navigation control loop
 void main_loop() {
@@ -74,6 +76,11 @@ void main_loop() {
 void inav_loop() {  
   _HAL_BOARD.update_inav();
   _HAL_BOARD.read_rf_cm();
+}
+
+// Receiver thread (remote control), which should be limited to 50 Hz
+void rcvr_loop() {
+  _RECVR.try_any();
 }
 
 // Read the battery. 
@@ -96,8 +103,9 @@ void load_settings() {
 
 void setup() {
   // Prepare scheduler for the main loop ..
-  _SCHED.add_task(&taskINAV, 0);  // Inertial, GPS, Compass, Barometer sensor fusions (slow) ==> running at 50 Hz
-  _SCHED.add_task(&taskRBat, 0);
+  _SCHED.add_task(&taskRCVR, RCVR_T_MS);  // Receiver for commands ==> running at 50 Hz
+  _SCHED.add_task(&taskINAV, INAV_T_MS);  // Inertial, GPS, Compass, Barometer sensor fusions (slow) ==> running at 50 Hz
+  _SCHED.add_task(&taskRBat, BATT_T_MS);
   // .. and the sensor output functions
   _SCHED.add_task(&outAtti,  30);
   _SCHED.add_task(&outBaro,  500);
@@ -158,8 +166,6 @@ void setup() {
 }
 
 void loop() {
-  // Commands via serial port (in this case WiFi -> RPi -> APM2.5)
-  _RECVR.try_any();
   // send some json formatted information about the model over serial port
   _SCHED.run(); // Wrote my own small and absolutely fair scheduler
   // Don't use the scheduler for the time critical main loop (~20% faster)

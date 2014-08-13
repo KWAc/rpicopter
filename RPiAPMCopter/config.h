@@ -88,6 +88,7 @@
 #define MAIN_T_MS            0      // Update frequency of the main loop: ~150.0-160 Hz is the current maximum
 #define FALB_T_MS            15     // Update frequency of the main loop: ~66,6 Hz
 #define INAV_T_MS            20     // Update frequency: 50 Hz - Only important for auto navigation system
+#define RCVR_T_MS            20     // Update frequency: 50 Hz
 #define INERT_TIMEOUT        10     // in ms
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -161,6 +162,6 @@
 #define YAW_ERROR_RATE       5.0f
 
 #define HLD_ALTITUDE_TIMER   20    // 50 Hz
-#define HLD_ALTITUDE_ZBIAS   0.5f  // 0.5 g
+#define HLD_ALTITUDE_ZBIAS   0.4f  // 0.4 g
 
 #endif /*DEFS_h*/
