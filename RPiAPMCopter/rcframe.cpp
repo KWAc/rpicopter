@@ -214,6 +214,9 @@ void M4XFrame::altitude_hold() {
   if(fabs(fAccel_g) >= HLD_ALTITUDE_ZBIAS) {
     float fAccZ_cmss = sign_f(fAccel_g) * (fabs(fAccel_g) - HLD_ALTITUDE_ZBIAS) * fScaleF_g2cmss;
     iAccZOutput = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->get_pid(PID_ACC_RATE).get_pid(-fAccZ_cmss, 1), -250, 250) );
+#if DEBUG_OUT
+    m_pHalBoard->m_pHAL->console->printf("altitude_hold() - iAccZOutput: %d\n", iAccZOutput);
+#endif
   }
 
   // Modify the speed of the motors to hold the altitude

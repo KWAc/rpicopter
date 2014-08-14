@@ -60,9 +60,8 @@ Task taskRBat(&batt_loop, 0, 1);
 
 // Attitude-, Altitude and Navigation control loop
 void main_loop() {
-  // Limit on APM 2.5 the update rate if the 3DR radio is used,
-  // Otherwise the packets are corrupted often?!
-  // TODO: Maybe try out different buffer sizes on begin() at setup()
+  // Limit for the APM 2.5 the update rate if a 3DR radio is used,
+  // Otherwise the packets might be corrupted
   static uint_fast16_t timer = 0;
   uint_fast16_t time = _HAL_BOARD.m_pHAL->scheduler->millis();
   
