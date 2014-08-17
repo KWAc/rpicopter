@@ -62,7 +62,7 @@ M4XFrame::M4XFrame(Device *pDev, Receiver *pRecv, Exception *pExcp, UAVNav* pUAV
   m_fBattComp   = 0.f;
   m_fTiltComp   = 0.f;
   
-  m_iAltAccTimer = pDev->m_pHAL->scheduler->millis();
+  m_iAccZTimer = m_iAltHTimer = pDev->m_pHAL->scheduler->millis();
 }
 
 void M4XFrame::servo_out() {
@@ -155,7 +155,7 @@ void M4XFrame::altitude_hold() {
     return;
   }
 #endif
-
+  
   const float fScaleF_g2cmss = 100.f * INERT_G_CONST;
   
   int_fast16_t iAltZOutput = 0; // Barometer & Sonar
@@ -171,15 +171,15 @@ void M4XFrame::altitude_hold() {
     
   // Limit altitude control if in remote control mode
   bool bUseAltHold = m_pReceiver->get_waypoint()->mode == GPSPosition::NOTHING_F ? false : true;
-  
   // Limit this loop to 50 Hz
-  uint_fast32_t iHldAltTime_ms = m_pHalBoard->m_pHAL->scheduler->millis() - m_iAltAccTimer;
+  uint_fast32_t iHldAltTime_ms = m_pHalBoard->m_pHAL->scheduler->millis() - m_iAltHTimer;
   if(iHldAltTime_ms >= HLD_ALTITUDE_TIMER) {
-    m_iAltAccTimer = m_pHalBoard->m_pHAL->scheduler->millis();
+    m_iAltHTimer = m_pHalBoard->m_pHAL->scheduler->millis();
   } else {
     bUseAltHold = false;
   }
   
+  // Height regulation using the barometer and/or sonar
   if(bUseAltHold) { 
     bool bOK_H;
     float fTargAlti_cm  = static_cast<float>(m_pReceiver->get_waypoint()->altitude_cm);
@@ -199,24 +199,55 @@ void M4XFrame::altitude_hold() {
 
     if(m_pReceiver->get_channel(RC_ROL) > RC_THR_OFF) {
       // If the quad-copter is going down too fast, fAcceleration_g becomes greater
-      if(m_pReceiver->get_waypoint()->mode == GPSPosition::CONTRLD_DOWN_F && fAccel_g > HLD_ALTITUDE_ZBIAS) {
+      if(m_pReceiver->get_waypoint()->mode == GPSPosition::CONTRLD_DOWN_F && fAccel_g > HLD_ALTITUDE_ZGBIAS) {
         m_pExeption->pause_take_down();
       }
 
       // else: the fAcceleration_g becomes smaller
-      if(m_pReceiver->get_waypoint()->mode == GPSPosition::CONTRLD_DOWN_F && fAccel_g <= HLD_ALTITUDE_ZBIAS) {
+      if(m_pReceiver->get_waypoint()->mode == GPSPosition::CONTRLD_DOWN_F && fAccel_g <= HLD_ALTITUDE_ZGBIAS) {
         m_pExeption->cont_take_down();
       }
     }
   }
   
-  // Don't change the throttle if acceleration is below a certain bias
-  if(fabs(fAccel_g) >= HLD_ALTITUDE_ZBIAS) {
-    float fAccZ_cmss = sign_f(fAccel_g) * (fabs(fAccel_g) - HLD_ALTITUDE_ZBIAS) * fScaleF_g2cmss;
+  // Small & fast stabilization using the accelerometer
+  static short iLAccSign = 0; 
+  if(fabs(fAccel_g) >= HLD_ALTITUDE_ZGBIAS) {
+    if(iLAccSign == 0) {
+      iLAccSign = sign_f(fAccel_g);
+    }
+    
+    // The g-force must act for a minimum time interval before the PID can be used
+    uint_fast32_t iAccZTime = m_pHalBoard->m_pHAL->scheduler->millis() - m_iAccZTimer;
+    if(iAccZTime < HLD_ALTITUDE_ZTBIAS) {
+       return; 
+    }
+    
+    // Check whether the direction of acceleration changed suddenly
+    // If so: reset the timer
+    short iCAccSign = sign_f(fAccel_g);
+    if(iCAccSign != iLAccSign) {
+      // Reset the switch if acceleration becomes normal again
+      m_iAccZTimer = m_pHalBoard->m_pHAL->scheduler->millis();
+      // Reset the PID integrator
+      m_pHalBoard->get_pid(PID_ACC_RATE).reset_I();
+      // Save last sign
+      iLAccSign = iCAccSign;
+      return;
+    }
+    
+    // Feed the current acceleration into the PID regulator
+    float fAccZ_cmss = sign_f(fAccel_g) * (fabs(fAccel_g) - HLD_ALTITUDE_ZGBIAS) * fScaleF_g2cmss;
     iAccZOutput = static_cast<int_fast16_t>(constrain_float(m_pHalBoard->get_pid(PID_ACC_RATE).get_pid(-fAccZ_cmss, 1), -250, 250) );
+    
 #if DEBUG_OUT
     m_pHalBoard->m_pHAL->console->printf("altitude_hold() - iAccZOutput: %d\n", iAccZOutput);
 #endif
+  } else {
+    // Reset the switch if acceleration becomes normal again
+    m_iAccZTimer = m_pHalBoard->m_pHAL->scheduler->millis();
+    // Reset the PID integrator
+    m_pHalBoard->get_pid(PID_ACC_RATE).reset_I();
   }
 
   // Modify the speed of the motors to hold the altitude

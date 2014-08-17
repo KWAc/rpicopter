@@ -59,7 +59,8 @@ public:
  */
 class M4XFrame : public Frame {
 private:
-  uint_fast32_t m_iAltAccTimer;
+  uint_fast32_t m_iAltHTimer; // Altitude hold timer using barometer/sonar for GPS navigation and altitude hold mode (50 Hz)
+  uint_fast32_t m_iAccZTimer; // Altitude hold timer using the accelerometer for every flight mode (if necessary). Aim: Compensation of fast g-changes along the z-axis.
 
 private:
   // Variables holding final servo output

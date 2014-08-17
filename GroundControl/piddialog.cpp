@@ -293,10 +293,20 @@ void QPIDConfig::Setup() {
     m_thr_rkd_V->setValue(0);
     m_thr_rimax_V->setValue(0);
 
+    m_thr_rkp_V->setDecimals(4);
+    m_thr_rki_V->setDecimals(4);
+    m_thr_rkd_V->setDecimals(4);
+    m_thr_rimax_V->setDecimals(4);
+    
     m_acc_rkp_V->setValue(0);
     m_acc_rki_V->setValue(0);
     m_acc_rkd_V->setValue(0);
     m_acc_rimax_V->setValue(0);
+    
+    m_acc_rkp_V->setDecimals(4);
+    m_acc_rki_V->setDecimals(4);
+    m_acc_rkd_V->setDecimals(4);
+    m_acc_rimax_V->setDecimals(4);
 
     m_pit_skp_V->setValue(0);
     m_rol_skp_V->setValue(0);

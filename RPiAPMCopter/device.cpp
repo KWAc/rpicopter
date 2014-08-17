@@ -43,8 +43,8 @@ void DeviceInit::init_pids() {
   m_rgPIDS[PID_THR_RATE].kD(0.0f);  // For altitude hold
   m_rgPIDS[PID_THR_RATE].imax(100); // For altitude hold
 
-  m_rgPIDS[PID_ACC_RATE].kP(0.10);  // For altitude hold
-  m_rgPIDS[PID_ACC_RATE].kI(0.10);  // For altitude hold
+  m_rgPIDS[PID_ACC_RATE].kP(0.100); // For altitude hold
+  m_rgPIDS[PID_ACC_RATE].kI(0.050); // For altitude hold
   m_rgPIDS[PID_ACC_RATE].kD(0.0f);  // For altitude hold
   m_rgPIDS[PID_ACC_RATE].imax(100); // For altitude hold
 
@@ -360,7 +360,7 @@ GPSData Device::read_gps() {
 }
 
 BaroData Device::read_baro() {
-  if (!m_pBaro->healthy) {
+  if (!m_pBaro->healthy() ) {
     m_pHAL->console->printf("read_baro(): Barometer not healthy\n");
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, BAROMETER_F) );
     return m_ContBaro;

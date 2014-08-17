@@ -66,7 +66,7 @@ void send_atti() {
 // barometer
 ///////////////////////////////////////////////////////////
 void send_baro() {
-  if(!_HAL_BOARD.m_pBaro->healthy) {
+  if(!_HAL_BOARD.m_pBaro->healthy() ) {
     return;
   }
 

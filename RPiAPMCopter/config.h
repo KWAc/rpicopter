@@ -88,7 +88,7 @@
 #define MAIN_T_MS            0      // Update frequency of the main loop: ~150.0-160 Hz is the current maximum
 #define FALB_T_MS            15     // Update frequency of the main loop: ~66,6 Hz
 #define INAV_T_MS            20     // Update frequency: 50 Hz - Only important for auto navigation system
-#define RCVR_T_MS            20     // Update frequency: 50 Hz
+#define RCVR_T_MS            15     // Update frequency: 66 Hz
 #define INERT_TIMEOUT        10     // in ms
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -128,7 +128,7 @@
 
 #define BAROM_LOWPATH_FILT_f 0.35f    // Filter constant for the barometer
 #define COMPA_LOWPATH_FILT_f 0.25f    // Filter constant for the compass
-#define INERT_LOWPATH_FILT_f 0.10f    // Filter constant for the accelerometer
+#define INERT_LOWPATH_FILT_f 0.15f    // Filter constant for the accelerometer
 
 #define INERT_FFALL_BIAS     75       // Accelerometer bias in cm/s². If z-axis values are less than 0.75 m/s², break annealing to accelerometer for attitude estimation
 #define INERT_ANGLE_BIAS     60
@@ -161,7 +161,9 @@
 #define YAW_CTRL_MOD         1.0f
 #define YAW_ERROR_RATE       5.0f
 
-#define HLD_ALTITUDE_TIMER   20    // 50 Hz
-#define HLD_ALTITUDE_ZBIAS   0.4f  // 0.4 g
+#define HLD_ALTITUDE_TIMER   20     // 50 Hz
+
+#define HLD_ALTITUDE_ZGBIAS  0.25f  // in g
+#define HLD_ALTITUDE_ZTBIAS  25     // in ms
 
 #endif /*DEFS_h*/

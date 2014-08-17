@@ -31,12 +31,12 @@
 #include <AP_Terrain.h> 
 #include <AP_Vehicle.h>
 
-#include <RC_Channel.h>     // RC Channel Library
-
-#include <GCS_MAVLink.h>
 #include <DataFlash.h>
 #include <Filter.h>
+#include <GCS_MAVLink.h>
 #include <PID.h>
+#include <RC_Channel.h>     // RC Channel Library
+#include <StorageManager.h>
 
 ////////////////////////////////////////////////////////////////////////////////
 // Own includes
@@ -102,8 +102,8 @@ void load_settings() {
 
 void setup() {
   // Prepare scheduler for the main loop ..
-  _SCHED.add_task(&taskRCVR, RCVR_T_MS);  // Receiver for commands ==> running at 50 Hz
-  _SCHED.add_task(&taskINAV, INAV_T_MS);  // Inertial, GPS, Compass, Barometer sensor fusions (slow) ==> running at 50 Hz
+//  _SCHED.add_task(&taskRCVR, RCVR_T_MS);
+  _SCHED.add_task(&taskINAV, INAV_T_MS);
   _SCHED.add_task(&taskRBat, BATT_T_MS);
   // .. and the sensor output functions
   _SCHED.add_task(&outAtti,  30);
@@ -165,8 +165,12 @@ void setup() {
 }
 
 void loop() {
+  // Try to read any received message
+  _RECVR.try_any();
+
   // send some json formatted information about the model over serial port
-  _SCHED.run(); // Wrote my own small and absolutely fair scheduler
+  _SCHED.run(); // small and fair scheduler
+  
   // Don't use the scheduler for the time critical main loop (~20% faster)
   main_loop();
 }
