@@ -1,6 +1,8 @@
 #ifndef OUT_h
 #define OUT_h
 
+#include <float.h>
+
 #include "global.h"
 #include "containers.h"
 #include "scheduler.h"
@@ -56,11 +58,31 @@ void send_comp() {
 ///////////////////////////////////////////////////////////
 // attitude in degrees
 ///////////////////////////////////////////////////////////
+
+
 void send_atti() {
+  static float fLX = FLT_MAX;
+  static float fLY = FLT_MAX;
+  static float fLZ = FLT_MAX;
+
+  float fCX = _HAL_BOARD.get_atti_cor_deg().x;
+  float fCY = _HAL_BOARD.get_atti_cor_deg().y;
+  float fCZ = _HAL_BOARD.get_atti_cor_deg().z;
+
+  // Only use this function if the difference is significant
+  // We should save some CPU time if possible
+  if( fabs(fLX - fCX) < 0.75 && fabs(fLY - fCY) < 0.75 && fabs(fLZ - fCZ) < 2.5f ) {
+    return;
+  }
+
+  fLX = fCX;
+  fLY = fCY;
+  fLZ = fCZ;
+
   hal.console->printf("{\"type\":\"s_att\",\"r\":%.1f,\"p\":%.1f,\"y\":%.1f}\n",
-  static_cast<double>(_HAL_BOARD.get_atti_cor_deg().y), 
-  static_cast<double>(_HAL_BOARD.get_atti_cor_deg().x), 
-  static_cast<double>(_HAL_BOARD.get_atti_cor_deg().z) );
+                      static_cast<double>(fCY),
+                      static_cast<double>(fCX),
+                      static_cast<double>(fCZ) );
 }
 ///////////////////////////////////////////////////////////
 // barometer
@@ -72,11 +94,11 @@ void send_baro() {
 
   BaroData baro = _HAL_BOARD.read_baro();
   hal.console->printf("{\"type\":\"s_bar\",\"p\":%.1f,\"a\":%ld,\"t\":%.1f,\"c\":%.1f,\"s\":%d}\n",
-  static_cast<double>(baro.pressure_pa), 
-  baro.altitude_cm, 
-  static_cast<double>(baro.temperature_deg), 
-  static_cast<double>(baro.climb_rate_cms), 
-  static_cast<uint_fast16_t>(baro.pressure_samples) );
+                      static_cast<double>(baro.pressure_pa),
+                      baro.altitude_cm,
+                      static_cast<double>(baro.temperature_deg),
+                      static_cast<double>(baro.climb_rate_cms),
+                      static_cast<uint_fast16_t>(baro.pressure_samples) );
 }
 ///////////////////////////////////////////////////////////
 // gps
@@ -92,9 +114,7 @@ void send_gps() {
                       gps.latitude,
                       gps.longitude,
                       gps.altitude_cm,
-                      
                       gps.gspeed_cms,
-                      
                       gps.gcourse_cd,
                       gps.satelites,
                       gps.time_week,
@@ -107,9 +127,9 @@ void send_bat() {
   BattData bat = _HAL_BOARD.read_bat();
   hal.console->printf("{\"type\":\"s_bat\",\"R\":%.1f,\"V\":%.1f,\"A\":%.1f,\"P\":%.1f,\"c_mAh\":%.1f}\n",
                       static_cast<double>(bat.refVoltage_V),
-                      static_cast<double>(bat.voltage_V), 
+                      static_cast<double>(bat.voltage_V),
                       static_cast<double>(bat.current_A),
-                      static_cast<double>(bat.power_W), 
+                      static_cast<double>(bat.power_W),
                       static_cast<double>(bat.consumpt_mAh) );
 }
 ///////////////////////////////////////////////////////////

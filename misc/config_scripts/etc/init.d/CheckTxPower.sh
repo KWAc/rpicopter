@@ -4,7 +4,7 @@
 
 WORK_DIR="/var/lib/CheckTxPower"
 DAEMON="/bin/sh"
-ARGS="/usr/local/bin/check_Tx_power.sh"
+ARGS="/usr/local/bin/check_tx_power.sh"
 PIDFILE="/var/run/CheckTxPower.pid"
 USER="root"
 
