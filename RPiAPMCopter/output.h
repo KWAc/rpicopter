@@ -61,6 +61,8 @@ void send_comp() {
 
 
 void send_atti() {
+  static uint_fast32_t iTimer = 0;
+  
   static float fLX = FLT_MAX;
   static float fLY = FLT_MAX;
   static float fLZ = FLT_MAX;
@@ -71,8 +73,13 @@ void send_atti() {
 
   // Only use this function if the difference is significant
   // We should save some CPU time if possible
-  if( fabs(fLX - fCX) < 0.75 && fabs(fLY - fCY) < 0.75 && fabs(fLZ - fCZ) < 2.5f ) {
-    return;
+  uint_fast32_t iBCurTime = _HAL_BOARD.m_pHAL->scheduler->millis();
+  if(iBCurTime - iTimer < 500) {
+    if( fabs(fLX - fCX) < 1.f && fabs(fLY - fCY) < 1.f && fabs(fLZ - fCZ) < 2.5f ) {
+      return;
+    }
+  } else {
+    iTimer = iBCurTime;
   }
 
   fLX = fCX;

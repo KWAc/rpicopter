@@ -102,17 +102,17 @@ void load_settings() {
 
 void setup() {
   // Prepare scheduler for the main loop ..
-//  _SCHED.add_task(&taskRCVR, RCVR_T_MS);
-  _SCHED.add_task(&taskINAV, INAV_T_MS);
-  _SCHED.add_task(&taskRBat, BATT_T_MS);
+  //_SCHED.add_task(&taskRCVR, RCVR_T_MS);
+  _SCHED_NAV.add_task(&taskINAV, INAV_T_MS);
+  _SCHED_NAV.add_task(&taskRBat, BATT_T_MS);
   // .. and the sensor output functions
-  _SCHED.add_task(&outAtti,  30);
-  _SCHED.add_task(&outBaro,  500);
-  _SCHED.add_task(&outBat,   750);
-  _SCHED.add_task(&outGPS,   1000);
-  _SCHED.add_task(&outComp,  1500);
-  _SCHED.add_task(&outPIDAtt,2000);
-  _SCHED.add_task(&outPIDAlt,2000);
+  _SCHED_OUT.add_task(&outAtti,  30);
+  _SCHED_OUT.add_task(&outBaro,  500);
+  _SCHED_OUT.add_task(&outBat,   750);
+  _SCHED_OUT.add_task(&outGPS,   1000);
+  _SCHED_OUT.add_task(&outComp,  1500);
+  _SCHED_OUT.add_task(&outPIDAtt,2000);
+  _SCHED_OUT.add_task(&outPIDAlt,2000);
 
   // Wait for one second
   hal.scheduler->delay(1000);
@@ -169,7 +169,11 @@ void loop() {
   _RECVR.try_any();
 
   // send some json formatted information about the model over serial port
-  _SCHED.run(); // small and fair scheduler
+  _SCHED_NAV.run();
+  // Don't use the output scheduler if uartA is not available (saves resources)
+  if(_HAL_BOARD.get_refr_rate() < FALB_T_MS) {
+    _SCHED_OUT.run();
+  }
   
   // Don't use the scheduler for the time critical main loop (~20% faster)
   main_loop();

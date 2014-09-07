@@ -39,7 +39,9 @@ AP_InertialNav                 _INERT_NAV   (_AHRS, _BARO, _GPS_GLITCH, _BARO_GL
 // Only exception is the battery monitor
 // to circumvent the usage of AP_Param for changing settings
 ///////////////////////////////////////////////////////////
-Scheduler                      _SCHED       (&hal);
+Scheduler                      _SCHED_NAV   (&hal); // Scheduler for navigation system
+Scheduler                      _SCHED_OUT   (&hal); // Scheduler for network output
+
 Device                         _HAL_BOARD   (&hal, &_INERT, &_COMP, &_BARO, &_GPS, &_BAT, &_SON_RF, &_AHRS, &_INERT_NAV);
 Receiver                       _RECVR       (&_HAL_BOARD);
 Exception                      _EXCP        (&_HAL_BOARD, &_RECVR);
