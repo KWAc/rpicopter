@@ -171,7 +171,7 @@ void loop() {
   // send some json formatted information about the model over serial port
   _SCHED_NAV.run();
   // Don't use the output scheduler if uartA is not available (saves resources)
-  if(_HAL_BOARD.get_refr_rate() < FALB_T_MS) {
+  if(_HAL_BOARD.get_refr_rate() == MAIN_T_MS) {
     _SCHED_OUT.run();
   }
   

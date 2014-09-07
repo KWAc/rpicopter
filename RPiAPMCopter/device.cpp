@@ -43,8 +43,8 @@ void DeviceInit::init_pids() {
   m_rgPIDS[PID_THR_RATE].kD(0.0f);  // For altitude hold
   m_rgPIDS[PID_THR_RATE].imax(100); // For altitude hold
 
-  m_rgPIDS[PID_ACC_RATE].kP(0.100); // For altitude hold
-  m_rgPIDS[PID_ACC_RATE].kI(0.050); // For altitude hold
+  m_rgPIDS[PID_ACC_RATE].kP(0.50);  // For altitude hold
+  m_rgPIDS[PID_ACC_RATE].kI(0.10);  // For altitude hold
   m_rgPIDS[PID_ACC_RATE].kD(0.0f);  // For altitude hold
   m_rgPIDS[PID_ACC_RATE].imax(100); // For altitude hold
 
