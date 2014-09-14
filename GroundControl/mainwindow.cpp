@@ -233,12 +233,20 @@ bool MainWindow::searchSerialRadio() {
         qDebug() << "Description : " << info.description();
         qDebug() << "Manufacturer: " << info.manufacturer();
 
-        if(info.description().contains("FT232R")) {
+        if( info.description().contains("FT232R", Qt::CaseInsensitive) ||
+            info.manufacturer().contains("FTDI", Qt::CaseInsensitive) )
+        {
             // Example use QSerialPort
             m_pSerialPort.setPort(info);
-            if (m_pSerialPort.open(QIODevice::ReadWrite)) {
+            if(m_pSerialPort.open(QIODevice::ReadWrite)) {
                 m_pSerialPort.setBaudRate(QSerialPort::Baud9600);
                 bRes = true;
+                qDebug() << "Radio opened successfully!";
+                return bRes;
+            } else {
+                qDebug() << m_pSerialPort.error();
+                bRes = false;
+                // Go on ..
             }
         }
     }
@@ -393,7 +401,7 @@ void MainWindow::sl_UpdateSensorData(QPair<double, QVariantMap> sensorRead) {
 
     // Latency of the connection
     if(map["type"].toString() == "pong") {
-        int iCurrentPongID = map["v"].toInt();
+        unsigned int iCurrentPongID = map["v"].toInt();
         if(m_iCurrentPingID == iCurrentPongID) {
             m_iCurrentPingRecv = m_tSensorTime.elapsed();
             // Update the plot
@@ -474,6 +482,8 @@ void MainWindow::sl_UpdateSensorData(QPair<double, QVariantMap> sensorRead) {
         m_pAttitude->GetIndicator()->setRoll(-fRol);
         m_pAttitude->GetIndicator()->setPitch(-fPit);
         m_pRCWidget->setYaw(fYaw);
+        
+        m_pAttitude->SetAttitude(QString(m_udpCurLine) );
     }
 
     // Current configuration
