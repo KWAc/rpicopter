@@ -43,7 +43,7 @@ Scheduler                      _SCHED_NAV   (&hal); // Scheduler for navigation 
 Scheduler                      _SCHED_OUT   (&hal); // Scheduler for network output
 
 Device                         _HAL_BOARD   (&hal, &_INERT, &_COMP, &_BARO, &_GPS, &_BAT, &_SON_RF, &_AHRS, &_INERT_NAV);
-Receiver                       _RECVR       (&_HAL_BOARD);
+Receiver                       _RECVR       (&_HAL_BOARD, &_SCHED_OUT);
 Exception                      _EXCP        (&_HAL_BOARD, &_RECVR);
 
 // Currently just a quad-copter with X-frame is implemented

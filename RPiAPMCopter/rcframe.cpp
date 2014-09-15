@@ -59,9 +59,8 @@ void Frame::run() {
 M4XFrame::M4XFrame(Device *pDev, Receiver *pRecv, Exception *pExcp, UAVNav* pUAV) : Frame(pDev, pRecv, pExcp, pUAV)
 {
   _FL = _BL = _FR = _BR = RC_THR_OFF;
-  m_fBattComp   = 0.f;
-  m_fTiltComp   = 0.f;
-  
+  m_fBattComp = 0.f;
+  m_fTiltComp = 0.f;
   m_iAccZTimer = m_iAltHTimer = pDev->m_pHAL->scheduler->millis();
 }
 

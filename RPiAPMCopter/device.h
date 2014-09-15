@@ -73,12 +73,6 @@ public /*functions*/:
   
   PID          &get_pid(uint_fast8_t);
   void         set_pid(uint_fast8_t, const PID &);
-  
-  // Suggests an update rate in ms for the main loop
-  // The rate is linked with the usage of the 3DR radio
-  // The 3DR radio is only working if the CPU load is low
-  void         set_refr_rate(const uint_fast8_t time_ms);
-  uint_fast8_t get_refr_rate() const;
 };
 
 ///////////////////////////////////////////////////////////

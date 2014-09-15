@@ -172,14 +172,6 @@ void DeviceInit::set_pid(uint_fast8_t index, const PID &pid) {
   m_rgPIDS[index] = pid;
 }
 
-void DeviceInit::set_refr_rate(const uint_fast8_t rate) {
-  m_iUpdateRate = rate;
-}
-
-uint_fast8_t DeviceInit::get_refr_rate() const {
-  return m_iUpdateRate;
-}
-
 ///////////////////////////////////////////////////////////
 // Device
 ///////////////////////////////////////////////////////////

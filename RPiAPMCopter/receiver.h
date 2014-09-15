@@ -13,6 +13,7 @@
 
 
 class Device;
+class Scheduler;
 class RC_Channel;
 
 
@@ -23,6 +24,7 @@ private /*variables*/:
   GPSPosition   m_Waypoint;                     // Current position for autonomous flight
   
   Device       *m_pHalBoard;                    // Device module pointer
+  Scheduler    *m_pTMUartAOut;                  // Scheduler for standard output
   
   // Channels for the ppm radio
   RC_Channel   *m_pRCPit;
@@ -51,7 +53,7 @@ protected /*functions*/:
   bool    parse           (char *);             // Switch for all the different kind of commands to parse
   
 public /*functions*/:
-  Receiver(Device *);
+  Receiver(Device *, Scheduler *);
 
   void          set_channel(uint_fast8_t, int_fast32_t);
   int_fast32_t  get_channel(uint_fast8_t) const;

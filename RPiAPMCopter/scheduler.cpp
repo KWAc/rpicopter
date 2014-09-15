@@ -47,6 +47,7 @@ Scheduler::Scheduler(const AP_HAL::HAL *p) {
   memset(m_tickrateList, 0, sizeof(m_tickrateList) );
 
   m_iItems = 0;
+  m_bSuspend = false;
 }
 
 void Scheduler::add_task(Task *p, uint_fast16_t iTickRate) {
@@ -87,7 +88,7 @@ void Scheduler::reset_all() {
 }
 
 void Scheduler::run() {
-  if(m_pHAL == NULL)
+  if(m_pHAL == NULL || m_bSuspend == true)
     return;
 
   for(uint_fast8_t i = 0; i < m_iItems; i++) {
@@ -96,4 +97,12 @@ void Scheduler::run() {
       continue;
     }
   }
+}
+
+void Scheduler::stop() {
+  m_bSuspend = true;
+}
+
+void Scheduler::resume() {
+  m_bSuspend = false;
 }

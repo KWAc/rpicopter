@@ -44,7 +44,8 @@ private:
   uint_fast8_t   m_iItems;                        // Current number of items in the arrays below
   Task*          m_functionList[NO_PRC_SCHED];    // function list
   uint_fast16_t  m_tickrateList[NO_PRC_SCHED];    // tick rates are intervals e.g.: Call rate is 100 ms + delay[ms]*multiplier
-
+  bool           m_bSuspend;
+  
 protected:
   bool is_started(const uint_fast8_t iInd);
 
@@ -52,8 +53,11 @@ public:
   Scheduler(const AP_HAL::HAL *);
 
   void add_task(Task *pTask, uint_fast16_t iTickRate);
-  void run();
   void reset_all();
+  
+  void run();     // run all tasks in the list
+  void stop();    // stop running tasks
+  void resume();  // resume running tasks
 };
 
 #endif

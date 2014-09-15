@@ -60,15 +60,7 @@ Task taskRBat(&batt_loop, 0, 1);
 
 // Attitude-, Altitude and Navigation control loop
 void main_loop() {
-  // Limit for the APM 2.5 the update rate if a 3DR radio is used,
-  // Otherwise the packets might be corrupted
-  static uint_fast16_t timer = 0;
-  uint_fast16_t time = _HAL_BOARD.m_pHAL->scheduler->millis();
-  
-  if(time - timer >= _HAL_BOARD.get_refr_rate() ) {
-    _MODEL.run();
-    timer = time;
-  }
+  _MODEL.run();
 }
 
 // Altitude estimation and AHRS system (yaw correction with GPS, barometer, ..)
@@ -102,7 +94,6 @@ void load_settings() {
 
 void setup() {
   // Prepare scheduler for the main loop ..
-  //_SCHED.add_task(&taskRCVR, RCVR_T_MS);
   _SCHED_NAV.add_task(&taskINAV, INAV_T_MS);
   _SCHED_NAV.add_task(&taskRBat, BATT_T_MS);
   // .. and the sensor output functions
@@ -170,10 +161,7 @@ void loop() {
 
   // send some json formatted information about the model over serial port
   _SCHED_NAV.run();
-  // Don't use the output scheduler if uartA is not available (saves resources)
-  if(_HAL_BOARD.get_refr_rate() == MAIN_T_MS) {
-    _SCHED_OUT.run();
-  }
+  _SCHED_OUT.run();
   
   // Don't use the scheduler for the time critical main loop (~20% faster)
   main_loop();

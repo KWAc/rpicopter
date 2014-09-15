@@ -5,6 +5,7 @@
 #include <float.h>
 
 #include "receiver.h"
+#include "scheduler.h"
 #include "device.h"
 #include "BattMonitor.h"
 #include "arithmetics.h"
@@ -101,8 +102,9 @@ inline bool check_input(int_fast16_t iRol, int_fast16_t iPit, int_fast16_t iThr,
 ///////////////////////////////////////////////////////////////////////////////////////
 // Receiver
 ///////////////////////////////////////////////////////////////////////////////////////
-Receiver::Receiver(Device *pHalBoard) {
+Receiver::Receiver(Device *pHalBoard, Scheduler *pTMUartA) {
   m_pHalBoard = pHalBoard;
+  m_pTMUartAOut = pTMUartA;
 
   memset(m_cBuffer, 0, sizeof(m_cBuffer) );
   memset(m_rgChannelsRC, 0, sizeof(m_rgChannelsRC) );
@@ -523,6 +525,11 @@ bool Receiver::read_uartC(uint_fast16_t bytesAvail) {
         if(bRet) {
           m_iSParseTimer_C = m_iSParseTimer;
         }
+        #if DEBUG_OUT
+        else {
+          m_pHalBoard->m_pHAL->console->printf("Reading from uartC (radio port) failed\n");
+        }
+        #endif
         memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;
       }
     }
@@ -551,7 +558,7 @@ bool Receiver::try_any() {
     bOK = read_uartA(m_pHalBoard->m_pHAL->uartA->available() );
     // Reset the loop rate, if a valid package arrived from this port again
     if(bOK) {
-      m_pHalBoard->set_refr_rate(MAIN_T_MS); 
+      m_pTMUartAOut->resume(); 
     }
   }
   #endif
@@ -562,9 +569,7 @@ bool Receiver::try_any() {
     // Reduce the loop frequency only if not in UAV mode
     // If currently in other modes, radio could be still helpful
     if(!chk_fset(m_Waypoint.mode, GPSPosition::GPS_NAVIGATN_F) ) {
-      #if !BENCH_OUT
-      m_pHalBoard->set_refr_rate(FALB_T_MS);
-      #endif
+      m_pTMUartAOut->stop();
     }
     bOK = read_uartC(m_pHalBoard->m_pHAL->uartC->available() );
   }

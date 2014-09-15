@@ -85,11 +85,8 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 // Main loop
 //////////////////////////////////////////////////////////////////////////////////////////
-#define MAIN_T_MS            0      // Update frequency of the main loop: ~150.0-160 Hz is the current maximum
-#define FALB_T_MS            10     // Update frequency of the main loop: ~100 Hz
-#define INAV_T_MS            20     // Update frequency: 50 Hz - Only important for auto navigation system
-#define RCVR_T_MS            15     // Update frequency: 66.6 Hz
-#define INERT_TIMEOUT        10     // in ms
+#define MAIN_T_MS            0      // Update frequency of the main loop: With the current features the main loop runs betw. 130 Hz (Min) and 150 Hz (Max)
+#define INAV_T_MS            20     // Update frequency for the auto navigation system: 50 Hz
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Scheduler module
