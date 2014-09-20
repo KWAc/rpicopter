@@ -1,17 +1,18 @@
 #include "scheduler.h"
 
 
-Task::Task(void (*pf_foo)(), uint_fast16_t delay, uint_fast8_t mult) {
+Task::Task(void (*pf_foo)(int), uint_fast16_t delay, uint_fast8_t mult) {
   m_bSend           = false;
   m_iDelay          = delay;
   pfTask            = pf_foo;
   m_iDelayMultplr   = mult;
   m_iTimer          = 0;
+  m_iArg            = 0;
 }
 
 bool Task::start() {
   if(!m_bSend && pfTask != NULL) {
-    pfTask();
+    pfTask(m_iArg);
     m_bSend = true;
     return true;
   }
@@ -20,6 +21,10 @@ bool Task::start() {
 
 void Task::reset() {
   m_bSend = false;
+}
+
+void Task::set_argument(int iArg) {
+  m_iArg = iArg;
 }
 
 uint_fast32_t Task::get_timer() {
@@ -84,6 +89,13 @@ void Scheduler::reset_all() {
   // Reset everything if last emitter successfully emitted
   for(uint_fast16_t i = 0; i < m_iItems; i++) {
     m_functionList[i]->reset();
+  }
+}
+
+void Scheduler::set_arguments(int iArg) {
+  // Reset everything if last emitter successfully emitted
+  for(uint_fast16_t i = 0; i < m_iItems; i++) {
+    m_functionList[i]->set_argument(iArg);
   }
 }
 

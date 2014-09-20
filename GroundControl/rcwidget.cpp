@@ -20,7 +20,7 @@ QRCWidget::QRCWidget(QUdpSocket *pSock, QSerialPort *pSerialPort, QWidget *paren
     m_bRadioEnabled = true;
     m_bAltitudeHold = false;
 
-    m_iUpdateTime = 20;
+    m_iUpdateTime = 15;
     m_fTimeConstRed = (float)m_iUpdateTime/150.f;
     m_fTimeConstEnh = (float)m_iUpdateTime/75.f;
 
@@ -350,12 +350,28 @@ void QRCWidget::sendJSON2UDP(QString sCom, bool isCommand) {
     }
 }
 
+void QRCWidget::sendJSON2COM(QString sCom, bool isCommand) {
+    if(!m_pUdpSock)
+        return;
+
+    if (sCom.size() > 0) {
+        //qDebug() << "WiFi: " << sCom;
+        m_pSerialPort->write(sCom.toLatin1(), sCom.size() );
+        if(isCommand) {
+            emit si_send2Model(sCom, "command");
+        }
+        else {
+            emit si_send2Model(sCom, "option");
+        }
+    }
+}
+
 void QRCWidget::sendJSON2COM(QPair<int, char*> pair) {
     if(!m_pSerialPort || !m_pSerialPort->isOpen() )
         return;
 
     if (pair.first > 0) {
-        qDebug() << "COM: " << pair.first << pair.second;
+        //qDebug() << "COM: " << pair.first << pair.second;
         m_pSerialPort->write(pair.second, pair.first);
     }
 }
@@ -363,6 +379,7 @@ void QRCWidget::sendJSON2COM(QPair<int, char*> pair) {
 void QRCWidget::sl_sendRC2UDP() {
     sendJSON2UDP(m_COM.str_makeWiFiCommand() );
     if(m_bRadioEnabled) {
-        sendJSON2COM(m_COM.cstr_makeRadioCommand() );
+       sendJSON2COM(m_COM.cstr_makeRadioCommand() );
+
     }
 }

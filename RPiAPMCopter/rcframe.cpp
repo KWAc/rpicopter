@@ -117,7 +117,7 @@ void M4XFrame::calc_batt_comp() {
 
 void M4XFrame::apply_motor_compens() {
   calc_tilt_comp();
-  calc_batt_comp();
+  //calc_batt_comp(); // Do it in the scheduler, because there the battery monitor is running
 
   float fCurThr = m_fRCThr - RC_THR_ACRO;
   // Calculate new throttle output (tilt and battery compensated)

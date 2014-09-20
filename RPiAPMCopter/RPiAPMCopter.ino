@@ -48,37 +48,35 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Declarations
 ////////////////////////////////////////////////////////////////////////////////
-inline void main_loop();
-inline void rcvr_loop();
-inline void inav_loop();
-inline void batt_loop();
+// Settings stored in the flash
 inline void load_settings();
+// Tasks
+inline void rcvr_loop(int);
+inline void inav_loop(int);
+inline void batt_loop(int);
 
 Task taskRCVR(&rcvr_loop, 0, 1);
 Task taskINAV(&inav_loop, 0, 1);
 Task taskRBat(&batt_loop, 0, 1);
 
-// Attitude-, Altitude and Navigation control loop
-void main_loop() {
-  _MODEL.run();
-}
 
 // Altitude estimation and AHRS system (yaw correction with GPS, barometer, ..)
-void inav_loop() {  
+void inav_loop(int) {  
   _HAL_BOARD.update_inav();
   _HAL_BOARD.read_rf_cm();
 }
 
 // Receiver thread (remote control), which should be limited to 50 Hz
-void rcvr_loop() {
+void rcvr_loop(int) {
   _RECVR.try_any();
 }
 
 // Read the battery. 
 // The voltage is used for adjusting the motor speed,
 // as the speed is dependent on the voltage 
-void batt_loop() {
+void batt_loop(int) {
   _HAL_BOARD.read_bat();
+  _MODEL.calc_batt_comp();
 }
 
 void load_settings() {
@@ -94,6 +92,7 @@ void load_settings() {
 
 void setup() {
   // Prepare scheduler for the main loop ..
+  _SCHED_NAV.add_task(&taskRCVR, RCVR_T_MS);
   _SCHED_NAV.add_task(&taskINAV, INAV_T_MS);
   _SCHED_NAV.add_task(&taskRBat, BATT_T_MS);
   // .. and the sensor output functions
@@ -156,15 +155,12 @@ void setup() {
 }
 
 void loop() {
-  // Try to read any received message
-  _RECVR.try_any();
-
   // send some json formatted information about the model over serial port
   _SCHED_NAV.run();
   _SCHED_OUT.run();
   
-  // Don't use the scheduler for the time critical main loop (~20% faster)
-  main_loop();
+  // Attitude-, Altitude and Navigation control loop
+  _MODEL.run();
 }
 
 AP_HAL_MAIN();

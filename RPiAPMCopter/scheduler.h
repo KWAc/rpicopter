@@ -19,13 +19,15 @@ private:
   uint_fast32_t m_iTimer;                   // Timer variable
   uint_fast16_t m_iDelay;                   // Certain delay which is added to the tick rate
   uint_fast8_t  m_iDelayMultplr;            // multiplier for m_iDelay (helpful if many emitters share the same tick rate). If m_iDelayMultplr zero: m_iDelay is zero too
-  void (*pfTask)();                         // function pointer
+  void (*pfTask)(int);                         // function pointer
+  int m_iArg;
 
 public:
-  Task(void (*pf_foo)(), uint_fast16_t delay = 0, uint_fast8_t mult = 1);
+  Task(void (*pf_foo)(int), uint_fast16_t delay = 0, uint_fast8_t mult = 1);
 
   bool start();
   void reset();
+  void set_argument(int);
 
   uint_fast16_t get_delay();
   void set_delay(const uint_fast32_t iDelay, const uint_fast32_t iMult);
@@ -54,6 +56,7 @@ public:
 
   void add_task(Task *pTask, uint_fast16_t iTickRate);
   void reset_all();
+  void set_arguments(int);
   
   void run();     // run all tasks in the list
   void stop();    // stop running tasks

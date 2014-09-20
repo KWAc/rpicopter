@@ -80,12 +80,13 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 #define BAUD_RATE_A          115200 // IO USB
 #define BAUD_RATE_B          38400  // GPS
-#define BAUD_RATE_C          9600   // RADIO
+#define BAUD_RATE_C          57600  // 3DR RADIO
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Main loop
 //////////////////////////////////////////////////////////////////////////////////////////
-#define MAIN_T_MS            0      // Update frequency of the main loop: With the current features the main loop runs betw. 130 Hz (Min) and 150 Hz (Max)
+#define MAIN_T_MS            0      // Update frequency of the main loop: With the current features the main loop runs with ~150 Hz
+#define RCVR_T_MS            20     // Update frequency of the receiver loop: 50 Hz
 #define INAV_T_MS            20     // Update frequency for the auto navigation system: 50 Hz
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -96,6 +97,8 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 // Receiver module
 //////////////////////////////////////////////////////////////////////////////////////////
+#define IN_BUFFER_S          256
+
 #define RC_ROL               0
 #define RC_PIT               1
 #define RC_THR               2
@@ -103,6 +106,10 @@
 
 #define RADIO_MAX_OFFS       7        // Maximum length of command message via radio without stop bit
 #define APM_IOCHAN_CNT 	     8
+
+#define UART_A               0
+#define UART_B               1
+#define UART_C               2
 
 #define USE_RCIN             0        // This firmware is not using any PPM radio as default
 #define USE_UART_A           1        // This is the standard input source (USB from Raspberry Pi)

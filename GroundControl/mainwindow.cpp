@@ -189,7 +189,9 @@ void MainWindow::prepareWidgets() {
 
 void MainWindow::connectWidgets() {
     connect(&m_pingTimer, SIGNAL(timeout() ), this, SLOT(sl_sendPing() ) );
-    connect(m_pUdpSocket, SIGNAL(readyRead() ), this, SLOT(sl_recvCommand() ) );
+    connect(m_pUdpSocket, SIGNAL(readyRead() ), this, SLOT(sl_recvCommand_UDP() ) );
+    connect(&m_pSerialPort, SIGNAL(readyRead() ), this, SLOT(sl_recvCommand_Radio() ) );
+    
     connect(&m_plotTimer, SIGNAL(timeout() ), this, SLOT(sl_replotGraphs() ) );
     
     connect(m_pRCWidget, SIGNAL(si_send2Model(QString, QString) ), this, SLOT(sl_updateStatusBar(QString, QString) ) );
@@ -239,7 +241,7 @@ bool MainWindow::searchSerialRadio() {
             // Example use QSerialPort
             m_pSerialPort.setPort(info);
             if(m_pSerialPort.open(QIODevice::ReadWrite)) {
-                m_pSerialPort.setBaudRate(QSerialPort::Baud9600);
+                m_pSerialPort.setBaudRate(QSerialPort::Baud57600);
                 bRes = true;
                 qDebug() << "Radio opened successfully!";
                 return bRes;
@@ -369,6 +371,8 @@ void MainWindow::prepareGraphs() {
     m_pNetworkDelay->GetGraph()->yAxis->setLabel("latency in ms");
     m_pNetworkDelay->GetGraph()->xAxis2->setLabel("Network monitor");
     m_pNetworkDelay->GetGraph()->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables);
+
+    m_plotTimer.start(1000);
 }
 
 void MainWindow::sl_sendPing() {
@@ -442,15 +446,15 @@ void MainWindow::sl_UpdateSensorData(QPair<double, QVariantMap> sensorRead) {
 
     // Sensors read-outs
     // Compass
-    if(map["type"].toString() == "s_cmp") {
+    if(map["t"].toString() == "s_cmp") {
         fHeading = map["h"].toDouble();
     }
     // Barometer
-    if(map["type"].toString() == "s_bar") {
+    if(map["t"].toString() == "s_bar") {
         m_vBarometer_s.append(time_s);
         m_vAirPressure.append(map["p"].toDouble() / 100000 );
         m_vAltitude_m.append(map["a"].toDouble() );
-        m_vTemperature_C.append(map["t"].toDouble() );
+        m_vTemperature_C.append(map["T"].toDouble() );
         m_vClimbrate_ms.append(map["c"].toDouble() );
         m_vTemperature_samples.append(map["s"].toDouble() );
 
@@ -459,7 +463,7 @@ void MainWindow::sl_UpdateSensorData(QPair<double, QVariantMap> sensorRead) {
         m_pStatusBar->showMessage(m_sStatBarSensor, 5000);
     }
     // GPS
-    if(map["type"].toString() == "s_gps") {
+    if(map["t"].toString() == "s_gps") {
         if(!m_pOptionTrackingEnabled->isChecked() ) {
             return;
         }
@@ -468,13 +472,13 @@ void MainWindow::sl_UpdateSensorData(QPair<double, QVariantMap> sensorRead) {
         m_pGMaps->sl_setQuad(fLat, fLon, fHeading);
     }
     // Battery
-    if(map["type"].toString() == "s_bat") {
+    if(map["t"].toString() == "s_bat") {
         m_vBattery_s.append(time_s);
         m_vBattery_V.append(map["V"].toDouble() );
         m_vBattery_A.append(map["A"].toDouble() );
     }
     // Attitude
-    if(map["type"].toString() == "s_att") {
+    if(map["t"].toString() == "s_att") {
         qreal fRol = map["r"].toDouble();
         qreal fPit = map["p"].toDouble();
         float fYaw = map["y"].toDouble();
@@ -488,7 +492,7 @@ void MainWindow::sl_UpdateSensorData(QPair<double, QVariantMap> sensorRead) {
 
     // Current configuration
     // PID configuration
-    if(map["type"].toString() == "pid_cnf") {
+    if(map["t"].toString() == "pid_cnf") {
         m_pPIDConfig->sl_setPIDs(map);
 
         m_pPIDConfigDial->sl_Activate();
@@ -541,13 +545,9 @@ void MainWindow::sl_replotGraphs() {
     m_pBattery->GetGraph()->replot();
 }
 
-void MainWindow::sl_recvCommand() {
+void MainWindow::sl_recvCommand_UDP() {
     if(!m_bUdpSockCon)
         return;
-
-    if(!m_pUdpSocket->bytesAvailable() ) {
-        return;
-    }
 
     char buffer[512];
     qint64 lineLength = m_pUdpSocket->read(buffer, sizeof(buffer) );
@@ -563,6 +563,40 @@ void MainWindow::sl_recvCommand() {
     sl_UpdateSensorData(QPair<double, QVariantMap>(fTimeElapsed_s, result) );
 }
 
+void MainWindow::sl_recvCommand_Radio() {
+    static QByteArray curSString;
+
+    if(!m_pSerialPort.bytesAvailable() ) {
+        return;
+    }
+
+    while(m_pSerialPort.bytesAvailable() ) {
+        QByteArray byte = m_pSerialPort.read(1);
+
+        if(byte.contains('\n')) { // end delimiter
+            m_udpCurLine = curSString;
+            curSString.clear();
+
+            QJsonParseError curError;
+            QJsonDocument JSONDoc = QJsonDocument::fromJson(m_udpCurLine, &curError);
+            if(curError.error != QJsonParseError::NoError) {
+              return;
+            }
+            
+            QVariantMap result = JSONDoc.toVariant().toMap();
+
+            if(result.empty() ) {
+                return;
+            }
+
+            double fTimeElapsed_s = ((double)m_tSensorTime.elapsed() / 1000.f) + m_fSLTime_s;
+            sl_UpdateSensorData(QPair<double, QVariantMap>(fTimeElapsed_s, result) );
+        } else {
+            curSString += byte;
+        }
+    }
+}
+
 void MainWindow::connectToHost(const QString & hostName, quint16 port, QIODevice::OpenMode openMode) {
     if(m_pUdpSocket->state() == QUdpSocket::ConnectedState) {
         m_pUdpSocket->close();
@@ -570,7 +604,7 @@ void MainWindow::connectToHost(const QString & hostName, quint16 port, QIODevice
 
     m_pUdpSocket->setSocketOption(QAbstractSocket::LowDelayOption, 1);
     m_pUdpSocket->connectToHost(hostName, port, openMode);
-    m_bUdpSockCon = m_pUdpSocket->waitForConnected(1000);
+    m_bUdpSockCon = m_pUdpSocket->waitForConnected(100);
 
     if(m_pUdpSocket->state() == QUdpSocket::ConnectedState) {
         m_pUdpSocket->write(0, 0);
@@ -579,8 +613,8 @@ void MainWindow::connectToHost(const QString & hostName, quint16 port, QIODevice
         // Update graphs and ping service only necessary if connected to UDP socket
         int ping_ms = m_pConf->value("Ping_ms", PING_T_MS).toInt();
         m_pConf->setValue("Ping_ms", ping_ms);
+
         m_pingTimer.start(ping_ms);
-        m_plotTimer.start(1000);
     }
     else {
         qDebug() << "connectToHost - Not connected: " << m_pUdpSocket->error();

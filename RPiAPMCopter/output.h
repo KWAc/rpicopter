@@ -8,18 +8,16 @@
 #include "scheduler.h"
 
 
-void send_comp();
-void send_atti();
-void send_baro();
-void send_gps();
-void send_bat();
-void send_rc();
-void send_pids_attitude();
-void send_pids_altitude();
+void send_comp(int uartX = UART_A);
+void send_atti(int uartX = UART_A);
+void send_baro(int uartX = UART_A);
+void send_gps(int uartX = UART_A);
+void send_bat(int uartX = UART_A);
+void send_pids_attitude(int uartX = UART_A);
+void send_pids_altitude(int uartX = UART_A);
 
 // function, delay, multiplier of the delay
 Task outAtti   (&send_atti,          3,   1);
-Task outRC     (&send_rc,            37,  1);
 Task outComp   (&send_comp,          44,  1);
 Task outBaro   (&send_baro,          66,  1);
 Task outGPS    (&send_gps,           66,  2);
@@ -47,20 +45,21 @@ void leds_on() {
 ///////////////////////////////////////////////////////////
 // compass
 ///////////////////////////////////////////////////////////
-void send_comp() {
+void send_comp(int uartX) {
   if(!_HAL_BOARD.m_pComp->healthy() ) {
     return;
   }
 
-  hal.console->printf("{\"type\":\"s_cmp\",\"h\":%.1f}\n",
-  static_cast<double>(_HAL_BOARD.read_comp_deg() ) );
+  AP_HAL::UARTDriver *pOut = uartX == UART_C ? hal.uartC : hal.uartA;
+  pOut->printf( "{\"t\":\"s_cmp\",\"h\":%.1f}\n",
+                static_cast<double>(_HAL_BOARD.read_comp_deg() ) );
 }
 ///////////////////////////////////////////////////////////
 // attitude in degrees
 ///////////////////////////////////////////////////////////
 
 
-void send_atti() {
+void send_atti(int uartX) {
   static uint_fast32_t iTimer = 0;
   
   static float fLX = FLT_MAX;
@@ -86,75 +85,70 @@ void send_atti() {
   fLY = fCY;
   fLZ = fCZ;
 
-  hal.console->printf("{\"type\":\"s_att\",\"r\":%.1f,\"p\":%.1f,\"y\":%.1f}\n",
-                      static_cast<double>(fCY),
-                      static_cast<double>(fCX),
-                      static_cast<double>(fCZ) );
+  AP_HAL::UARTDriver *pOut = uartX == UART_C ? hal.uartC : hal.uartA;
+  pOut->printf( "{\"t\":\"s_att\",\"r\":%.1f,\"p\":%.1f,\"y\":%.1f}\n",
+                static_cast<double>(fCY),
+                static_cast<double>(fCX),
+                static_cast<double>(fCZ) );
 }
 ///////////////////////////////////////////////////////////
 // barometer
 ///////////////////////////////////////////////////////////
-void send_baro() {
+void send_baro(int uartX) {
   if(!_HAL_BOARD.m_pBaro->healthy() ) {
     return;
   }
 
   BaroData baro = _HAL_BOARD.read_baro();
-  hal.console->printf("{\"type\":\"s_bar\",\"p\":%.1f,\"a\":%ld,\"t\":%.1f,\"c\":%.1f,\"s\":%d}\n",
-                      static_cast<double>(baro.pressure_pa),
-                      baro.altitude_cm,
-                      static_cast<double>(baro.temperature_deg),
-                      static_cast<double>(baro.climb_rate_cms),
-                      static_cast<uint_fast16_t>(baro.pressure_samples) );
+  
+  AP_HAL::UARTDriver *pOut = uartX == UART_C ? hal.uartC : hal.uartA;
+  pOut->printf( "{\"t\":\"s_bar\",\"p\":%.1f,\"a\":%ld,\"T\":%.1f,\"c\":%.1f,\"s\":%d}\n",
+                static_cast<double>(baro.pressure_pa),
+                baro.altitude_cm,
+                static_cast<double>(baro.temperature_deg),
+                static_cast<double>(baro.climb_rate_cms),
+                static_cast<uint_fast16_t>(baro.pressure_samples) );
 }
 ///////////////////////////////////////////////////////////
 // gps
 ///////////////////////////////////////////////////////////
-void send_gps() {
+void send_gps(int uartX) {
   // Has fix?
   if(!_HAL_BOARD.m_pGPS->status() > 1) {
     return;
   }
 
   GPSData gps = _HAL_BOARD.get_gps();
-  hal.console->printf("{\"type\":\"s_gps\",\"lat_dege7\":%ld,\"lon_dege7\":%ld,\"a_cm\":%ld,\"g_cms\":%ld,\"g_cd\":%ld,\"sat\":%d,\"tw\":%d,\"tw_s\":%.2f}\n",
-                      gps.latitude,
-                      gps.longitude,
-                      gps.altitude_cm,
-                      gps.gspeed_cms,
-                      gps.gcourse_cd,
-                      gps.satelites,
-                      gps.time_week,
-                      static_cast<double>(gps.time_week_s) );
+  
+  AP_HAL::UARTDriver *pOut = uartX == UART_C ? hal.uartC : hal.uartA;
+  pOut->printf( "{\"t\":\"s_gps\",\"lat_dege7\":%ld,\"lon_dege7\":%ld,\"a_cm\":%ld,\"g_cms\":%ld,\"g_cd\":%ld,\"sat\":%d,\"tw\":%d,\"tw_s\":%.2f}\n",
+                gps.latitude,
+                gps.longitude,
+                gps.altitude_cm,
+                gps.gspeed_cms,
+                gps.gcourse_cd,
+                gps.satelites,
+                gps.time_week,
+                static_cast<double>(gps.time_week_s) );
 }
 ///////////////////////////////////////////////////////////
 // battery monitor
 ///////////////////////////////////////////////////////////
-void send_bat() {
+void send_bat(int uartX) {
   BattData bat = _HAL_BOARD.read_bat();
-  hal.console->printf("{\"type\":\"s_bat\",\"R\":%.1f,\"V\":%.1f,\"A\":%.1f,\"P\":%.1f,\"c_mAh\":%.1f}\n",
-                      static_cast<double>(bat.refVoltage_V),
-                      static_cast<double>(bat.voltage_V),
-                      static_cast<double>(bat.current_A),
-                      static_cast<double>(bat.power_W),
-                      static_cast<double>(bat.consumpt_mAh) );
-}
-///////////////////////////////////////////////////////////
-// remote control
-///////////////////////////////////////////////////////////
-void send_rc() {
-  int_fast16_t rcthr = _RECVR.get_channel(RC_THR);
-  int_fast16_t rcyaw = _RECVR.get_channel(RC_YAW);
-  int_fast16_t rcpit = _RECVR.get_channel(RC_PIT);
-  int_fast16_t rcrol = _RECVR.get_channel(RC_ROL);
-
-  hal.console->printf("{\"type\":\"rc_in\",\"r\":%d,\"p\":%d,\"t\":%d,\"y\":%d}\n",
-                      rcrol, rcpit, rcthr, rcyaw);
+  
+  AP_HAL::UARTDriver *pOut = uartX == UART_C ? hal.uartC : hal.uartA;
+  pOut->printf( "{\"t\":\"s_bat\",\"R\":%.1f,\"V\":%.1f,\"A\":%.1f,\"P\":%.1f,\"c_mAh\":%.1f}\n",
+                static_cast<double>(bat.refVoltage_V),
+                static_cast<double>(bat.voltage_V),
+                static_cast<double>(bat.current_A),
+                static_cast<double>(bat.power_W),
+                static_cast<double>(bat.consumpt_mAh) );
 }
 ///////////////////////////////////////////////////////////
 // PID configuration
 ///////////////////////////////////////////////////////////
-void send_pids_attitude() {
+void send_pids_attitude(int uartX) {
   // Capture values
   float pit_rkp   = _HAL_BOARD.get_pid(PID_PIT_RATE).kP();
   float pit_rki   = _HAL_BOARD.get_pid(PID_PIT_RATE).kI();
@@ -175,18 +169,19 @@ void send_pids_attitude() {
   float rol_skp   = _HAL_BOARD.get_pid(PID_ROL_STAB).kP();
   float yaw_skp   = _HAL_BOARD.get_pid(PID_YAW_STAB).kP();
 
-  hal.console->printf("{\"type\":\"pid_cnf\","
-                      "\"p_rkp\":%.2f,\"p_rki\":%.2f,\"p_rkd\":%.4f,\"p_rimax\":%.2f,"
-                      "\"r_rkp\":%.2f,\"r_rki\":%.2f,\"r_rkd\":%.4f,\"r_rimax\":%.2f,"
-                      "\"y_rkp\":%.2f,\"y_rki\":%.2f,\"y_rkd\":%.4f,\"y_rimax\":%.2f,"
-                      "\"p_skp\":%.2f,\"r_skp\":%.2f,\"y_skp\":%.4f}\n",
-                      static_cast<double>(pit_rkp), static_cast<double>(pit_rki), static_cast<double>(pit_rkd), static_cast<double>(pit_rimax),
-                      static_cast<double>(rol_rkp), static_cast<double>(rol_rki), static_cast<double>(rol_rkd), static_cast<double>(rol_rimax),
-                      static_cast<double>(yaw_rkp), static_cast<double>(yaw_rki), static_cast<double>(yaw_rkd), static_cast<double>(yaw_rimax),
-                      static_cast<double>(pit_skp), static_cast<double>(rol_skp), static_cast<double>(yaw_skp) );
+  AP_HAL::UARTDriver *pOut = uartX == UART_C ? hal.uartC : hal.uartA;
+  pOut->printf( "{\"t\":\"pid_cnf\","
+                "\"p_rkp\":%.2f,\"p_rki\":%.2f,\"p_rkd\":%.4f,\"p_rimax\":%.2f,"
+                "\"r_rkp\":%.2f,\"r_rki\":%.2f,\"r_rkd\":%.4f,\"r_rimax\":%.2f,"
+                "\"y_rkp\":%.2f,\"y_rki\":%.2f,\"y_rkd\":%.4f,\"y_rimax\":%.2f,"
+                "\"p_skp\":%.2f,\"r_skp\":%.2f,\"y_skp\":%.4f}\n",
+                static_cast<double>(pit_rkp), static_cast<double>(pit_rki), static_cast<double>(pit_rkd), static_cast<double>(pit_rimax),
+                static_cast<double>(rol_rkp), static_cast<double>(rol_rki), static_cast<double>(rol_rkd), static_cast<double>(rol_rimax),
+                static_cast<double>(yaw_rkp), static_cast<double>(yaw_rki), static_cast<double>(yaw_rkd), static_cast<double>(yaw_rimax),
+                static_cast<double>(pit_skp), static_cast<double>(rol_skp), static_cast<double>(yaw_skp) );
 }
 
-void send_pids_altitude() {
+void send_pids_altitude(int uartX) {
   // Capture values
   float thr_rkp   = _HAL_BOARD.get_pid(PID_THR_RATE).kP();
   float thr_rki   = _HAL_BOARD.get_pid(PID_THR_RATE).kI();
@@ -201,13 +196,14 @@ void send_pids_altitude() {
   float thr_skp   = _HAL_BOARD.get_pid(PID_THR_STAB).kP();
   float acc_skp   = _HAL_BOARD.get_pid(PID_ACC_STAB).kP();
 
-  hal.console->printf("{\"type\":\"pid_cnf\","
-                      "\"t_rkp\":%.2f,\"t_rki\":%.2f,\"t_rkd\":%.4f,\"t_rimax\":%.2f,"
-                      "\"a_rkp\":%.2f,\"a_rki\":%.2f,\"a_rkd\":%.4f,\"a_rimax\":%.2f,"
-                      "\"t_skp\":%.2f,\"a_skp\":%.2f}\n",
-                      static_cast<double>(thr_rkp), static_cast<double>(thr_rki), static_cast<double>(thr_rkd), static_cast<double>(thr_rimax),
-                      static_cast<double>(acc_rkp), static_cast<double>(acc_rki), static_cast<double>(acc_rkd), static_cast<double>(acc_rimax),
-                      static_cast<double>(thr_skp), static_cast<double>(acc_skp) );
+  AP_HAL::UARTDriver *pOut = uartX == UART_C ? hal.uartC : hal.uartA;
+  pOut->printf( "{\"t\":\"pid_cnf\","
+                "\"t_rkp\":%.2f,\"t_rki\":%.2f,\"t_rkd\":%.4f,\"t_rimax\":%.2f,"
+                "\"a_rkp\":%.2f,\"a_rki\":%.2f,\"a_rkd\":%.4f,\"a_rimax\":%.2f,"
+                "\"t_skp\":%.2f,\"a_skp\":%.2f}\n",
+                static_cast<double>(thr_rkp), static_cast<double>(thr_rki), static_cast<double>(thr_rkd), static_cast<double>(thr_rimax),
+                static_cast<double>(acc_rkp), static_cast<double>(acc_rki), static_cast<double>(acc_rkd), static_cast<double>(acc_rimax),
+                static_cast<double>(thr_skp), static_cast<double>(acc_skp) );
 }
 
 #endif

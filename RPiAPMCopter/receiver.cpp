@@ -34,12 +34,12 @@ inline bool verf_chksum(char *str, char *chk) {
 }
 
 inline void run_calibration(Device *pHalBoard) {
-  float roll_trim, pitch_trim;
   while(pHalBoard->m_pHAL->console->available() ) {
     pHalBoard->m_pHAL->console->read();
   }
 
 #if !defined( __AVR_ATmega1280__ )
+  float roll_trim, pitch_trim;
   AP_InertialSensor_UserInteractStream interact(pHalBoard->m_pHAL->console);
   pHalBoard->m_pInert->calibrate_accel(&interact, roll_trim, pitch_trim);
   // Adjust AHRS
@@ -102,9 +102,9 @@ inline bool check_input(int_fast16_t iRol, int_fast16_t iPit, int_fast16_t iThr,
 ///////////////////////////////////////////////////////////////////////////////////////
 // Receiver
 ///////////////////////////////////////////////////////////////////////////////////////
-Receiver::Receiver(Device *pHalBoard, Scheduler *pTMUartA) {
+Receiver::Receiver(Device *pHalBoard, Scheduler *pTMUart) {
   m_pHalBoard = pHalBoard;
-  m_pTMUartAOut = pTMUartA;
+  m_pTMUartOut = pTMUart;
 
   memset(m_cBuffer, 0, sizeof(m_cBuffer) );
   memset(m_rgChannelsRC, 0, sizeof(m_rgChannelsRC) );
@@ -184,10 +184,6 @@ uint_fast32_t Receiver::last_rcin_t32() {
 
 // remote control stuff
 bool Receiver::parse_ctrl_com(char* buffer) {
-  if(m_rgChannelsRC == NULL) {
-    return false;
-  }
-
   char *str = strtok(buffer, "*");                      // str = roll, pit, thr, yaw
   char *chk = strtok(NULL, "*");                        // chk = chksum
 
@@ -301,13 +297,10 @@ bool Receiver::parse_waypoint(char *buffer) {
 }
 
 bool Receiver::parse_gyr_cal(char* buffer) {
-  // If motors run: Do nothing!
-  if(m_rgChannelsRC == NULL || m_pHalBoard == NULL) {
-    return false;
-  } else if (m_rgChannelsRC[2] > RC_THR_ACRO) {
+  if(m_rgChannelsRC[2] > RC_THR_ACRO) {
     return false;
   }
-  // process cmd
+
   char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
   char *chk = strtok(NULL, "*");                    // chk = chksum
   
@@ -328,10 +321,6 @@ bool Receiver::parse_gyr_cal(char* buffer) {
  * Changes the sensor type used for the battery monitor
  */
 bool Receiver::parse_bat_type(char* buffer) {
-  if(m_pHalBoard == NULL) {
-    return false;
-  }
-  // process cmd
   char *str = strtok(buffer, "*");                // str
   char *chk = strtok(NULL, "*");                  // chk = chksum
 
@@ -344,10 +333,7 @@ bool Receiver::parse_bat_type(char* buffer) {
 }
 
 bool Receiver::parse_pid_conf(char* buffer) {
-  if(m_pHalBoard == NULL) {
-    return false;
-  }
-  else if(m_rgChannelsRC[2] > RC_THR_ACRO) {        // If motors run: Do nothing!
+  if(m_rgChannelsRC[2] > RC_THR_ACRO) {        // If motors run: Do nothing!
     return false;
   }
 
@@ -427,75 +413,116 @@ bool Receiver::parse_radio(char *buffer) {
     checksum = (checksum + buffer[i]) << 1;
   }
 
-  // Validity check:
-  // First checksum
+  // Validity check: first checksum
   if(checksum != chk) {
     return false;
   }
-  // Small validity check
-  if(!check_input(rol, pit, thr, yaw) ) {
+  // Validity check: second ratings
+  else if(!check_input(rol, pit, thr, yaw) ) {
     return false;
   }
-    
-  // Set values
-  m_rgChannelsRC[RC_ROL] = rol;
-  m_rgChannelsRC[RC_PIT] = pit;
-  m_rgChannelsRC[RC_THR] = thr;
-  m_rgChannelsRC[RC_YAW] = yaw;
+  // Set values if everything seems fine
+  else {
+    m_rgChannelsRC[RC_ROL] = rol;
+    m_rgChannelsRC[RC_PIT] = pit;
+    m_rgChannelsRC[RC_THR] = thr;
+    m_rgChannelsRC[RC_YAW] = yaw;
 
-  m_iSParseTimer = m_pHalBoard->m_pHAL->scheduler->millis();           // update last valid packet
-  return true;
+    m_iSParseTimer = m_pHalBoard->m_pHAL->scheduler->millis();           // update last valid packet
+    return true;
+  }
 }
 
 // Parse incoming text
 // str = "%d,%d,%d,%d * checksum" % (p['roll'], p['pitch'], p['thr'], p['yaw'])
 // str = "%d,%d,%d; %d,%d,%d; %d,%d,%d * checksum"
-bool Receiver::parse(char *buffer) {
-  if(buffer == NULL) {
-    return false;
-  }
-
+bool Receiver::parse_cstr(char *buffer) {
   char *ctype = strtok(buffer, "#");                // type of string
   char *command = strtok(NULL, "#");                // command string
 
-  // process cmd
+  // Remote control command
   if(strcmp(ctype, "RC") == 0) {
     return parse_ctrl_com(command);
   }
-  if(strcmp(ctype, "PID") == 0) {
-    return parse_pid_conf(command);
-  }
-  if(strcmp(ctype, "CMP") == 0) {
+  // attitude offset for small imbalances
+  else if(strcmp(ctype, "CMP") == 0) {
     return parse_gyr_cor(command);
   }
-  if(strcmp(ctype, "GYR") == 0) {
-    return parse_gyr_cal(command);
-  }
-  if(strcmp(ctype, "BAT") == 0) {
-    return parse_bat_type(command);
-  }
-  if(strcmp(ctype, "UAV") == 0) {
+  // Waypoints for UAV mode
+  else if(strcmp(ctype, "UAV") == 0) {
     return parse_waypoint(command);
   }
-
-  return false;
+  // Gyrometer calibration
+  else if(strcmp(ctype, "GYR") == 0) {
+    return parse_gyr_cal(command);
+  }
+  // PID regulator constants
+  else if(strcmp(ctype, "PID") == 0) {
+    return parse_pid_conf(command);
+  }
+  // Set battery type
+  else if(strcmp(ctype, "BAT") == 0) {
+    return parse_bat_type(command);
+  }
+  // Nothing to do or maybe string broken
+  else {
+    return false;
+  }
 }
 
-bool Receiver::read_uartA(uint_fast16_t bytesAvail) {
-  static uint_fast16_t offset = 0;
-
+bool Receiver::read_radio(AP_HAL::UARTDriver *pIn, uint_fast16_t &offset) {
   bool bRet = false;
+  uint_fast16_t bytesAvail = pIn->available();
   for(; bytesAvail > 0; bytesAvail--) {
-    char c = static_cast<char>(m_pHalBoard->m_pHAL->console->read() );// read next byte
-    if(c == '\n' /*|| c == 'z'*/) {                     // new line or special termination signature (z): Process cmd
+    // break this function if message becomes too long
+    if(offset > RADIO_MAX_OFFS) {                             // if message is longer than it should be
+      return false;                                           // and break loop
+    }
+    
+    // read the command string
+    int c = m_pHalBoard->m_pHAL->uartC->read();               // read next byte
+    if(c == 254) {                                            // this control char is not used for any other symbol
+      m_cBuffer[offset] = '\0';                               // null terminator at 8th position
+      if(offset != RADIO_MAX_OFFS) {                          // theoretically a broken message can still be shorter than it should be
+        memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0; //so break here if something was wrong
+        return false;
+      } else {                                                // message has perfect length and stop byte
+        bRet = parse_radio(m_cBuffer);
+        if(bRet) {
+          m_iSParseTimer_C = m_iSParseTimer;
+        }
+        memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0; //so break here if something was wrong
+      }
+    } else if(offset < sizeof(m_cBuffer)-1) {
+      m_cBuffer[offset++] = static_cast<char>(c);             // store in buffer and continue until newline
+    }
+  }
+
+  return bRet;
+}
+
+bool Receiver::read_cstring(AP_HAL::UARTDriver *pIn, uint_fast16_t &offset) {
+  bool bRet = false;
+  
+  uint_fast16_t bytesAvail = pIn->available();
+  for(; bytesAvail > 0; bytesAvail--) {
+    char c = static_cast<char>(pIn->read() );           // read next byte
+ 
+    // error check if it is a broken radio string
+    if(c == static_cast<char>(254) ) {
+      memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;
+      return false;
+    }
+ 
+    // otherwise it should be regular string
+    if(c == '\n') {                                     // new line or special termination signature (z): Process cmd
       m_cBuffer[offset] = '\0';                         // null terminator
-      bRet = parse(m_cBuffer);
+      bRet = parse_cstr(m_cBuffer);
       if(bRet) {
         m_iSParseTimer_A = m_iSParseTimer;
       }
       memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;
-    }
-    else if(c != '\r' && offset < sizeof(m_cBuffer)-1) {
+    } else if(c != '\r') {
       m_cBuffer[offset++] = c;                          // store in buffer and continue until newline
     }
   }
@@ -503,41 +530,26 @@ bool Receiver::read_uartA(uint_fast16_t bytesAvail) {
   return bRet;
 }
 
-bool Receiver::read_uartC(uint_fast16_t bytesAvail) {
-  static uint_fast16_t offset = 0;
-
+bool Receiver::read_uartX(AP_HAL::UARTDriver *pIn, bool bToggleRadio) {
   bool bRet = false;
-  for(; bytesAvail > 0; bytesAvail--) {
-    // command must be exactly 8 bytes long
-    if(offset > RADIO_MAX_OFFS) {                             // if message is longer than it should be
-      memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;   // reset everything
-      return false;                                           // and break loop
-    }
-    char c = static_cast<char>(m_pHalBoard->m_pHAL->uartC->read() );        // read next byte
-    if(c == static_cast<char>(254) ) {                                      // this control char is not used for any other symbol
-      m_cBuffer[offset] = '\0';                               // null terminator at 8th position
-      if(offset != RADIO_MAX_OFFS) {                          // theoretically a broken message can still be shorter than it should be
-        memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0; //so break here if something was wrong
-        return false;
-      }
-      else {                                                  // message has perfect length and stop byte
-        bRet = parse_radio(m_cBuffer);
-        if(bRet) {
-          m_iSParseTimer_C = m_iSParseTimer;
-        }
-        #if DEBUG_OUT
-        else {
-          m_pHalBoard->m_pHAL->console->printf("Reading from uartC (radio port) failed\n");
-        }
-        #endif
-        memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;
-      }
-    }
-    else if(offset < sizeof(m_cBuffer)-1) {
-      m_cBuffer[offset++] = c;                                // store in buffer and continue until newline
-    }
+  static uint_fast16_t offset = 0;
+  
+  // Try to read very brief command string from radio first, ..
+  if(bToggleRadio) {
+    bRet = read_radio(pIn, offset);
   }
-
+  
+  // .. otherwise treat it as JSON
+  if(!bRet) {
+    bRet = read_cstring(pIn, offset);
+  }
+  
+  // Something really strange happened, 
+  // which indicates a potential problem in the function read_cstring or read_radio
+  if(offset >= sizeof(m_cBuffer)-1) {
+    memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;
+  }
+  
   return bRet;
 }
 
@@ -555,10 +567,10 @@ bool Receiver::try_any() {
   // Try WiFi over uartA
   #if USE_UART_A
   if(last_rcin_t32() > RCIN_TIMEOUT && !bOK) {
-    bOK = read_uartA(m_pHalBoard->m_pHAL->uartA->available() );
-    // Reset the loop rate, if a valid package arrived from this port again
+    bOK = read_uartX(m_pHalBoard->m_pHAL->uartA, false);
+    // Disable sensor data output for uartC and enable it for uartA
     if(bOK) {
-      m_pTMUartAOut->resume(); 
+      m_pTMUartOut->set_arguments(UART_A);
     }
   }
   #endif
@@ -566,12 +578,12 @@ bool Receiver::try_any() {
   // Try radio (433 or 900 MHz) over uartC
   #if USE_UART_C
   if(last_parse_uartA_t32() > UART_A_TIMEOUT && !bOK) {
-    // Reduce the loop frequency only if not in UAV mode
     // If currently in other modes, radio could be still helpful
     if(!chk_fset(m_Waypoint.mode, GPSPosition::GPS_NAVIGATN_F) ) {
-      m_pTMUartAOut->stop();
+      // Disable sensor data output for uartA and enable it for uartC
+      m_pTMUartOut->set_arguments(UART_C);
     }
-    bOK = read_uartC(m_pHalBoard->m_pHAL->uartC->available() );
+    bOK = read_uartX(m_pHalBoard->m_pHAL->uartC, true);
   }
   #endif
 

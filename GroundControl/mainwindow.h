@@ -102,7 +102,8 @@ private slots:
     void sl_saveLog();
     void sl_loadLog();
 
-    void sl_recvCommand();
+    void sl_recvCommand_UDP();
+    void sl_recvCommand_Radio();
     void sl_replotGraphs();
     void sl_UpdateSensorData(QPair<double, QVariantMap> map);
 

@@ -74,8 +74,6 @@ private:
   float m_fTiltComp;
   
   // Calculate and apply the motor compensation terms
-  void calc_batt_comp();                                            // battery voltage drop compensation
-  void calc_tilt_comp();                                            // motor compensation if model is tilted
   void apply_motor_compens();                                       // This functions applies motor compensation terms (e.g. battery and tilt) to the output of the servos
   
   // Helper functions for regulating the servo output
@@ -91,4 +89,7 @@ protected:
 
 public:
   M4XFrame(Device *, Receiver *, Exception *, UAVNav *);
+  
+  void calc_batt_comp();                                            // battery voltage drop compensation
+  void calc_tilt_comp();                                            // motor compensation if model is tilted
 };

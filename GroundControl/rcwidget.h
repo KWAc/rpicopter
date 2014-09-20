@@ -32,6 +32,7 @@ private:
     QSerialPort *m_pSerialPort;
 
     void sendJSON2UDP(QString, bool isCommand = true);
+    void sendJSON2COM(QString, bool isCommand = true);
     void sendJSON2COM(QPair<int, char*>);
     void initGyro2UDP();
     void activAltihold2UDP();
