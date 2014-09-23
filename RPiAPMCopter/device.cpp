@@ -121,7 +121,7 @@ void DeviceInit::init_compass() {
 
 void DeviceInit::init_inertial() {
   // Turn on MPU6050
-  m_pInert->init(AP_InertialSensor::COLD_START, AP_InertialSensor::RATE_200HZ);
+  m_pInert->init(AP_InertialSensor::COLD_START, AP_InertialSensor::RATE_100HZ);
 
   // Calibrate the inertial
   m_t32Inertial = m_pHAL->scheduler->millis();
@@ -151,7 +151,6 @@ DeviceInit::DeviceInit( const AP_HAL::HAL *pHAL, AP_InertialSensor *pInert, Comp
   m_pRF               = pRF;
   m_pAHRS             = pAHRS;
   m_pInertNav         = pInertNav;
-  m_iUpdateRate       = MAIN_T_MS;
   m_eErrors           = NOTHING_F;
   m_t32Compass = m_t32InertialNav = m_t32Inertial = m_pHAL->scheduler->millis();
   // PIDs

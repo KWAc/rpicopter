@@ -37,7 +37,6 @@ protected:
   uint_fast32_t m_t32Inertial;      // For calculating the derivative of the angular changes
   uint_fast32_t m_t32InertialNav;
   uint_fast32_t m_t32Compass;
-  uint_fast8_t  m_iUpdateRate;      // Suggested update rate of the main loop, dependent on the usage of the 3DR radio on uartC
 
 public /*objects*/: 
   // Hardware abstraction library interface

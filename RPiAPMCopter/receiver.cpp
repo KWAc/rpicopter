@@ -33,17 +33,25 @@ inline bool verf_chksum(char *str, char *chk) {
   return false;
 }
 
-inline void run_calibration(Device *pHalBoard) {
+inline void run_calibration(Device *pHalBoard, Scheduler *m_pOutSched) {
   while(pHalBoard->m_pHAL->console->available() ) {
     pHalBoard->m_pHAL->console->read();
   }
 
 #if !defined( __AVR_ATmega1280__ )
+  // Stop the sensor output
+  m_pOutSched->stop();
+  
+  // Do the calibration
   float roll_trim, pitch_trim;
   AP_InertialSensor_UserInteractStream interact(pHalBoard->m_pHAL->console);
   pHalBoard->m_pInert->calibrate_accel(&interact, roll_trim, pitch_trim);
+  
   // Adjust AHRS
   pHalBoard->m_pAHRS->set_trim(Vector3f(roll_trim, pitch_trim, 0) );
+  
+  // After all, resume the sensor output
+  m_pOutSched->resume();
 #else
 	pHalBoard->m_pHAL->console->println_P(PSTR("calibrate_accel not available on 1280") );
 #endif
@@ -310,7 +318,7 @@ bool Receiver::parse_gyr_cal(char* buffer) {
     // only if quadro is _not_ armed
     if(bcalib) {
       // This functions checks whether model is ready for a calibration
-      run_calibration(m_pHalBoard);
+      run_calibration(m_pHalBoard, m_pTMUartOut);
     }
   }
 
@@ -474,16 +482,12 @@ bool Receiver::read_radio(AP_HAL::UARTDriver *pIn, uint_fast16_t &offset) {
   bool bRet = false;
   uint_fast16_t bytesAvail = pIn->available();
   for(; bytesAvail > 0; bytesAvail--) {
-    // break this function if message becomes too long
-    if(offset > RADIO_MAX_OFFS) {                             // if message is longer than it should be
-      return false;                                           // and break loop
-    }
+    char c = static_cast<char>(pIn->read() );                 // read next byte
     
-    // read the command string
-    int c = m_pHalBoard->m_pHAL->uartC->read();               // read next byte
-    if(c == 254) {                                            // this control char is not used for any other symbol
+    // New radio message found
+    if(c == static_cast<char>(254) ) {                        // this control char is not used for any other symbol
       m_cBuffer[offset] = '\0';                               // null terminator at 8th position
-      if(offset != RADIO_MAX_OFFS) {                          // theoretically a broken message can still be shorter than it should be
+      if(offset != RADIO_MSG_LENGTH) {                        // theoretically a broken message can still be shorter than it should be
         memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0; //so break here if something was wrong
         return false;
       } else {                                                // message has perfect length and stop byte
@@ -493,8 +497,15 @@ bool Receiver::read_radio(AP_HAL::UARTDriver *pIn, uint_fast16_t &offset) {
         }
         memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0; //so break here if something was wrong
       }
-    } else if(offset < sizeof(m_cBuffer)-1) {
-      m_cBuffer[offset++] = static_cast<char>(c);             // store in buffer and continue until newline
+    }
+    // For the radio, the command string has to be 7 bytes long
+    else if(offset < RADIO_MSG_LENGTH) {
+      m_cBuffer[offset++] = c;                                // store in buffer and continue until newline
+    } 
+    // If it is longer, but there is no stop byte, 
+    // it is likely it is a different type of command string
+    else {
+      return false;
     }
   }
 
@@ -508,13 +519,13 @@ bool Receiver::read_cstring(AP_HAL::UARTDriver *pIn, uint_fast16_t &offset) {
   for(; bytesAvail > 0; bytesAvail--) {
     char c = static_cast<char>(pIn->read() );           // read next byte
  
-    // error check if it is a broken radio string
+    // error check if for a broken radio string, ..
     if(c == static_cast<char>(254) ) {
       memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;
       return false;
     }
  
-    // otherwise it should be regular string
+    // .. otherwise it should be regular string
     if(c == '\n') {                                     // new line or special termination signature (z): Process cmd
       m_cBuffer[offset] = '\0';                         // null terminator
       bRet = parse_cstr(m_cBuffer);
@@ -522,8 +533,19 @@ bool Receiver::read_cstring(AP_HAL::UARTDriver *pIn, uint_fast16_t &offset) {
         m_iSParseTimer_A = m_iSParseTimer;
       }
       memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;
-    } else if(c != '\r') {
+    }
+    // Delimiter before end of the message, not used yet
+    else if(c == '\r') {
+      continue;
+    }
+    // End of regular message reached
+    else if(offset < (sizeof(m_cBuffer)-1) ) {
       m_cBuffer[offset++] = c;                          // store in buffer and continue until newline
+    }
+    // Message seems to be broken, so reset buffer and return
+    else {
+      memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;
+      return false;
     }
   }
 
@@ -542,12 +564,6 @@ bool Receiver::read_uartX(AP_HAL::UARTDriver *pIn, bool bToggleRadio) {
   // .. otherwise treat it as JSON
   if(!bRet) {
     bRet = read_cstring(pIn, offset);
-  }
-  
-  // Something really strange happened, 
-  // which indicates a potential problem in the function read_cstring or read_radio
-  if(offset >= sizeof(m_cBuffer)-1) {
-    memset(m_cBuffer, 0, sizeof(m_cBuffer) ); offset = 0;
   }
   
   return bRet;

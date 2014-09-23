@@ -85,7 +85,6 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 // Main loop
 //////////////////////////////////////////////////////////////////////////////////////////
-#define MAIN_T_MS            0      // Update frequency of the main loop: With the current features the main loop runs with ~150 Hz
 #define RCVR_T_MS            20     // Update frequency of the receiver loop: 50 Hz
 #define INAV_T_MS            20     // Update frequency for the auto navigation system: 50 Hz
 
@@ -104,7 +103,7 @@
 #define RC_THR               2
 #define RC_YAW               3
 
-#define RADIO_MAX_OFFS       7        // Maximum length of command message via radio without stop bit
+#define RADIO_MSG_LENGTH     7        // Maximum length of radio control message without stop byte
 #define APM_IOCHAN_CNT 	     8
 
 #define UART_A               0
@@ -116,7 +115,7 @@
 #define USE_UART_C           1        // And this is the fall-back option (3DR Radio 433 or 900 MHz)
 
 #define COM_PKT_TIMEOUT      500      // Time-out in ms; If the time-out is triggered the machine will go down
-#define RCIN_TIMEOUT         200      // Time-out of the ppm radio in ms; If time-out is triggered the firmware tries to receive packets via the USB port on uartA
+#define RCIN_TIMEOUT         250      // Time-out of the ppm radio in ms; If time-out is triggered the firmware tries to receive packets via the USB port on uartA
 #define UART_A_TIMEOUT       250      // Time-out of the console serial port in ms; If time-out is triggered the firmware tries to receive packets via the 3DR radio on uartC
 
 #define PID_ARGS             6        // Nr of arguments for PID configuration

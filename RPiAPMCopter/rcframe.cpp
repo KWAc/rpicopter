@@ -32,9 +32,7 @@ void Frame::read_receiver() {
   m_fRCYaw = static_cast<float>(m_pReceiver->get_channel(RC_YAW) );
 }
 
-void Frame::run() {
-  // Wait if there is no new data (save ressources) ..
-  while(!m_pHalBoard->m_pInert->wait_for_sample(MAIN_T_MS) );
+void Frame::run() {  
   // .. and update inertial information
   m_pHalBoard->update_attitude();
   

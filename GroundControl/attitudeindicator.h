@@ -28,7 +28,12 @@ public:
     qAttitudeIndicator(QWidget *parent = 0);
     ~qAttitudeIndicator();
     void setRoll(qreal val) {roll  = val;}
-    void setPitch(qreal val){pitch = val;}
+    void setPitch(qreal val){
+        int iSign = val >= 0 ? 1 : -1;
+        val = fabs(val) > 40 ? 40 : fabs(val);
+        val *= iSign;
+        pitch = val;
+    }
     qreal getRoll() {return roll;}
     qreal getPitch(){return pitch;}
 protected:

@@ -20,7 +20,7 @@ QRCWidget::QRCWidget(QUdpSocket *pSock, QSerialPort *pSerialPort, QWidget *paren
     m_bRadioEnabled = true;
     m_bAltitudeHold = false;
 
-    m_iUpdateTime = 15;
+    m_iUpdateTime = 20;
     m_fTimeConstRed = (float)m_iUpdateTime/150.f;
     m_fTimeConstEnh = (float)m_iUpdateTime/75.f;
 
@@ -62,12 +62,12 @@ void QRCWidget::initGyro2UDP() {
     static bool bInit = false;
     
     QString com = "";
-    com.append("{\"type\":\"gyr\",\"cal\":"); 
+    com.append("{\"t\":\"gyr\",\"cal\":"); 
     com.append(QString::number(true) ); 
     com.append("}");
     
     QString usr = "";
-    usr.append("{\"type\":\"user_interactant\"}"); ;
+    usr.append("{\"t\":\"user_interactant\"}"); ;
     
     // Init calibration
     if(iStep >= 6) {
@@ -99,7 +99,7 @@ void QRCWidget::initGyro2UDP() {
 
 void QRCWidget::activAltihold2UDP() {
     QString com = "";
-    com.append("{\"type\":\"uav\",\"lat_d\":");
+    com.append("{\"t\":\"uav\",\"lat_d\":");
     com.append(QString::number(0) );
     com.append(",\"lon_d\":");
     com.append(QString::number(0) );
@@ -115,7 +115,7 @@ void QRCWidget::activAltihold2UDP() {
 
 void QRCWidget::deactAltihold2UDP() {
     QString com = "";
-    com.append("{\"type\":\"uav\",\"lat_d\":");
+    com.append("{\"t\":\"uav\",\"lat_d\":");
     com.append(QString::number(0) );
     com.append(",\"lon_d\":");
     com.append(QString::number(0) );
@@ -371,7 +371,7 @@ void QRCWidget::sendJSON2COM(QPair<int, char*> pair) {
         return;
 
     if (pair.first > 0) {
-        //qDebug() << "COM: " << pair.first << pair.second;
+        qDebug() << "Radio: " << pair.first << pair.second;
         m_pSerialPort->write(pair.second, pair.first);
     }
 }
@@ -380,6 +380,5 @@ void QRCWidget::sl_sendRC2UDP() {
     sendJSON2UDP(m_COM.str_makeWiFiCommand() );
     if(m_bRadioEnabled) {
        sendJSON2COM(m_COM.cstr_makeRadioCommand() );
-
     }
 }

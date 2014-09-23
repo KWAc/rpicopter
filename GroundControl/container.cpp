@@ -59,10 +59,10 @@ RC_COM::RC_COM() {
 
 QString RC_COM::str_makeWiFiCommand() {
     QString com = "";
-    com.append("{\"type\":\"rc\",\"r\":");  com.append(QString::number((int)ROL, 10) ); com.append(",");
-    com.append("\"p\":");                   com.append(QString::number((int)PIT, 10) ); com.append(",");
-    com.append("\"t\":");                   com.append(QString::number((int)THR, 10) ); com.append(",");
-    com.append("\"y\":");                   com.append(QString::number((int)YAW, 10) ); com.append("}");
+    com.append("{\"t\":\"rc\",\"r\":");  com.append(QString::number((int)ROL, 10) ); com.append(",");
+    com.append("\"p\":");                com.append(QString::number((int)PIT, 10) ); com.append(",");
+    com.append("\"f\":");                com.append(QString::number((int)THR, 10) ); com.append(",");
+    com.append("\"y\":");                com.append(QString::number((int)YAW, 10) ); com.append("}");
 
     return com;
 }
@@ -111,8 +111,8 @@ DRIFT_CAL::DRIFT_CAL() {
 
 QString DRIFT_CAL::str_makeWiFiCommand() {
     QString com = "";
-    com.append("{\"type\":\"cmp\",\"r\":"); com.append(QString::number(ROL, 'f', 2) ); com.append(",");
-    com.append("\"p\":");                   com.append(QString::number(PIT, 'f', 2) ); com.append("}");
+    com.append("{\"t\":\"cmp\",\"r\":"); com.append(QString::number(ROL, 'f', 2) ); com.append(",");
+    com.append("\"p\":");                com.append(QString::number(PIT, 'f', 2) ); com.append("}");
 
     return com;
 }

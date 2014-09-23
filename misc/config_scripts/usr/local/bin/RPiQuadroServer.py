@@ -75,38 +75,59 @@ def send_command(type, line):
   ser_write(output)
 
 def make_command(p):
-  type = p['type']
+  default = ""
+  type = p.get('t', default)
 
   # remote control is about controlling the model (thrust and attitude)
   if type == 'rc':
-    com = "%d,%d,%d,%d" % (p['r'], p['p'], p['t'], p['y'])
-    send_command("RC#", com)
+    try:
+      com = "%d,%d,%d,%d" % (p['r'], p['p'], p['f'], p['y'])
+    except KeyError, ValueError:
+      logging.error("KeyError in make_command()")
+    else:
+      send_command("RC#", com)
 
   # Add a waypoint
   if type == 'uav':
-    com = "%d,%d,%d,%d" % (p['lat_d'], p['lon_d'], p['alt_m'], p['flag_t'] )
-    send_command("UAV#", com)
+    try:
+      com = "%d,%d,%d,%d" % (p['lat_d'], p['lon_d'], p['alt_m'], p['flag_t'])
+    except KeyError, ValueError:
+      logging.error("KeyError in make_command()")
+    else:
+      send_command("UAV#", com)
 
   # PID config is about to change the sensitivity of the model to changes in attitude
   if type == 'pid':
-    com = "%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.2f,%.2f,%.2f" % (
-      p['p_rkp'], p['p_rki'], p['p_rkd'], p['p_rimax'],
-      p['r_rkp'], p['r_rki'], p['r_rkd'], p['r_rimax'],
-      p['y_rkp'], p['y_rki'], p['y_rkd'], p['y_rimax'],
-      p['t_rkp'], p['t_rki'], p['t_rkd'], p['t_rimax'],
-      p['a_rkp'], p['a_rki'], p['a_rkd'], p['a_rimax'],
-      p['p_skp'], p['r_skp'], p['y_skp'], p['t_skp'], p['a_skp'] )
-    send_command("PID#", com)
+    try:
+      com = "%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.4f,%.2f;%.2f,%.2f,%.2f,%.2f,%.2f" % (
+        p['p_rkp'], p['p_rki'], p['p_rkd'], p['p_rimax'],
+        p['r_rkp'], p['r_rki'], p['r_rkd'], p['r_rimax'],
+        p['y_rkp'], p['y_rki'], p['y_rkd'], p['y_rimax'],
+        p['t_rkp'], p['t_rki'], p['t_rkd'], p['t_rimax'],
+        p['a_rkp'], p['a_rki'], p['a_rkd'], p['a_rimax'],
+        p['p_skp'], p['r_skp'], p['y_skp'], p['t_skp'], p['a_skp'])
+    except KeyError, ValueError:
+      logging.error("KeyError in make_command()")
+    else:
+      send_command("PID#", com)
 
   # This section is about correcting drifts while model is flying (e.g. due to imbalances of the model)
   if type == 'cmp':
-    com = "%.2f,%.2f" % (p['r'], p['p'])
-    send_command("CMP#", com)
+    try:
+      com = "%.2f,%.2f" % (p['r'], p['p'])
+    except KeyError, ValueError:
+      logging.error("KeyError in make_command()")
+    else:
+      send_command("CMP#", com)
 
   # With this section you may start the calibration of the gyro again
   if type == 'gyr':
-    com = "%d" % (p['cal'])
-    send_command("GYR#", com)
+    try:
+      com = "%d" % (p['cal'])
+    except KeyError, ValueError:
+      logging.error("KeyError in make_command()")
+    else:
+      send_command("GYR#", com)
 
   # User interactant for gyrometer calibration
   if type == 'user_interactant':
@@ -114,8 +135,12 @@ def make_command(p):
 
   # Ping service for calculating the latency of the connection
   if type == 'ping':
-    com = '{"type":"pong","v":%d}' % (p['v'])
-    udp_write(com, udp_clients)
+    try:
+      com = '{"t":"pong","v":%d}' % (p['v'])
+    except KeyError, ValueError:
+      logging.error("KeyError in make_command()")
+    else:
+      udp_write(com, udp_clients)
 
 def recv_thr():                                                         # recv_thr() is used to catch sensor data
   global udp_clients
@@ -140,7 +165,7 @@ def recv_thr():                                                         # recv_t
       p = json.loads(ser_msg)
     except (ValueError, KeyError, TypeError):
       #print ("JSON format error: %s" % ser_msg)                        # Print everything what is not a valid JSON string to console
-      ser_msg = '{"type":"NOJSON","data":"%s"}' % ser_msg
+      ser_msg = '{"t":"NOJSON","data":"%s"}' % ser_msg
     finally:
       udp_write(ser_msg, udp_clients)
 

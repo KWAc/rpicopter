@@ -378,7 +378,7 @@ void MainWindow::prepareGraphs() {
 void MainWindow::sl_sendPing() {
     QString com = "";
     
-    com.append("{\"type\":\"ping\",\"v\":");
+    com.append("{\"t\":\"ping\",\"v\":");
     com.append(QString::number(m_iCurrentPingID) );
     com.append("}");
     
@@ -404,7 +404,7 @@ void MainWindow::sl_UpdateSensorData(QPair<double, QVariantMap> sensorRead) {
     QVariantMap map = sensorRead.second;
 
     // Latency of the connection
-    if(map["type"].toString() == "pong") {
+    if(map["t"].toString() == "pong") {
         unsigned int iCurrentPongID = map["v"].toInt();
         if(m_iCurrentPingID == iCurrentPongID) {
             m_iCurrentPingRecv = m_tSensorTime.elapsed();
@@ -515,7 +515,7 @@ void MainWindow::sl_updateStatusBar(QString str, QString type) {
       //qDebug() << "Parse JSON: " << line;
       QJsonDocument JSONDoc = QJsonDocument::fromJson(line);
       QVariantMap result = JSONDoc.toVariant().toMap();
-      int iThr = result["t"].toInt();
+      int iThr = result["f"].toInt();
       if(iThr < m_pRCThrottle->maximum() )
         m_pRCThrottle->setValue(iThr);
     }

@@ -4,7 +4,8 @@
 #
 #-------------------------------------------------
 
-QT          += serialport core gui network printsupport webkitwidgets
+QT      += serialport core gui network printsupport webkitwidgets
+CONFIG  += console
 
 greaterThan(QT_MAJOR_VERSION, 5): QT += widgets
 
@@ -21,7 +22,7 @@ SOURCES +=  main.cpp\
             absframe.cpp \
             container.cpp\
             gmaps.cpp \
-    trimprofile.cpp
+            trimprofile.cpp
 
 HEADERS  += mainwindow.h\
             qcustomplot.h \
@@ -35,4 +36,4 @@ HEADERS  += mainwindow.h\
             absframe.h \
             container.h \
             gmaps.h \
-    trimprofile.h
+            trimprofile.h
