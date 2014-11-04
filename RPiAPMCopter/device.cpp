@@ -21,39 +21,16 @@ AP_BoardLED board_led;
 ///////////////////////////////////////////////////////////
 // DeviceInit
 ///////////////////////////////////////////////////////////
-void DeviceInit::init_pids() {
-  // Rate PIDs
-  m_rgPIDS[PID_PIT_RATE].kP(0.65);
-  m_rgPIDS[PID_PIT_RATE].kI(0.35);
-  m_rgPIDS[PID_PIT_RATE].kD(0.015);
-  m_rgPIDS[PID_PIT_RATE].imax(50);
+void DeviceInit::load_pids() {
+  for(int i = 0; i < NR_OF_PIDS; i++) {
+    m_rgPIDS[i].load_gains();
+  }
+}
 
-  m_rgPIDS[PID_ROL_RATE].kP(0.65);
-  m_rgPIDS[PID_ROL_RATE].kI(0.35);
-  m_rgPIDS[PID_ROL_RATE].kD(0.015);
-  m_rgPIDS[PID_ROL_RATE].imax(50);
-
-  m_rgPIDS[PID_YAW_RATE].kP(0.75);
-  m_rgPIDS[PID_YAW_RATE].kI(0.15);
-  m_rgPIDS[PID_YAW_RATE].kD(0.0f);
-  m_rgPIDS[PID_YAW_RATE].imax(50);
-
-  m_rgPIDS[PID_THR_RATE].kP(0.25);  // For altitude hold
-  m_rgPIDS[PID_THR_RATE].kI(0.50);  // For altitude hold
-  m_rgPIDS[PID_THR_RATE].kD(0.0f);  // For altitude hold
-  m_rgPIDS[PID_THR_RATE].imax(100); // For altitude hold
-
-  m_rgPIDS[PID_ACC_RATE].kP(0.50);  // For altitude hold
-  m_rgPIDS[PID_ACC_RATE].kI(0.10);  // For altitude hold
-  m_rgPIDS[PID_ACC_RATE].kD(0.0f);  // For altitude hold
-  m_rgPIDS[PID_ACC_RATE].imax(100); // For altitude hold
-
-  // STAB PIDs
-  m_rgPIDS[PID_PIT_STAB].kP(4.25);
-  m_rgPIDS[PID_ROL_STAB].kP(4.25);
-  m_rgPIDS[PID_YAW_STAB].kP(4.25);
-  m_rgPIDS[PID_THR_STAB].kP(5.50);  // For altitude hold
-  m_rgPIDS[PID_ACC_STAB].kP(4.25);  // For altitude hold
+void DeviceInit::save_pids() {
+  for(int i = 0; i < NR_OF_PIDS; i++) {
+    m_rgPIDS[i].save_gains();
+  }
 }
 
 void DeviceInit::init_rf() {
@@ -153,8 +130,19 @@ DeviceInit::DeviceInit( const AP_HAL::HAL *pHAL, AP_InertialSensor *pInert, Comp
   m_pInertNav         = pInertNav;
   m_eErrors           = NOTHING_F;
   m_t32Compass = m_t32InertialNav = m_t32Inertial = m_pHAL->scheduler->millis();
-  // PIDs
-  memset(m_rgPIDS, 0, sizeof(m_rgPIDS) );
+
+  // Rate PIDs
+  m_rgPIDS[PID_PIT_RATE] = PID(0.65, 0.35, 0.015, 50);
+  m_rgPIDS[PID_ROL_RATE] = PID(0.65, 0.35, 0.015, 50);
+  m_rgPIDS[PID_YAW_RATE] = PID(0.75, 0.50, 0.f, 50);
+  m_rgPIDS[PID_THR_RATE] = PID(0.25, 0.50, 0.f, 100);
+  m_rgPIDS[PID_ACC_RATE] = PID(0.50, 0.10, 0.f, 100);
+  // STAB PIDs
+  m_rgPIDS[PID_PIT_STAB] = PID(4.25, 0.f, 0.f, 0);
+  m_rgPIDS[PID_ROL_STAB] = PID(4.25, 0.f, 0.f, 0);
+  m_rgPIDS[PID_YAW_STAB] = PID(4.25, 0.f, 0.f, 0);
+  m_rgPIDS[PID_THR_STAB] = PID(5.50, 0.f, 0.f, 0);
+  m_rgPIDS[PID_ACC_STAB] = PID(4.25, 0.f, 0.f, 0);
 }
 
 PID &DeviceInit::get_pid(uint_fast8_t index) {

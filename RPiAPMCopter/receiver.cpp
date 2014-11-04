@@ -397,6 +397,7 @@ bool Receiver::parse_pid_conf(char* buffer) {
         m_pHalBoard->get_pid(PID_THR_STAB).kP(pids[3]);
         m_pHalBoard->get_pid(PID_ACC_STAB).kP(pids[4]);
         bRet = true;
+        m_pHalBoard->save_pids();
         break;
       }
     }

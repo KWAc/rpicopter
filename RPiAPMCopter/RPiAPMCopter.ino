@@ -20,7 +20,7 @@
 #include <AP_GPS_Glitch.h>
 #include <AP_HAL.h>
 #include <AP_HAL_AVR.h>
-#include <AP_InertialSensor_MPU6000.h>
+#include <AP_InertialSensor.h>
 #include <AP_InertialNav.h>
 #include <AP_Math.h>
 #include <AP_Mission.h>
@@ -121,8 +121,8 @@ void setup() {
   hal.rcout->set_freq(0xFF, 490);
 
   // PID Configuration
-  hal.console->printf("%.1f%%: Set PID configuration\n", progress_f(2, 10) );
-  _HAL_BOARD.init_pids();
+  hal.console->printf("%.1f%%: Load PID configuration\n", progress_f(2, 10) );
+  _HAL_BOARD.load_pids();
 
   // Load settings from EEPROM
   hal.console->printf("%.1f%%: Load settings from EEPROM\n", progress_f(3, 10) );

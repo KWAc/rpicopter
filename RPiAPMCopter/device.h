@@ -62,7 +62,6 @@ public /*functions*/:
   DeviceInit(const AP_HAL::HAL *, AP_InertialSensor *, Compass *, AP_Baro *, AP_GPS *, BattMonitor *, RangeFinder *, AP_AHRS_DCM *, AP_InertialNav *);
 
   void         init_barometer();
-  void         init_pids();
   void         init_compass();
   void         init_inertial();
   void         init_gps();
@@ -72,6 +71,9 @@ public /*functions*/:
   
   PID          &get_pid(uint_fast8_t);
   void         set_pid(uint_fast8_t, const PID &);
+  
+  void         load_pids();
+  void         save_pids();
 };
 
 ///////////////////////////////////////////////////////////
