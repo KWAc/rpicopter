@@ -403,7 +403,7 @@ void QPIDConfig::sendPIDs(PIDS p) {
 
     QString com = "";
     QTextStream stream(&com);
-    stream  << "{\"type\":\"pid\",\"p_rkp\":" << p.m_pit_rkp << ",\"p_rki\":" << p.m_pit_rki << ",\"p_rkd\":" << p.m_pit_rkd << ",\"p_rimax\":" << p.m_pit_rimax
+    stream  << "{\"t\":\"pid\",\"p_rkp\":" << p.m_pit_rkp << ",\"p_rki\":" << p.m_pit_rki << ",\"p_rkd\":" << p.m_pit_rkd << ",\"p_rimax\":" << p.m_pit_rimax
                              << ",\"r_rkp\":" << p.m_rol_rkp << ",\"r_rki\":" << p.m_rol_rki << ",\"r_rkd\":" << p.m_rol_rkd << ",\"r_rimax\":" << p.m_rol_rimax
                              << ",\"y_rkp\":" << p.m_yaw_rkp << ",\"y_rki\":" << p.m_yaw_rki << ",\"y_rkd\":" << p.m_yaw_rkd << ",\"y_rimax\":" << p.m_yaw_rimax
                              << ",\"t_rkp\":" << p.m_thr_rkp << ",\"t_rki\":" << p.m_thr_rki << ",\"t_rkd\":" << p.m_thr_rkd << ",\"t_rimax\":" << p.m_thr_rimax

@@ -5,7 +5,7 @@
 #include <stddef.h>
 
 #include <AP_Math.h>
-#include <PID.h>
+#include <AC_PID.h>
 
 #include "containers.h"
 #include "absdevice.h"
@@ -26,18 +26,15 @@ class BattMonitor;
 class BattData;
 class GPSData;
 
-class PID;
-
 
 class DeviceInit : public AbsErrorDevice {
-protected:
-  // PID configuration and remote contro
-  PID m_rgPIDS[NR_OF_PIDS];
-
+protected:  
   uint_fast32_t m_t32Inertial;      // For calculating the derivative of the angular changes
   uint_fast32_t m_t32InertialNav;
   uint_fast32_t m_t32Compass;
 
+  AC_PID *m_pPIDs;
+  
 public /*objects*/: 
   // Hardware abstraction library interface
   const AP_HAL::HAL *m_pHAL;
@@ -57,9 +54,11 @@ public /*objects*/:
   AP_InertialNav    *m_pInertNav;
   // Attitude heading reference system
   AP_AHRS_DCM       *m_pAHRS;
-
+  
+  static const struct AP_Param::GroupInfo var_info[];
+  
 public /*functions*/:
-  DeviceInit(const AP_HAL::HAL *, AP_InertialSensor *, Compass *, AP_Baro *, AP_GPS *, BattMonitor *, RangeFinder *, AP_AHRS_DCM *, AP_InertialNav *);
+  DeviceInit(const AP_HAL::HAL *, AP_InertialSensor *, Compass *, AP_Baro *, AP_GPS *, BattMonitor *, RangeFinder *, AP_AHRS_DCM *, AP_InertialNav *, AC_PID *);
 
   void         init_barometer();
   void         init_compass();
@@ -69,8 +68,8 @@ public /*functions*/:
   void         init_rf();
   void         init_inertial_nav();
   
-  PID          &get_pid(uint_fast8_t);
-  void         set_pid(uint_fast8_t, const PID &);
+  AC_PID      &get_pid(uint_fast8_t);
+  void         set_pid(uint_fast8_t, const AC_PID &);
   
   void         load_pids();
   void         save_pids();
@@ -107,7 +106,7 @@ protected /*variables*/:
   
 public:
   // Accepts pointers to abstract base classes to handle different sensor types
-  Device(const AP_HAL::HAL *, AP_InertialSensor *, Compass *, AP_Baro *, AP_GPS *, BattMonitor *, RangeFinder *, AP_AHRS_DCM *, AP_InertialNav *);
+  Device(const AP_HAL::HAL *, AP_InertialSensor *, Compass *, AP_Baro *, AP_GPS *, BattMonitor *, RangeFinder *, AP_AHRS_DCM *, AP_InertialNav *, AC_PID *);
 
   // Setter and getter for inertial adjustments
   void         set_trims(float fRoll_deg, float fPitch_deg);

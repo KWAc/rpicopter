@@ -5,7 +5,7 @@
 #include <stddef.h>
 
 #include <AP_Math.h>
-#include <PID.h>
+#include <AC_PID.h>
 
 #include "config.h"
 #include "absdevice.h"

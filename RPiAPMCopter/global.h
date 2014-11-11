@@ -32,6 +32,8 @@ Baro_Glitch                    _BARO_GLITCH (_BARO);
 AP_AHRS_DCM                    _AHRS        (_INERT, _BARO, _GPS);
 AP_InertialNav                 _INERT_NAV   (_AHRS, _BARO, _GPS_GLITCH, _BARO_GLITCH);
 
+AC_PID                         _PIDS[NR_OF_PIDS];
+
 ///////////////////////////////////////////////////////////
 // Abstracted hardware abstraction classes :D
 // Take any sensor if derived from ArduPilot library!
@@ -41,7 +43,7 @@ AP_InertialNav                 _INERT_NAV   (_AHRS, _BARO, _GPS_GLITCH, _BARO_GL
 Scheduler                      _SCHED_NAV   (&hal); // Scheduler for navigation system
 Scheduler                      _SCHED_OUT   (&hal); // Scheduler for network output
 
-Device                         _HAL_BOARD   (&hal, &_INERT, &_COMP, &_BARO, &_GPS, &_BAT, &_SON_RF, &_AHRS, &_INERT_NAV);
+Device                         _HAL_BOARD   (&hal, &_INERT, &_COMP, &_BARO, &_GPS, &_BAT, &_SON_RF, &_AHRS, &_INERT_NAV, &_PIDS[0]);
 Receiver                       _RECVR       (&_HAL_BOARD, &_SCHED_OUT);
 Exception                      _EXCP        (&_HAL_BOARD, &_RECVR);
 

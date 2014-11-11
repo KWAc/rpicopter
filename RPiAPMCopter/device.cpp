@@ -17,19 +17,23 @@
 // create board led object
 AP_BoardLED board_led;
 
+const AP_Param::GroupInfo DeviceInit::var_info[] PROGMEM = {
+    AP_GROUPEND
+};
 
 ///////////////////////////////////////////////////////////
 // DeviceInit
 ///////////////////////////////////////////////////////////
 void DeviceInit::load_pids() {
   for(int i = 0; i < NR_OF_PIDS; i++) {
-    m_rgPIDS[i].load_gains();
+    m_pPIDs[i].load_gains();
+    m_pHAL->console->printf("Load PID P %f  I %f  D %f  imax %f\n", (float)m_pPIDs[i].kP(), (float)m_pPIDs[i].kI(), (float)m_pPIDs[i].kD(), (float)m_pPIDs[i].imax());
   }
 }
 
 void DeviceInit::save_pids() {
   for(int i = 0; i < NR_OF_PIDS; i++) {
-    m_rgPIDS[i].save_gains();
+    m_pPIDs[i].save_gains();
   }
 }
 
@@ -117,7 +121,7 @@ void DeviceInit::init_batterymon() {
   m_pBat->init();
 }
 
-DeviceInit::DeviceInit( const AP_HAL::HAL *pHAL, AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, AP_GPS *pGPS, BattMonitor *pBat, RangeFinder *pRF, AP_AHRS_DCM *pAHRS, AP_InertialNav *pInertNav ) 
+DeviceInit::DeviceInit( const AP_HAL::HAL *pHAL, AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, AP_GPS *pGPS, BattMonitor *pBat, RangeFinder *pRF, AP_AHRS_DCM *pAHRS, AP_InertialNav *pInertNav, AC_PID *pPIDs) 
 {
   m_pHAL              = pHAL;
   m_pInert            = pInert;
@@ -130,33 +134,35 @@ DeviceInit::DeviceInit( const AP_HAL::HAL *pHAL, AP_InertialSensor *pInert, Comp
   m_pInertNav         = pInertNav;
   m_eErrors           = NOTHING_F;
   m_t32Compass = m_t32InertialNav = m_t32Inertial = m_pHAL->scheduler->millis();
-
+  
+  m_pPIDs = pPIDs;
+  
   // Rate PIDs
-  m_rgPIDS[PID_PIT_RATE] = PID(0.65, 0.35, 0.015, 50);
-  m_rgPIDS[PID_ROL_RATE] = PID(0.65, 0.35, 0.015, 50);
-  m_rgPIDS[PID_YAW_RATE] = PID(0.75, 0.50, 0.f, 50);
-  m_rgPIDS[PID_THR_RATE] = PID(0.25, 0.50, 0.f, 100);
-  m_rgPIDS[PID_ACC_RATE] = PID(0.50, 0.10, 0.f, 100);
+  m_pPIDs[PID_PIT_RATE] = AC_PID(0.65, 0.35, 0.015, 50);
+  m_pPIDs[PID_ROL_RATE] = AC_PID(0.65, 0.35, 0.015, 50);
+  m_pPIDs[PID_YAW_RATE] = AC_PID(0.75, 0.50, 0.f, 50);
+  m_pPIDs[PID_THR_RATE] = AC_PID(0.25, 0.50, 0.f, 100);
+  m_pPIDs[PID_ACC_RATE] = AC_PID(0.50, 0.10, 0.f, 100);
   // STAB PIDs
-  m_rgPIDS[PID_PIT_STAB] = PID(4.25, 0.f, 0.f, 0);
-  m_rgPIDS[PID_ROL_STAB] = PID(4.25, 0.f, 0.f, 0);
-  m_rgPIDS[PID_YAW_STAB] = PID(4.25, 0.f, 0.f, 0);
-  m_rgPIDS[PID_THR_STAB] = PID(5.50, 0.f, 0.f, 0);
-  m_rgPIDS[PID_ACC_STAB] = PID(4.25, 0.f, 0.f, 0);
+  m_pPIDs[PID_PIT_STAB] = AC_PID(4.25, 0.f, 0.f, 0);
+  m_pPIDs[PID_ROL_STAB] = AC_PID(4.25, 0.f, 0.f, 0);
+  m_pPIDs[PID_YAW_STAB] = AC_PID(4.25, 0.f, 0.f, 0);
+  m_pPIDs[PID_THR_STAB] = AC_PID(5.50, 0.f, 0.f, 0);
+  m_pPIDs[PID_ACC_STAB] = AC_PID(4.25, 0.f, 0.f, 0);
 }
 
-PID &DeviceInit::get_pid(uint_fast8_t index) {
+AC_PID &DeviceInit::get_pid(uint_fast8_t index) {
   if(index >= NR_OF_PIDS) {
-    return m_rgPIDS[NR_OF_PIDS-1];
+    return m_pPIDs[NR_OF_PIDS-1];
   }
-  return m_rgPIDS[index];
+  return m_pPIDs[index];
 }
 
-void DeviceInit::set_pid(uint_fast8_t index, const PID &pid) {
+void DeviceInit::set_pid(uint_fast8_t index, const AC_PID &pid) {
   if(index >= NR_OF_PIDS) {
-    m_rgPIDS[NR_OF_PIDS-1] = pid;
+    m_pPIDs[NR_OF_PIDS-1] = pid;
   }
-  m_rgPIDS[index] = pid;
+  m_pPIDs[index] = pid;
 }
 
 ///////////////////////////////////////////////////////////
@@ -185,8 +191,8 @@ void Device::update_attitude() {
   m_vAtti_deg.z = ToDeg(m_pAHRS->yaw);
 }
 
-Device::Device( const AP_HAL::HAL *pHAL, AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, AP_GPS *pGPS, BattMonitor *pBat, RangeFinder *pRF, AP_AHRS_DCM *pAHRS, AP_InertialNav *pInertNav ) : 
-DeviceInit(pHAL, pInert, pComp, pBar, pGPS,  pBat, pRF, pAHRS, pInertNav) 
+Device::Device( const AP_HAL::HAL *pHAL, AP_InertialSensor *pInert, Compass *pComp, AP_Baro *pBar, AP_GPS *pGPS, BattMonitor *pBat, RangeFinder *pRF, AP_AHRS_DCM *pAHRS, AP_InertialNav *pInertNav, AC_PID *pPIDs) : 
+DeviceInit(pHAL, pInert, pComp, pBar, pGPS,  pBat, pRF, pAHRS, pInertNav, pPIDs) 
 {
   m_iAltitude_cm      = 0;
 

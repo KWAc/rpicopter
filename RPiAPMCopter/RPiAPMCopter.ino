@@ -30,13 +30,16 @@
 #include <AP_RangeFinder.h>
 #include <AP_Terrain.h> 
 #include <AP_Vehicle.h>
+#include <AP_Param.h>
 
 #include <DataFlash.h>
 #include <Filter.h>
 #include <GCS_MAVLink.h>
-#include <PID.h>
+#include <AC_PID.h>
 #include <RC_Channel.h>     // RC Channel Library
 #include <StorageManager.h>
+
+#include "parameters.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // Own includes
@@ -60,6 +63,84 @@ Task taskINAV(&inav_loop, 0, 1);
 Task taskRBat(&batt_loop, 0, 1);
 
 
+// EEPROM
+const AP_Param::Info var_info[] PROGMEM = {
+  GSCALAR(format_version, "SYSID_SW_MREV", 0),
+  
+  // PIDs
+  GOBJECTN(_PIDS[PID_PIT_RATE], PIT_RATE, "PID_PIT_RATE", AC_PID),
+  GOBJECTN(_PIDS[PID_ROL_RATE], ROL_RATE, "PID_ROL_RATE", AC_PID),
+  GOBJECTN(_PIDS[PID_YAW_RATE], YAW_RATE, "PID_YAW_RATE", AC_PID),
+  GOBJECTN(_PIDS[PID_THR_RATE], THR_RATE, "PID_THR_RATE", AC_PID),
+  GOBJECTN(_PIDS[PID_ACC_RATE], ACC_RATE, "PID_ACC_RATE", AC_PID),
+  GOBJECTN(_PIDS[PID_PIT_STAB], PIT_STAB, "PID_PIT_STAB", AC_PID),
+  GOBJECTN(_PIDS[PID_ROL_STAB], ROL_STAB, "PID_ROL_STAB", AC_PID),
+  GOBJECTN(_PIDS[PID_YAW_STAB], YAW_STAB, "PID_YAW_STAB", AC_PID),
+  GOBJECTN(_PIDS[PID_ACC_STAB], ACC_STAB, "PID_ACC_STAB", AC_PID),
+  GOBJECTN(_PIDS[PID_THR_STAB], THR_STAB, "PID_THR_STAB", AC_PID),
+  
+  // Device objects
+  GOBJECT(_COMP,        "COMPASS_",   Compass),
+  GOBJECT(_INERT,       "INS_",       AP_InertialSensor),
+  GOBJECT(_INERT_NAV,   "INAV_",      AP_InertialNav),
+  GOBJECT(_AHRS,        "AHRS_",      AP_AHRS),
+  GOBJECT(_BAT,         "BATT_",      AP_BattMonitor),
+  GOBJECT(_BARO,        "GND_",       AP_Baro),
+  GOBJECT(_GPS,         "GPS_",       AP_GPS),
+  GOBJECT(_GPS_GLITCH,  "GPSGLITCH_", GPS_Glitch),
+  GOBJECT(_BARO_GLITCH, "BAROGLTCH_", Baro_Glitch),
+  GOBJECT(_SON_RF,      "RNGFND",     RangeFinder),
+
+  AP_VAREND
+};
+// Setup the var_info table
+AP_Param param_loader(var_info);
+
+void load_settings() {
+  if (!AP_Param::check_var_info() ) {
+    hal.console->printf("Bad var table\n");
+  }
+
+  // change the default for the AHRS_GPS_GAIN for ArduCopter
+  // if it hasn't been set by the user
+  if (!_AHRS.gps_gain.load()) {
+    _AHRS.gps_gain.set_and_save(1.0);
+  }
+  // disable centrifugal force correction, it will be enabled as part of the arming process
+  _AHRS.set_correct_centrifugal(false);
+  _AHRS.set_armed(false);
+
+  // setup different AHRS gains for ArduCopter than the default
+  // but allow users to override in their config
+  if (!_AHRS._kp.load()) {
+    _AHRS._kp.set_and_save(0.1);
+  }
+  if (!_AHRS._kp_yaw.load()) {
+    _AHRS._kp_yaw.set_and_save(0.1);
+  }
+
+  // setup different Compass learn setting for ArduCopter than the default
+  // but allow users to override in their config
+  if (!_COMP._learn.load()) {
+      _COMP._learn.set_and_save(0);
+  }
+
+  if (!g.format_version.load() || 
+    g.format_version != Parameters::k_format_version) {
+    // erase all parameters
+    hal.console->printf("Firmware change: erasing EEPROM...\n");
+    AP_Param::erase_all();
+    // save the current format version
+    g.format_version.set_and_save(Parameters::k_format_version);
+    hal.console->printf("done\n");
+  } else {
+    uint32_t before = hal.scheduler->micros();
+    // Load all auto-loaded EEPROM variables
+    AP_Param::load_all();
+    hal.console->printf("load_all took %d us\n", hal.scheduler->micros() - before);
+  }
+}
+
 // Altitude estimation and AHRS system (yaw correction with GPS, barometer, ..)
 void inav_loop(int) {  
   _HAL_BOARD.update_inav();
@@ -77,17 +158,6 @@ void rcvr_loop(int) {
 void batt_loop(int) {
   _HAL_BOARD.read_bat();
   _MODEL.calc_batt_comp();
-}
-
-void load_settings() {
-  if (!_COMP._learn.load() ) { }
-  // change the default for the AHRS_GPS_GAIN for ArduCopter
-  // if it hasn't been set by the user
-  if (!_AHRS.gps_gain.load() ) { }
-  // Setup different AHRS gains for ArduCopter than the default
-  // but allow users to override in their config
-  if (!_AHRS._kp.load() ) { }
-  if (!_AHRS._kp_yaw.load() ) { }
 }
 
 void setup() {
@@ -110,60 +180,57 @@ void setup() {
   hal.uartA->begin(BAUD_RATE_A, 256, 256);  // USB
   hal.uartB->begin(BAUD_RATE_B, 256, 16);   // GPS
   hal.uartC->begin(BAUD_RATE_C, 128, 128);  // RADIO
-  
+
   hal.console->printf("Setup device ..\n");
 
   // Enable the motors and set at 490Hz update
-  hal.console->printf("%.1f%%: Set ESC refresh rate to 490 Hz\n", progress_f(1, 10) );
+  hal.console->printf("%.1f%%: Set ESC refresh rate to 490 Hz\n", progress_f(1, 9) );
   for(uint_fast16_t i = 0; i < 8; i++) {
     hal.rcout->enable_ch(i);
   }
   hal.rcout->set_freq(0xFF, 490);
 
-  // PID Configuration
-  hal.console->printf("%.1f%%: Load PID configuration\n", progress_f(2, 10) );
-  _HAL_BOARD.load_pids();
-
-  // Load settings from EEPROM
-  hal.console->printf("%.1f%%: Load settings from EEPROM\n", progress_f(3, 10) );
-  //load_settings();
-  
-  hal.console->printf("%.1f%%: Init barometer\n", progress_f(4, 10) );
+  hal.console->printf("%.1f%%: Init barometer\n", progress_f(2, 9) );
   _HAL_BOARD.init_barometer();
 
-  hal.console->printf("%.1f%%: Init inertial sensor\n", progress_f(5, 10) );
+  hal.console->printf("%.1f%%: Init inertial sensor\n", progress_f(3, 9) );
   _HAL_BOARD.init_inertial();
 
   // Compass initializing
-  hal.console->printf("\n%.1f%%: Init compass: ", progress_f(6, 10) );
+  hal.console->printf("\n%.1f%%: Init compass: ", progress_f(4, 9) );
   _HAL_BOARD.init_compass();
 
   // GPS initializing
-  hal.console->printf("%.1f%%: Init GPS", progress_f(7, 10) );
+  hal.console->printf("%.1f%%: Init GPS", progress_f(5, 9) );
   //_HAL_BOARD.init_gps();
 
   // battery monitor initializing
-  hal.console->printf("\n%.1f%%: Init battery monitor\n", progress_f(8, 10) );
+  hal.console->printf("\n%.1f%%: Init battery monitor\n", progress_f(6, 9) );
   _HAL_BOARD.init_batterymon();
 
   // battery monitor initializing
-  hal.console->printf("%.1f%%: Init range finder\n", progress_f(9, 10) );
+  hal.console->printf("%.1f%%: Init range finder\n", progress_f(7, 9) );
   //_HAL_BOARD.init_rf();
 
-  hal.console->printf("%.1f%%: Init inertial navigation\n", progress_f(10, 10) );
+  hal.console->printf("%.1f%%: Init inertial navigation\n", progress_f(8, 9) );
   _HAL_BOARD.init_inertial_nav();
+  
+  // Load settings from EEPROM
+  hal.console->printf("%.1f%%: Load settings from EEPROM\n", progress_f(9, 9) );
+  load_settings();
 }
 
 void loop() {
   // send some json formatted information about the model over serial port
   _SCHED_NAV.run();
   _SCHED_OUT.run();
-  
+
   // Attitude-, Altitude and Navigation control loop
   _MODEL.run();
 }
 
 AP_HAL_MAIN();
+
 
 
 
