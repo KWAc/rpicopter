@@ -21,13 +21,33 @@ const AP_Param::GroupInfo DeviceInit::var_info[] PROGMEM = {
     AP_GROUPEND
 };
 
+inline void display_offsets_and_scaling(const AP_HAL::HAL *pHAL, AP_InertialSensor *pInert) {
+    Vector3f accel_offsets = pInert->get_accel_offsets();
+    Vector3f accel_scale = pInert->get_accel_scale();
+    Vector3f gyro_offsets = pInert->get_gyro_offsets();
+
+    // display results
+    pHAL->console->printf("\nAccel Offsets \t X:%10.8f \t Y:%10.8f \t Z:%10.8f\n",
+                    accel_offsets.x,
+                    accel_offsets.y,
+                    accel_offsets.z);
+    pHAL->console->printf("Accel Scale \t X:%10.8f \t Y:%10.8f \t Z:%10.8f\n",
+                    accel_scale.x,
+                    accel_scale.y,
+                    accel_scale.z);
+    pHAL->console->printf("Gyro Offsets \t X:%10.8f \t Y:%10.8f \t Z:%10.8f\n",
+                    gyro_offsets.x,
+                    gyro_offsets.y,
+                    gyro_offsets.z);
+}
+
 ///////////////////////////////////////////////////////////
 // DeviceInit
 ///////////////////////////////////////////////////////////
 void DeviceInit::load_pids() {
   for(int i = 0; i < NR_OF_PIDS; i++) {
     m_pPIDs[i].load_gains();
-    m_pHAL->console->printf("Load PID P %f  I %f  D %f  imax %f\n", (float)m_pPIDs[i].kP(), (float)m_pPIDs[i].kI(), (float)m_pPIDs[i].kD(), (float)m_pPIDs[i].imax());
+    m_pHAL->console->printf("Load PID P %f  I %f  D %f  imax %f\n", (double)m_pPIDs[i].kP(), (double)m_pPIDs[i].kI(), (double)m_pPIDs[i].kD(), (double)m_pPIDs[i].imax());
   }
 }
 
@@ -60,23 +80,20 @@ void DeviceInit::init_inertial_nav() {
 void DeviceInit::init_barometer() {
   m_pBaro->init();
   m_pBaro->calibrate();
-
-#ifdef APM2_HARDWARE
-  // we need to stop the barometer from holding the SPI bus
-  m_pHAL->gpio->pinMode(40, GPIO_OUTPUT);
-  m_pHAL->gpio->write(40, HIGH);
-#endif
 }
 
 void DeviceInit::init_compass() {
   if(!m_pComp->init() ) {
     m_pHAL->console->printf("Init compass failed!\n");
+    return;
   }
 
-  m_pComp->accumulate();
-  m_pComp->motor_compensation_type(1);                              // throttle
-  m_pComp->set_and_save_offsets(0, 0, 0, 0);                        // set offsets to account for surrounding interference
-  m_pComp->set_declination(ToRad(0.f) );                            // set local difference between magnetic north and true north
+  if(BATT_ATTO_3DR) {
+    m_pComp->motor_compensation_type(2); // current sensing
+  } 
+  else {
+    m_pComp->motor_compensation_type(1); // throttle as input
+  }
 
   m_pHAL->console->print("Compass auto-detected as: ");
   switch( m_pComp->product_id ) {
@@ -101,10 +118,17 @@ void DeviceInit::init_compass() {
 }
 
 void DeviceInit::init_inertial() {
+#if CONFIG_HAL_BOARD == HAL_BOARD_APM2
+  m_pHAL->gpio->pinMode(40, HAL_GPIO_OUTPUT);
+  m_pHAL->gpio->write(40, HIGH);
+#endif
+
   // Turn on MPU6050
   m_pInert->init(AP_InertialSensor::COLD_START, AP_InertialSensor::RATE_100HZ);
-
-  // Calibrate the inertial
+//  #if DEBUG_OUT
+  display_offsets_and_scaling(m_pHAL, m_pInert);
+//  #endif
+  
   m_t32Inertial = m_pHAL->scheduler->millis();
 }
 
@@ -225,8 +249,8 @@ void Device::set_trims(float fRoll_deg, float fPitch_deg) {
 }
 
 Vector3f Device::get_atti_cor_deg() {
-  return Vector3f(m_vAtti_deg.x - m_fInertPitCor, // Pitch correction for inbalances
-                  m_vAtti_deg.y - m_fInertRolCor, // Roll correction for inbalances
+  return Vector3f(m_vAtti_deg.x - m_fInertPitCor, // Pitch correction for imbalances
+                  m_vAtti_deg.y - m_fInertRolCor, // Roll correction for imbalances
                   m_vAtti_deg.z);                 // Yaw is without correction on that point, because compass/GPS is thought to do that job, but not here
 }
 
@@ -302,22 +326,27 @@ float Device::read_comp_deg() {
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, COMPASS_F) );
     return m_fCmpH;
   }
-
+  
+  // accumulate compass values
+  m_pComp->accumulate();
+  
   // Update the compass readout maximally ten times a second
   if(m_pHAL->scheduler->millis() - m_t32Compass <= COMPASS_UPDATE_T) {
     return m_fCmpH;
   }
-
+  
+  // After some time read the compass
   m_pComp->read();
-
   m_fCmpH = m_pComp->calculate_heading(m_pAHRS->get_dcm_matrix() );
   m_fCmpH = ToDeg(m_fCmpH);
   m_pComp->learn_offsets();
-
+  
   return m_fCmpH;
 }
 
 GPSData Device::read_gps() {
+  static bool bSetCompLocation = false;
+
   if(!m_pGPS) {
     return m_ContGPS;
   }
@@ -336,6 +365,13 @@ GPSData Device::read_gps() {
     m_ContGPS.satelites   = m_pGPS->num_sats();
     m_ContGPS.time_week   = m_pGPS->time_week();
     m_ContGPS.time_week_s = m_pGPS->time_week_ms() / 1000.0;
+    
+    // If the GPS is working and the compass initiated, 
+    // set the location once
+    if(m_pComp->healthy() && !bSetCompLocation) {
+      m_pComp->set_initial_location(m_ContGPS.latitude, m_ContGPS.longitude);
+      bSetCompLocation = true;
+    }
   } else {
     //m_pHAL->console->printf("read_gps(): GPS not healthy\n");
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, GPS_F) );
@@ -376,6 +412,13 @@ BattData Device::read_bat() {
   m_ContBat.power_W      = m_ContBat.voltage_V * m_ContBat.current_A;
   m_ContBat.consumpt_mAh = m_pBat->current_total_mah();
 
+  // Only perform current sensing for the compass
+  // if there is a ATTO/3DR sensor in use
+  if(m_pComp->healthy() ) {
+    // set the current in A
+    m_pComp->set_current(m_ContBat.current_A);
+  }
+  
   if(m_ContBat.voltage_V < BATT_MIN_VOLTAGE) {
     m_eErrors = static_cast<DEVICE_ERROR_FLAGS>(add_flag(m_eErrors, VOLTAGE_LOW_F) );
   }

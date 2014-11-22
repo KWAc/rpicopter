@@ -15,6 +15,7 @@ Q_OBJECT
 private:
     char   m_cWiFiCommand[512];
     QTimer m_keyEventTimer;
+    QTimer m_udpSendTimer;
     QTimer m_caliEventTimer;
 
     QTimer m_trimTimer;
@@ -40,10 +41,13 @@ private:
 
     bool m_bRadioEnabled;
     bool m_bAltitudeHold;
+
+    void emitCTRLChanges();
     
 private slots:
     void sl_customKeyPressHandler();
     void sl_customKeyReleaseHandler();
+    void sl_gamepadHandler();
 
     void sl_sendTrim2UDP();
     
@@ -55,6 +59,10 @@ public slots:
     
 signals:
     void si_send2Model(QString, QString);
+    void si_thrChanged(int);
+    void si_rolChanged(int);
+    void si_pitChanged(int);
+    void si_yawChanged(int);
     void si_attitudeCorrChanged(float roll, float pitch);
 
 public:

@@ -49,7 +49,7 @@ void send_comp(int uartX) {
   if(!_HAL_BOARD.m_pComp->healthy() ) {
     return;
   }
-
+  
   AP_HAL::UARTDriver *pOut = uartX == UART_C ? hal.uartC : hal.uartA;
   pOut->printf( "{\"t\":\"s_cmp\",\"h\":%.1f}\n",
                 static_cast<double>(_HAL_BOARD.read_comp_deg() ) );

@@ -9,11 +9,125 @@ QAbsFrame::QAbsFrame(QWidget *parent) : QFrame(parent)
 {
     m_fWidth = m_fHeight = this->m_fWidth < this->m_fHeight ? this->width() : this->height();
     m_fYaw = 0.f;
+
+    // Set strong focus to enable keyboard events to be received
+    setFocusPolicy(Qt::StrongFocus);
+
+    // Init Gamepad values
+    m_fStickLX = 0;
+    m_fStickLY = 0;
+    m_fStickRX = 0;
+    m_fStickRY = 0;
+    m_fStickL2 = 0;
+    m_fStickR2 = 0;
+
+    m_bStickLX = 0;
+    m_bStickLY = 0;
+    m_bStickRX = 0;
+    m_bStickRY = 0;
+    m_bStickL2 = 0;
+    m_bStickR2 = 0;
+    
+    m_bButLPressed = 0;
+    m_bButDPressed = 0;
+    m_bButRPressed = 0;
+    m_bButTPressed = 0;
+
+    m_bDeviceArmed = 0;
+
+    m_bGamepadInUse = false;
+    m_bGamepadConnected = false;
+    initGamepad();
+}
+
+void QAbsFrame::initGamepad() {
+    sf::Joystick::update();
+
+    // Is joystick #0 connected?
+    m_bGamepadConnected = sf::Joystick::isConnected(0);
+    
+    if(!m_bGamepadConnected) {
+        return;
+    }
+    
+    // Does joystick #0 define a X axis?
+    m_bStickLX = sf::Joystick::hasAxis(0, sf::Joystick::X);
+    m_bStickLY = sf::Joystick::hasAxis(0, sf::Joystick::Y);
+    m_bStickRX = sf::Joystick::hasAxis(0, sf::Joystick::Z);
+    m_bStickRY = sf::Joystick::hasAxis(0, sf::Joystick::R);
+    m_bStickL2 = sf::Joystick::hasAxis(0, sf::Joystick::U);
+    m_bStickR2 = sf::Joystick::hasAxis(0, sf::Joystick::V);
+
+    m_tJoystick.start(5);
+    QObject::connect(&m_tJoystick, SIGNAL(timeout() ), this, SLOT(updateGamepad() ) );
+}
+
+void QAbsFrame::updateGamepad() {
+    sf::Joystick::update();
+
+    float fStickLX = 0;
+    float fStickLY = 0;
+    float fStickRX = 0;
+    float fStickRY = 0;
+    float fStickL2 = 0;
+    float fStickR2 = 0;
+    
+    // What's the current position of the analog sticks
+    if(m_bStickLX) {
+        fStickLX = sf::Joystick::getAxisPosition(0, sf::Joystick::X) / 100;
+    }
+    if(m_bStickLY) {
+        fStickLY = sf::Joystick::getAxisPosition(0, sf::Joystick::Y) / 100;
+    }
+    if(m_bStickRX) {
+        fStickRX = sf::Joystick::getAxisPosition(0, sf::Joystick::Z) / 100;
+    }
+    if(m_bStickRY) {
+        fStickRY = sf::Joystick::getAxisPosition(0, sf::Joystick::R) / 100;
+    }
+    // R2 and L2
+    if(m_bStickL2) {
+        fStickL2 = sf::Joystick::getAxisPosition(0, sf::Joystick::U) + 100;
+        fStickL2 /= 200;
+    }
+    if(m_bStickR2) {
+        fStickR2 = sf::Joystick::getAxisPosition(0, sf::Joystick::V) + 100;
+        fStickR2 /= 200;
+    }
+
+    if(m_fStickLX != 0 || m_fStickLY != 0 || m_fStickRX != 0 || m_fStickRY != 0 || m_fStickL2 != fStickL2 || m_fStickR2 != fStickR2) {
+        m_bGamepadInUse = true;
+    } else {
+        m_bGamepadInUse = false;
+    }
+
+    m_fStickLX = fStickLX;
+    m_fStickLY = fStickLY;
+    m_fStickRX = fStickRX;
+    m_fStickRY = fStickRY;
+    m_fStickL2 = fStickL2;
+    m_fStickR2 = fStickR2;
+
+    m_bButLPressed = isButtonPressed(0, 0);
+    m_bButDPressed = isButtonPressed(0, 1);
+    m_bButRPressed = isButtonPressed(0, 2);
+    m_bButTPressed = isButtonPressed(0, 3);
+
+    //qDebug() << "m_bButDPressed pressed: " << m_bButDPressed;
+    static bool bArmToggle = false;
+    if(m_bButDPressed && !bArmToggle) {
+        m_bDeviceArmed = m_bDeviceArmed ? false : true;
+        bArmToggle = true;
+        qDebug() << "Device armed?: " << m_bDeviceArmed;
+    }
+    if(bArmToggle && !m_bButDPressed) {
+        bArmToggle = false;
+    }
 }
 
 void QAbsFrame::setYaw(float fVal) {
     m_fYaw = fVal;
-    update();
+    QWidget::update();
 }
 
 void QAbsFrame::paintEvent(QPaintEvent *pEvent) {
@@ -354,6 +468,7 @@ void QAbsFrame::keyPressEvent ( QKeyEvent * event ) {
         //qDebug() << "F6";
         break;
     }
+    QWidget::update();
 }
 
 void QAbsFrame::keyReleaseEvent ( QKeyEvent * event ) {
@@ -429,6 +544,7 @@ void QAbsFrame::keyReleaseEvent ( QKeyEvent * event ) {
         m_customKeyStatus[i] = false;
         break;
     }
+    QWidget::update();
 }
 
 void QAbsFrame::resizeEvent( QResizeEvent * event ) {

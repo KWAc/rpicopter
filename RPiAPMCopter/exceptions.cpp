@@ -182,7 +182,7 @@ bool Exception::handle() {
   //////////////////////////////////////////////////////////////////////////////////////////
   if(m_pReceiver->get_errors() & AbsErrorDevice::UART_TIMEOUT_F) {
     #if DEBUG_OUT
-    m_pHalBoard->m_pHAL->console->printf("No signal from receiver for more than %d ms\n", COM_PKT_TIMEOUT);
+    //m_pHalBoard->m_pHAL->console->printf("No signal from receiver for more than %d ms\n", COM_PKT_TIMEOUT);
     #endif
     
     rcvr_take_down();

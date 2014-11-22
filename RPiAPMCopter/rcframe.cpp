@@ -47,6 +47,13 @@ void Frame::run() {
   altitude_hold();
   auto_navigate();
   
+  // Give the compass the throttle information ..
+  // .. after the motor input was post-processed by the functions above
+  if(m_pHalBoard->m_pComp->healthy() ) {
+    float fPercThr = (float)(m_fRCThr - RC_THR_OFF) / (float)(RC_THR_80P - RC_THR_OFF);
+    m_pHalBoard->m_pComp->set_throttle(fPercThr);
+  }
+  
   // Output to the motors of the model
   servo_out();
 }
@@ -132,6 +139,10 @@ void M4XFrame::apply_motor_compens() {
 void M4XFrame::auto_navigate() {
   // Break this function if there was not the proper UAV-mode set
   if(!chk_fset(m_pReceiver->get_waypoint()->mode, GPSPosition::GPS_NAVIGATN_F) ) {
+    return;
+  }
+  // Break this function if the compass is not configured
+  if(!m_pHalBoard->m_pComp->configured() ) {
     return;
   }
   

@@ -15,6 +15,10 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 // Functions
 ///////////////////////////////////////////////////////////////////////////////////////
+inline void send_reply_msg(const AP_HAL::HAL *pHAL, char *cstr) {
+  pHAL->console->printf("{\"t\":\"acpt\",\"c\":%s}\n", cstr);
+}
+
 inline uint_fast8_t calc_chksum(char *str) {
   uint_fast8_t nc = 0;
   for(size_t i = 0; i < strlen(str); i++) {
@@ -219,7 +223,7 @@ bool Receiver::parse_gyr_cor(char* buffer) {
   if(verf_chksum(str, chk) ) {                      // if chksum OK
     char *cstr;
 
-    for(uint_fast8_t i = 0; i < COMP_ARGS; i++) {   // loop through final 3 RC_CHANNELS
+    for(uint_fast8_t i = 0; i < GYRO_ARGS; i++) {   // loop through final 3 RC_CHANNELS
       if(i == 0)
         cstr = strtok (buffer, ",");
       else cstr = strtok (NULL, ",");
@@ -325,6 +329,75 @@ bool Receiver::parse_gyr_cal(char* buffer) {
   return true;
 }
 
+bool Receiver::parse_comp_offs(char* buffer, int8_t &type) {
+  if(!m_pHalBoard->m_pComp->healthy() ) {
+    return false;
+  }
+  
+  bool bRet = false;
+
+  int8_t  iT = 0; // type of compensation: 0 for compass offsets and 1 for motor compensations
+  uint8_t iN = 0; // compass index
+  float   fX = FLT_MAX;
+  float   fY = FLT_MAX;
+  float   fZ = FLT_MAX;
+  
+  char *str = strtok(buffer, "*");                  // str = roll, pit, thr, yaw
+  char *chk = strtok(NULL, "*");                    // chk = chksum
+  
+  if(verf_chksum(str, chk) ) {
+    char *cstr;
+    
+    for(uint_fast8_t i = 0; i < COMP_ARGS; i++) {
+      if(i == 0)
+        cstr = strtok (buffer, ",");
+      else cstr = strtok (NULL, ",");
+
+      switch(i) {
+        case 0:
+          iT = atoi(cstr);
+          break;
+        case 1:
+          iN = atoi(cstr);
+          break;
+        case 2:
+          fX = atof(cstr);
+          break;
+        case 3:
+          fY = atof(cstr);
+          break;
+        case 4:
+          fZ = atof(cstr);
+          bRet = true;
+          break;
+      }
+    }
+  }
+
+  // First simple check
+  if(iT < 0 || iT > 1) {
+    bRet = false;
+  }
+  if(iN < 0 || iN > 5) {
+    bRet = false;
+  }
+  if(!in_range(-45.f, 45.f, fX) || !in_range(-45.f, 45.f, fY) || !in_range(-45.f, 45.f, fZ) ) {
+    bRet = false;
+  }
+  type = iT;
+  if(iT == 0 && bRet) {
+    // Correction for e.g. iron near compass
+    m_pHalBoard->m_pComp->set_and_save_offsets(iN, Vector3f(fX, fY, fZ) );
+  }
+  if(iT == 1 && bRet) {
+    // Motor compensation: Amp per throttle unit
+    m_pHalBoard->m_pComp->set_motor_compensation(iN, Vector3f(fX, fY, fZ) );
+    m_pHalBoard->m_pComp->save_motor_compensation();
+  }
+  
+  return true;
+}
+
 /*
  * Changes the sensor type used for the battery monitor
  */
@@ -341,7 +414,7 @@ bool Receiver::parse_bat_type(char* buffer) {
 }
 
 bool Receiver::parse_pid_conf(char* buffer) {
-  if(m_rgChannelsRC[2] > RC_THR_ACRO) {        // If motors run: Do nothing!
+  if(m_rgChannelsRC[2] > RC_THR_ACRO) {             // If motors run: Do nothing!
     return false;
   }
 
@@ -397,6 +470,7 @@ bool Receiver::parse_pid_conf(char* buffer) {
         m_pHalBoard->get_pid(PID_THR_STAB).kP(pids[3]);
         m_pHalBoard->get_pid(PID_ACC_STAB).kP(pids[4]);
         bRet = true;
+        // Save the PIDs to the EEPROM
         m_pHalBoard->save_pids();
         break;
       }
@@ -455,23 +529,56 @@ bool Receiver::parse_cstr(char *buffer) {
   }
   // attitude offset for small imbalances
   else if(strcmp(ctype, "CMP") == 0) {
-    return parse_gyr_cor(command);
+    bool bOk = parse_gyr_cor(command);
+    if(bOk) {
+      send_reply_msg(m_pHalBoard->m_pHAL, "cmp");
+    }
+    return bOk;
   }
   // Waypoints for UAV mode
   else if(strcmp(ctype, "UAV") == 0) {
-    return parse_waypoint(command);
+    bool bOk = parse_waypoint(command);
+    if(bOk) {
+      send_reply_msg(m_pHalBoard->m_pHAL, "uav");
+    }
+    return bOk;
   }
   // Gyrometer calibration
   else if(strcmp(ctype, "GYR") == 0) {
-    return parse_gyr_cal(command);
+    bool bOk = parse_gyr_cal(command);
+    if(bOk) {
+      send_reply_msg(m_pHalBoard->m_pHAL, "gyr");
+    }
   }
   // PID regulator constants
   else if(strcmp(ctype, "PID") == 0) {
-    return parse_pid_conf(command);
+    bool bOk = parse_pid_conf(command);
+    if(bOk) {
+      send_reply_msg(m_pHalBoard->m_pHAL, "pid");
+    }
+    return bOk;
   }
   // Set battery type
   else if(strcmp(ctype, "BAT") == 0) {
-    return parse_bat_type(command);
+    bool bOk = parse_bat_type(command);
+    if(bOk) {
+      send_reply_msg(m_pHalBoard->m_pHAL, "bat");
+    }
+    return bOk;
+  }
+  // Set battery type
+  else if(strcmp(ctype, "COMP") == 0) {
+    int8_t type = -1;
+    bool bOk = parse_comp_offs(command, type);
+    if(bOk) {
+      if(type == 0) {
+        send_reply_msg(m_pHalBoard->m_pHAL, "comp_o");
+      }
+      else if(type == 1) {
+        send_reply_msg(m_pHalBoard->m_pHAL, "comp_m");
+      }
+    }
+    return bOk;
   }
   // Nothing to do or maybe string broken
   else {
@@ -598,7 +705,9 @@ bool Receiver::try_any() {
     // If currently in other modes, radio could be still helpful
     if(!chk_fset(m_Waypoint.mode, GPSPosition::GPS_NAVIGATN_F) ) {
       // Disable sensor data output for uartA and enable it for uartC
+      #if !DEBUG_OUT // only if the debug output is disabled
       m_pTMUartOut->set_arguments(UART_C);
+      #endif
     }
     bOK = read_uartX(m_pHalBoard->m_pHAL->uartC, true);
   }

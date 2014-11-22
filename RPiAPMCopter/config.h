@@ -1,6 +1,8 @@
 #ifndef DEFS_h
 #define DEFS_h
 
+// Version of the EEPROM parameter table
+#define EEPROM_FORMAT_VS     120
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_APM1
   #define A_LED_PIN          37
@@ -30,6 +32,8 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 // Battery statistics
 //////////////////////////////////////////////////////////////////////////////////////////
+#define BATT_ATTO_3DR        1
+
 #define BATT_MIN_VOLTAGE     9.0    // 3 cells @ 3.0 V
 #define BATT_MAX_VOLTAGE     25.2   // 6 cells @ 3.7 V
 #define BATT_T_MS            100
@@ -87,6 +91,7 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 #define RCVR_T_MS            20     // Update frequency of the receiver loop: 50 Hz
 #define INAV_T_MS            20     // Update frequency for the auto navigation system: 50 Hz
+#define COMP_T_MS            25000  // Save compass offsets
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Scheduler module
@@ -121,7 +126,8 @@
 #define PID_ARGS             6        // Nr of arguments for PID configuration
 #define PID_BUFFER_S         5
 
-#define COMP_ARGS            4        // Nr. of arguments for on-flight drift compensation
+#define GYRO_ARGS            2        // Nr. of arguments for on-flight drift compensation
+#define COMP_ARGS            5        // Nr. of arguments for compass offset compensation
 #define GPSP_ARGS            4        // Nr. of arguments for GPSPosition structure
 
 //////////////////////////////////////////////////////////////////////////////////////////

@@ -120,6 +120,15 @@ def make_command(p):
     else:
       send_command("CMP#", com)
 
+  # This section is about correcting the compass
+  if type == 'comp':
+    try:
+      com = "%d,%d,%.4f,%.4f,%.4f" % (p['t'], p['n'], p['x'], p['y'], p['z'])
+    except KeyError, ValueError:
+      logging.error("KeyError in make_command()")
+    else:
+      send_command("COMP#", com)
+      
   # With this section you may start the calibration of the gyro again
   if type == 'gyr':
     try:
@@ -180,7 +189,7 @@ def trnm_thr():                                                         # trnm_t
       continue
 
     try:
-      udp_msg, udp_client = udp_server.recvfrom(512)                      # Wait for UDP packet from ground station
+      udp_msg, udp_client = udp_server.recvfrom(512)                    # Wait for UDP packet from ground station
     except socket.timeout:
       logging.error("Write timeout on socket")                          # Log the problem
       continue

@@ -10,7 +10,7 @@
 class Parameters {
 public:
     // Version info
-    static const uint16_t k_format_version = 120;
+    static const uint16_t k_format_version = EEPROM_FORMAT_VS;
     
     enum {
         k_param_format_version = 0,
@@ -42,18 +42,6 @@ public:
 
     // Version info
     AP_Int16 format_version;
-
-    // PIDs
-    AC_PID PIT_RATE;
-    AC_PID ROL_RATE;
-    AC_PID PIT_STAB;
-    AC_PID ROL_STAB;
-    AC_PID YAW_RATE;      
-    AC_PID YAW_STAB;
-    AC_PID THR_RATE;
-    AC_PID THR_STAB;
-    AC_PID ACC_RATE;
-    AC_PID ACC_STAB;
 };
 
 extern const AP_Param::Info var_info[];
@@ -61,7 +49,7 @@ static Parameters g;
 
 #define GSCALAR(v, name, def) { g.v.vtype, name, Parameters::k_param_ ## v, &g.v, {def_value : def} }
 #define ASCALAR(v, name, def) { aparm.v.vtype, name, Parameters::k_param_ ## v, &aparm.v, {def_value : def} }
-#define GGROUP(v, name, class) { AP_PARAM_GROUP, name, Parameters::k_param_ ## v, &g.v, {group_info : class::var_info} }
+#define GGROUP(v, name, class) { AP_PARAM_GROUP, name, Parameters::k_param_ ## v, &g.v, { group_info: class::var_info } }
 #define GOBJECT(v, name, class) { AP_PARAM_GROUP, name, Parameters::k_param_ ## v, &v, {group_info : class::var_info} }
 #define GOBJECTN(v, pname, name, class) { AP_PARAM_GROUP, name, Parameters::k_param_ ## pname, &v, {group_info : class::var_info} }
 

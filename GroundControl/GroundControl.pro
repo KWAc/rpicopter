@@ -37,3 +37,11 @@ HEADERS  += mainwindow.h\
             container.h \
             gmaps.h \
             trimprofile.h
+
+linux:LIBS += -lsfml-window \
+
+win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../../../../SFML-2.1/lib/ -lsfml-window
+else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../../../../../SFML-2.1/lib/ -lsfml-window
+
+INCLUDEPATH += $$PWD/../../../../../SFML-2.1/include
+DEPENDPATH += $$PWD/../../../../../SFML-2.1/include

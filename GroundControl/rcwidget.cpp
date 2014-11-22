@@ -15,31 +15,32 @@ QRCWidget::QRCWidget(QUdpSocket *pSock, QSerialPort *pSerialPort, QWidget *paren
     m_pSerialPort = pSerialPort;
 
     this->setMinimumSize(480, 480);
-    setFocusPolicy(Qt::StrongFocus);
 
     m_bRadioEnabled = true;
     m_bAltitudeHold = false;
 
-    m_iUpdateTime = 20;
+    m_iUpdateTime = 5;
     m_fTimeConstRed = (float)m_iUpdateTime/150.f;
     m_fTimeConstEnh = (float)m_iUpdateTime/75.f;
 
     connect(&m_caliEventTimer, SIGNAL(timeout() ), this, SLOT(sl_customKeyPressHandler() ) );
-
+    connect(&m_keyEventTimer, SIGNAL(timeout() ), this, SLOT(sl_gamepadHandler() ) );
     connect(&m_keyEventTimer, SIGNAL(timeout() ), this, SLOT(sl_customKeyPressHandler() ) );
     connect(&m_keyEventTimer, SIGNAL(timeout() ), this, SLOT(sl_customKeyReleaseHandler() ) );
-    connect(&m_keyEventTimer, SIGNAL(timeout() ), this, SLOT(sl_sendRC2UDP() ) );
 
+    connect(&m_udpSendTimer, SIGNAL(timeout() ), this, SLOT(sl_sendRC2UDP() ) );
     connect(&m_trimTimer, SIGNAL(timeout() ), this, SLOT(sl_sendTrim2UDP() ) );
 }
 
 void QRCWidget::start() {
     m_trimTimer.start(500);
+    m_udpSendTimer.start(20);
     m_keyEventTimer.start(m_iUpdateTime);
 }
 
 void QRCWidget::stop() {
     m_trimTimer.stop();
+    m_udpSendTimer.stop();
     m_keyEventTimer.stop();
 }
 
@@ -135,13 +136,73 @@ void QRCWidget::sl_setAttitudeCorr(float fRoll, float fPitch) {
     sendJSON2UDP(m_DRIFT.str_makeWiFiCommand(), false);
 }
 
-void QRCWidget::sl_customKeyPressHandler() {
-    if(m_customKeyStatus[CUSTOM_KEY::mapCustomKeyIndex(Qt::Key_Backspace)] == true) {
+void QRCWidget::emitCTRLChanges() {
+    emit si_thrChanged(m_COM.THR);
+    emit si_rolChanged(m_COM.ROL);
+    emit si_pitChanged(m_COM.PIT);
+    emit si_yawChanged(m_COM.YAW);
+}
+
+
+void QRCWidget::sl_gamepadHandler() {
+    // Most important safety switch
+    if(!m_bDeviceArmed && m_bGamepadConnected) {
         m_COM.PIT = 0;
         m_COM.ROL = 0;
         m_COM.YAW = 0;
         m_COM.THR = m_RANGE.THR_MIN;
-        sendJSON2UDP(m_DRIFT.str_makeWiFiCommand(), false);
+
+        emitCTRLChanges();
+        return;
+    }
+
+    // Gamepad stats changed?
+    if(!m_bGamepadInUse) {
+        return;
+    }
+
+    m_COM.PIT = m_RANGE.PIT_MAX * m_fStickLY;
+    m_COM.ROL = m_RANGE.ROL_MAX * m_fStickLX;
+    m_COM.YAW = m_RANGE.YAW_MAX * -m_fStickRX;
+/*
+    float fYawR2 = m_RANGE.YAW_MAX * m_fStickR2;
+    float fYawL2 = m_RANGE.YAW_MAX * -m_fStickL2;
+
+    if(abs(fYawR2) && fYawR2 > m_COM.YAW) {
+        m_COM.YAW = fYawR2;
+    }
+    if(abs(fYawL2) && fYawL2 < m_COM.YAW) {
+        m_COM.YAW = fYawL2;
+    }
+*/
+    float fStickRY = -m_fStickRY;
+    if(fStickRY > 0) {
+        int iThrP = (m_RANGE.THR_80P - m_RANGE.THR_MIN) * fStickRY + m_RANGE.THR_MIN;
+        if(iThrP > m_COM.THR) {
+            m_COM.THR = iThrP;
+        }
+    }
+    if(fStickRY < 0) {
+        int iThrN = (m_RANGE.THR_80P - m_RANGE.THR_MIN) * (1 + fStickRY) + m_RANGE.THR_MIN;
+        if(iThrN < m_COM.THR) {
+            m_COM.THR = iThrN;
+        }
+    }
+
+    emitCTRLChanges();
+}
+
+void QRCWidget::sl_customKeyPressHandler() {
+    if( m_customKeyStatus[CUSTOM_KEY::mapCustomKeyIndex(Qt::Key_Backspace)] == true ||
+        (!m_bDeviceArmed && m_bGamepadConnected) )
+    {
+        m_COM.PIT = 0;
+        m_COM.ROL = 0;
+        m_COM.YAW = 0;
+        m_COM.THR = m_RANGE.THR_MIN;
+
+        emitCTRLChanges();
+        return;
     }
 
     // Inertial calibration
@@ -159,7 +220,7 @@ void QRCWidget::sl_customKeyPressHandler() {
         }
     }
 
-    if(m_customKeyStatus[Qt::Key_W] == true) {
+    if(m_customKeyStatus[Qt::Key_W] == true && !m_bGamepadInUse) {
         qDebug() << "W";
         if(m_COM.PIT > 0) {
             m_COM.PIT = 0;
@@ -169,7 +230,7 @@ void QRCWidget::sl_customKeyPressHandler() {
             m_COM.PIT += m_RANGE.PIT_MIN/10 * m_fTimeConstEnh;
         else m_COM.PIT = m_RANGE.PIT_MIN;
     }
-    if(m_customKeyStatus[Qt::Key_S] == true) {
+    if(m_customKeyStatus[Qt::Key_S] == true && !m_bGamepadInUse) {
         qDebug() << "S";
         if(m_COM.PIT < 0) {
             m_COM.PIT = 0;
@@ -180,7 +241,7 @@ void QRCWidget::sl_customKeyPressHandler() {
         else m_COM.PIT = m_RANGE.PIT_MAX;
     }
 
-    if(m_customKeyStatus[Qt::Key_A] == true) {
+    if(m_customKeyStatus[Qt::Key_A] == true && !m_bGamepadInUse) {
         qDebug() << "A";
         if(m_COM.ROL > 0) {
             m_COM.ROL = 0;
@@ -190,7 +251,7 @@ void QRCWidget::sl_customKeyPressHandler() {
             m_COM.ROL += m_RANGE.ROL_MIN/10 * m_fTimeConstEnh;
         else m_COM.ROL = m_RANGE.ROL_MIN;
     }
-    if(m_customKeyStatus[Qt::Key_D] == true) {
+    if(m_customKeyStatus[Qt::Key_D] == true && !m_bGamepadInUse) {
         //qDebug() << "D";
         if(m_COM.ROL < 0) {
             m_COM.ROL = 0;
@@ -201,7 +262,7 @@ void QRCWidget::sl_customKeyPressHandler() {
         else m_COM.ROL = m_RANGE.ROL_MAX;
     }
 
-    if(m_customKeyStatus[Qt::Key_Q] == true) {
+    if(m_customKeyStatus[Qt::Key_Q] == true && !m_bGamepadInUse) {
         //qDebug() << "Q";
         if(m_COM.YAW < 0) {
             m_COM.YAW = 0;
@@ -211,7 +272,7 @@ void QRCWidget::sl_customKeyPressHandler() {
             m_COM.YAW += m_RANGE.YAW_MAX/10 * m_fTimeConstEnh;
         else m_COM.YAW = m_RANGE.YAW_MAX;
     }
-    if(m_customKeyStatus[Qt::Key_E] == true) {
+    if(m_customKeyStatus[Qt::Key_E] == true && !m_bGamepadInUse) {
         //qDebug() << "E";
         if(m_COM.YAW > 0) {
             m_COM.YAW = 0;
@@ -270,7 +331,7 @@ void QRCWidget::sl_customKeyPressHandler() {
 
     float fStep = 1.35;
     float fAccelTime_ms = 50.f;
-    if(m_customKeyStatus[CUSTOM_KEY::mapCustomKeyIndex(Qt::Key_Up)] == true) {
+    if(m_customKeyStatus[CUSTOM_KEY::mapCustomKeyIndex(Qt::Key_Up)] == true && !m_bGamepadInUse) {
         m_tThrottleRed.restart();
         if(!m_bThrottleHold) {
             m_tThrottleEnh.restart();
@@ -283,7 +344,7 @@ void QRCWidget::sl_customKeyPressHandler() {
             m_COM.THR += fStep * m_fTimeConstEnh * (1.0 + fMod);
         else m_COM.THR = m_RANGE.THR_80P;
     }
-    if(m_customKeyStatus[CUSTOM_KEY::mapCustomKeyIndex(Qt::Key_Down)] == true) {
+    if(m_customKeyStatus[CUSTOM_KEY::mapCustomKeyIndex(Qt::Key_Down)] == true && !m_bGamepadInUse) {
         m_tThrottleEnh.restart();
         if(!m_bThrottleHold) {
             m_tThrottleRed.restart();
@@ -297,7 +358,7 @@ void QRCWidget::sl_customKeyPressHandler() {
         else m_COM.THR = m_RANGE.THR_MIN;
     }
 
-    update();
+    emitCTRLChanges();
 }
 
 void QRCWidget::sl_sendTrim2UDP() {
@@ -305,6 +366,10 @@ void QRCWidget::sl_sendTrim2UDP() {
 }
 
 void QRCWidget::sl_customKeyReleaseHandler() {
+    if(m_bGamepadInUse) {
+        return;
+    }
+
     if(!m_customKeyStatus[Qt::Key_W] && !m_customKeyStatus[Qt::Key_S]) {
         m_COM.PIT > 0 ? m_COM.PIT -= 1 * m_fTimeConstRed : m_COM.PIT += 1 * m_fTimeConstRed;
     }
@@ -330,8 +395,6 @@ void QRCWidget::sl_customKeyReleaseHandler() {
     if(!m_customKeyStatus[CUSTOM_KEY::mapCustomKeyIndex(Qt::Key_Down)] == true) {
         m_tThrottleRed.restart();
     }
-
-    update();
 }
 
 void QRCWidget::sendJSON2UDP(QString sCom, bool isCommand) {

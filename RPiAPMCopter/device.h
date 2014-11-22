@@ -32,7 +32,7 @@ protected:
   uint_fast32_t m_t32Inertial;      // For calculating the derivative of the angular changes
   uint_fast32_t m_t32InertialNav;
   uint_fast32_t m_t32Compass;
-
+    
   AC_PID *m_pPIDs;
   
 public /*objects*/: 
@@ -61,7 +61,7 @@ public /*functions*/:
   DeviceInit(const AP_HAL::HAL *, AP_InertialSensor *, Compass *, AP_Baro *, AP_GPS *, BattMonitor *, RangeFinder *, AP_AHRS_DCM *, AP_InertialNav *, AC_PID *);
 
   void         init_barometer();
-  void         init_compass();
+  void         init_compass();  
   void         init_inertial();
   void         init_gps();
   void         init_batterymon();

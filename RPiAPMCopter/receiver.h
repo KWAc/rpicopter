@@ -16,7 +16,6 @@ class Device;
 class Scheduler;
 class RC_Channel;
 
-#define _
 
 class Receiver : public AbsErrorDevice {
 private /*variables*/:
@@ -50,6 +49,7 @@ protected /*functions*/:
   bool    parse_bat_type  (char *);
   bool    parse_pid_conf  (char *);
   bool    parse_waypoint  (char *);
+  bool    parse_comp_offs (char *, int8_t &);
   
   bool    parse_cstr      (char *);             // Switch for all the different kind of commands to parse
   bool    parse_radio     (char *);             // Very compact to fit into 8 bytes, stop byte and checksum byte inclusive

@@ -167,7 +167,7 @@ void MainWindow::prepareWidgets() {
 
     m_pRCThrottle->setOrientation(Qt::Vertical);
     m_pRCThrottle->setMinimum(m_pRCWidget->m_RANGE.THR_MIN);
-    m_pRCThrottle->setMaximum(m_pRCWidget->m_RANGE.THR_80P);
+    m_pRCThrottle->setMaximum(m_pRCWidget->m_RANGE.THR_MAX);
     m_pRCThrottle->setTextVisible(true);
     //m_pRCThrottle->setTextDirection();
     
@@ -195,6 +195,9 @@ void MainWindow::connectWidgets() {
     connect(&m_plotTimer, SIGNAL(timeout() ), this, SLOT(sl_replotGraphs() ) );
     
     connect(m_pRCWidget, SIGNAL(si_send2Model(QString, QString) ), this, SLOT(sl_updateStatusBar(QString, QString) ) );
+
+    connect(m_pRCWidget, SIGNAL(si_thrChanged(int) ), m_pRCThrottle, SLOT(setValue(int) ) );
+
     connect(m_pRCWidget, SIGNAL(si_attitudeCorrChanged(float, float) ), m_pTrimProfiles, SLOT(sl_updateTrim(float, float) ) );
     
     connect(m_pMainTab, SIGNAL(currentChanged(int) ), this, SLOT(sl_changeTab(int) ) );
@@ -507,17 +510,8 @@ void MainWindow::sl_updateStatusBar() {
 void MainWindow::sl_updateStatusBar(QString str, QString type) {
     if(type.contains("command") ) {
       m_sStatBarRC = str;
-      
-      // Update the current throttle bar
       QByteArray line;
       line.append(m_sStatBarRC);
-
-      //qDebug() << "Parse JSON: " << line;
-      QJsonDocument JSONDoc = QJsonDocument::fromJson(line);
-      QVariantMap result = JSONDoc.toVariant().toMap();
-      int iThr = result["f"].toInt();
-      if(iThr < m_pRCThrottle->maximum() )
-        m_pRCThrottle->setValue(iThr);
     }
     else if(type.contains("option") ) {
       m_sStatBarOptions = str;

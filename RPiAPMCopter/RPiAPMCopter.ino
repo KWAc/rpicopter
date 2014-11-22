@@ -57,10 +57,12 @@ inline void load_settings();
 inline void rcvr_loop(int);
 inline void inav_loop(int);
 inline void batt_loop(int);
+inline void comp_loop(int); // compass loop for saving the offsets periodically
 
 Task taskRCVR(&rcvr_loop, 0, 1);
 Task taskINAV(&inav_loop, 0, 1);
 Task taskRBat(&batt_loop, 0, 1);
+Task taskCOMP(&comp_loop, 0, 1);
 
 
 // EEPROM
@@ -137,7 +139,7 @@ void load_settings() {
     uint32_t before = hal.scheduler->micros();
     // Load all auto-loaded EEPROM variables
     AP_Param::load_all();
-    hal.console->printf("load_all took %d us\n", hal.scheduler->micros() - before);
+    hal.console->printf("Load all settings took %d us\n", hal.scheduler->micros() - before);
   }
 }
 
@@ -150,6 +152,13 @@ void inav_loop(int) {
 // Receiver thread (remote control), which should be limited to 50 Hz
 void rcvr_loop(int) {
   _RECVR.try_any();
+}
+
+// save offsets if automatic offset learning is on
+void comp_loop(int) {
+  if(_HAL_BOARD.m_pComp->learn_offsets_enabled() ) {
+    _HAL_BOARD.m_pComp->save_offsets();
+  }
 }
 
 // Read the battery. 
@@ -165,6 +174,7 @@ void setup() {
   _SCHED_NAV.add_task(&taskRCVR, RCVR_T_MS);
   _SCHED_NAV.add_task(&taskINAV, INAV_T_MS);
   _SCHED_NAV.add_task(&taskRBat, BATT_T_MS);
+  _SCHED_NAV.add_task(&taskCOMP, COMP_T_MS);
   // .. and the sensor output functions
   _SCHED_OUT.add_task(&outAtti,  30);
   _SCHED_OUT.add_task(&outBaro,  500);
@@ -190,34 +200,37 @@ void setup() {
   }
   hal.rcout->set_freq(0xFF, 490);
 
-  hal.console->printf("%.1f%%: Init barometer\n", progress_f(2, 9) );
+  // Load settings from EEPROM
+  hal.console->printf("%.1f%%: Load settings from EEPROM\n", progress_f(2, 9) );
+  load_settings();
+  
+  // Init the barometer
+  hal.console->printf("%.1f%%: Init barometer\n", progress_f(3, 9) );
   _HAL_BOARD.init_barometer();
 
-  hal.console->printf("%.1f%%: Init inertial sensor\n", progress_f(3, 9) );
+  // Init the accelerometer and gyrometer
+  hal.console->printf("%.1f%%: Init inertial sensor\n", progress_f(4, 9) );
   _HAL_BOARD.init_inertial();
 
-  // Compass initializing
-  hal.console->printf("\n%.1f%%: Init compass: ", progress_f(4, 9) );
+  // Init the compass
+  hal.console->printf("%.1f%%: Init compass: ", progress_f(5, 9) );
   _HAL_BOARD.init_compass();
 
-  // GPS initializing
-  hal.console->printf("%.1f%%: Init GPS", progress_f(5, 9) );
+  // Init the GPS
+  hal.console->printf("%.1f%%: Init GPS", progress_f(6, 9) );
   //_HAL_BOARD.init_gps();
 
-  // battery monitor initializing
-  hal.console->printf("\n%.1f%%: Init battery monitor\n", progress_f(6, 9) );
+  // Init the battery monitor
+  hal.console->printf("\n%.1f%%: Init battery monitor\n", progress_f(7, 9) );
   _HAL_BOARD.init_batterymon();
 
-  // battery monitor initializing
-  hal.console->printf("%.1f%%: Init range finder\n", progress_f(7, 9) );
+  // Init the range finder
+  hal.console->printf("%.1f%%: Init range finder\n", progress_f(8, 9) );
   //_HAL_BOARD.init_rf();
 
-  hal.console->printf("%.1f%%: Init inertial navigation\n", progress_f(8, 9) );
+  // Init the inav system
+  hal.console->printf("%.1f%%: Init inertial navigation\n", progress_f(9, 9) );
   _HAL_BOARD.init_inertial_nav();
-  
-  // Load settings from EEPROM
-  hal.console->printf("%.1f%%: Load settings from EEPROM\n", progress_f(9, 9) );
-  load_settings();
 }
 
 void loop() {
